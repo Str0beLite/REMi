@@ -1,37 +1,36 @@
-# Hackathon Template
+# REMi
 
-Starter repo for fast hackathon builds with AI coding agents. Pick a stack, run the agent kit installer, and start shipping.
+**Agents that sleep on it.** REMi runs a team of AI agents on your own gaming PC, and each night it trains them on what they did that day.
 
-## Quick start
+Local agents never get better at your work: every lesson has to be stuffed back into the prompt, and it's forgotten anyway. REMi teaches them overnight with small LoRA adapters instead.
 
-1. Click **Use this template** on GitHub and create your repo, then clone it.
-2. Install the agent skill kit:
+## How it works
 
-   ```bash
-   ./install-agent-kit.sh --claude        # mixed team: every agent + the Claude Code layer
-   ./install-agent-kit.sh                 # no Claude Code users on the team
-   ```
+- **Every agent is a REMi.** You define as many as you like in YAML Agentfiles, each with its own purpose, channels, tools and adapter mix.
+- **Agents and humans chat in Slack-like channels** stored in SpacetimeDB, from a phone-friendly React web app.
+- **Agents build their own tools.** Any REMi can propose one, a human approves it from a dry-run card, and then every REMi can use it.
+- **Sleep REMi runs the nightly "REM sleep" cycle.** It reviews the day and decides whether to update memories or docs, or to train a LoRA. If it trains, it builds the dataset and spec, trains, judges the new adapter, and attaches it to the agents that need it.
+- **No monolithic model.** One base model (Nemotron 3 Nano 4B on vLLM) plus small, versioned LoRAs that each agent mixes with its own weights, hot-loaded live.
 
-   Optional extras: `--supabase` (when the app needs a DB), `--son-wtf` (teaching skill). Full details in [docs/agent-kit.md](docs/agent-kit.md).
-3. Commit the generated `.agents/`, `.claude/`, `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` so the whole team gets the same skills.
-4. Fill in [docs/idea.md](docs/idea.md), then let your agent grill you on it (`/grill-with-docs` in Claude Code).
-5. Scaffold the stack into `frontend/` and `backend/`.
+## Docs
+
+Start with these, in [`docs/`](docs/):
+
+| File | What's in it |
+|---|---|
+| [idea.md](docs/idea.md) | The problem, users and MVP scope |
+| [master-plan.md](docs/master-plan.md) | The build contract: architecture, data model, Agentfile, runtime, sleep cycle, build plan and demo flow |
+| [decisions.md](docs/decisions.md) | Log of stack and design choices |
+| [pitch.md](docs/pitch.md) | Demo script and judging notes |
+| [agent-kit.md](docs/agent-kit.md) | The AI coding-agent skill kit used to build this repo |
 
 ## Layout
 
 | Folder | What goes here |
 |---|---|
-| `frontend/` | The client app (web, mobile, whatever the hackathon needs) |
-| `backend/` | API, workers, DB schema and migrations |
-| `docs/` | Idea, decisions, pitch notes, and the agent kit docs |
-| `install-agent-kit.sh` | Installs the shared skill kit for Claude Code, Codex, Cursor, Copilot, Gemini and more |
+| `backend/module/` | SpacetimeDB TypeScript module (tables and reducers) |
+| `backend/runtime/` | Python agent runtime, sleep cycle, trainer and adapter mixer |
+| `backend/sandbox/` | Per-agent Docker sandbox |
+| `frontend/` | React + Vite web app |
 
-Stack is picked per hackathon, so `frontend/` and `backend/` start empty on purpose. Each has a README with suggested one-liners.
-
-## Hackathon checklist
-
-- [ ] Agent kit installed and committed
-- [ ] Idea + MVP scope written in `docs/idea.md`
-- [ ] Stack scaffolded, runs locally
-- [ ] Deployed somewhere with a public URL
-- [ ] Demo script in `docs/pitch.md`
+The build hasn't started yet, so these folders are still empty. See [master-plan.md §11](docs/master-plan.md) for the plan.
