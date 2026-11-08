@@ -40,6 +40,12 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+  const problemsRef = useRef<HTMLUListElement>(null);
+  const [tried, setTried] = useState(false);
+  const [showProblems, setShowProblems] = useState(0); // bumped on each blocked save, to move focus after render
+  useEffect(() => {
+    if (showProblems) problemsRef.current?.focus();
+  }, [showProblems]);
   const checked = useMemo(() => checkAgentfile(text), [text]);
   const af = checked.ok ? checked.value : undefined;
   const readOnly = !!readOnlyReason;
@@ -54,9 +60,21 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
   const registry = af ? af.tools.filter(t => t.startsWith('registry:') && t !== 'registry:*').map(t => t.slice(9)) : [];
   const toggle = (arr: string[], v: string, on: boolean) => (on ? [...arr, v] : arr.filter(x => x !== v));
 
+  const needsNode = mode === 'create' && nodeId === undefined;
+  const problems = [
+    ...(checked.ok ? [] : checked.errors),
+    ...(needsNode && tried ? ['Pick a node to run it on. No nodes yet? Run remi up on a GPU machine.'] : []),
+  ];
+
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!checked.ok || readOnly) return;
+    if (readOnly) return;
+    if (!checked.ok || needsNode) {
+      // Save stays enabled; pressing it with problems takes you to them.
+      setTried(true);
+      setShowProblems(n => n + 1);
+      return;
+    }
     setBusy(true);
     setServerError('');
     try {
@@ -217,9 +235,9 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
         </fieldset>
       )}
 
-      {!checked.ok && (
-        <ul className="editor-errors" role="alert">
-          {checked.errors.map(e => (
+      {problems.length > 0 && (
+        <ul className="editor-errors" ref={problemsRef} tabIndex={-1} aria-label="Problems to fix before saving">
+          {problems.map(e => (
             <li key={e}>{e}</li>
           ))}
         </ul>
@@ -250,7 +268,7 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
             Cancel
           </button>
         )}
-        <button type="submit" className="btn-primary" disabled={busy || readOnly || !checked.ok || (mode === 'create' && nodeId === undefined)}>
+        <button type="submit" className="btn-primary" disabled={busy || readOnly}>
           {busy ? 'Saving…' : mode === 'create' ? 'Create agent' : 'Save Agentfile'}
         </button>
       </div>
