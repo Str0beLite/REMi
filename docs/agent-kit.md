@@ -6,8 +6,8 @@ One script that drops the kit into any repo, for any coding agent.
 # Mixed team (recommended): every agent + the Claude Code layer
 ./install-agent-kit.sh path/to/repo --claude
 
-# Optional extras
-./install-agent-kit.sh path/to/repo --claude --supabase --son-wtf
+# Skip the son-wtf teaching skill (on by default)
+./install-agent-kit.sh path/to/repo --claude --no-son-wtf
 
 # Agents that don't read .agents/skills (Kiro, Qoder, Trae, Rovo Dev...)
 ./install-agent-kit.sh path/to/repo --claude --copy-to .kiro/skills
@@ -24,9 +24,9 @@ Other flags: `--latest` (use each repo's newest commit instead of the pinned one
 | `GEMINI.md` | `@./AGENTS.md` import, because Gemini CLI reads GEMINI.md by default |
 | `.claude/skills/` | `--claude` only. Same skills, with the Claude build of Impeccable |
 | `CLAUDE.md` | `--claude` only. `@AGENTS.md` import + Claude slash-command notes |
-| `.claude/settings.json` | `--claude` only. Impeccable design-detector hooks, merged into any existing settings |
+| `.claude/settings.json` | `--claude` only. Impeccable design-detector hooks and the Ponytail plugin (marketplace + enabled), merged into any existing settings |
 
-Skills (all pinned to commits checked on 2026-10-23): grill-with-docs + grilling + domain-modeling (mattpocock/skills; grill-with-docs calls domain-modeling to write the glossary and ADRs, so it needs it), ponytail (DietrichGebert/ponytail), impeccable (pbakaus/impeccable), gsap-react + gsap-scrolltrigger (greensock/gsap-skills), webapp-testing (anthropics/skills), systematic-debugging + verification-before-completion (obra/superpowers), web-design-guidelines (vercel-labs/agent-skills). REMi stack (added 2026-11-07): typescript-server + typescript-client + concepts + cli (clockworklabs/SpacetimeDB, official), spacetimedb-http + spacetimedb-sql + spacetimedb-serialization (DanMossa/spacetimedb-skills, community), trl-training (huggingface/skills), react-best-practices (vercel-labs/agent-skills). Fetches are sparse and partial, so only the skill folders download. Optional: supabase + supabase-postgres-best-practices (supabase/agent-skills), son-wtf (ours, embedded in the script). Ours, from `kit/skills/` in this repo and always refreshed on install: lane (the `/lane <web|core|gpu>` build loop over GitHub issues) and lane-tasks (the task issue format and label setup).
+Skills (all pinned to commits checked on 2026-10-23): grill-with-docs + grilling + domain-modeling (mattpocock/skills; grill-with-docs calls domain-modeling to write the glossary and ADRs, so it needs it), ponytail (DietrichGebert/ponytail), impeccable (pbakaus/impeccable), gsap-react + gsap-scrolltrigger (greensock/gsap-skills), webapp-testing (anthropics/skills), systematic-debugging + verification-before-completion (obra/superpowers), web-design-guidelines (vercel-labs/agent-skills). REMi stack (added 2026-11-07): typescript-server + typescript-client + concepts + cli (clockworklabs/SpacetimeDB, official), spacetimedb-http + spacetimedb-sql + spacetimedb-serialization (DanMossa/spacetimedb-skills, community), trl-training (huggingface/skills), react-best-practices (vercel-labs/agent-skills). Fetches are sparse and partial, so only the skill folders download. Default on: son-wtf (ours, embedded in the script). Ours, from `kit/skills/` in this repo and always refreshed on install: lane (the `/lane <web|core|gpu>` build loop over GitHub issues) and lane-tasks (the task issue format and label setup).
 
 ## Which agents get what
 
@@ -52,10 +52,12 @@ Sources: Impeccable's harness table ([docs/HARNESSES.md](https://github.com/pbak
 - **Impeccable's design detector hooks** run checks after every UI edit plus a deeper pass when Claude stops, so the design review runs on its own and doesn't depend on the agent remembering to do it. Other agents can turn on their version with `.agents/skills/impeccable/scripts/impeccable hooks on`.
 - **Grilling asks through the `AskUserQuestion` dialog** (multiple choice, recommendation first) instead of plain-text rounds. Only the `.claude/skills` copy is patched; other agents keep the text format.
 - **CLAUDE.md imports AGENTS.md**, so the rules load even when the repo already has a CLAUDE.md.
+- **Full Ponytail plugin** (hooks, level tracking, `/ponytail-*` commands) via `extraKnownMarketplaces` + `enabledPlugins`. Claude Code offers to install it when a teammate trusts the repo. Its hooks need `node` on PATH. The plain `ponytail` skill stays in `.claude/skills` for anyone who declines.
 - `grill-with-docs` and `son-wtf` only run when called with a slash command. Claude, Cursor, Copilot and OpenCode honour this; Codex gets the same through each skill's `agents/openai.yaml`.
 
 ## Known gaps
 
 - Cursor, Copilot, OpenCode, Windsurf and Grok read **both** `.agents/skills` and `.claude/skills`, so with `--claude` they see each skill twice. Not tested which copy wins. Same names and same content (apart from Impeccable's paths), so it should be harmless.
-- Ponytail's own hooks (status line, level tracking) come only with the full plugin, so they're skipped here. The level is set through the rules text instead ("LITE level").
+- Ponytail's own hooks (status line, level tracking) come only with the full plugin, so non-Claude agents skip them. The level is set through the rules text instead ("LITE level").
+- The settings merge needs a working `python3`. Without one (e.g. macOS with no Xcode tools) the run still finishes, but warns that the Impeccable hooks and Ponytail plugin weren't added.
 - webapp-testing's scripts need python3 + playwright.

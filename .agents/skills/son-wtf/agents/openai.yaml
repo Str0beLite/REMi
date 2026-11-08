@@ -1,0 +1,5 @@
+interface:
+  display_name: "son-wtf"
+  short_description: "One-shot teaching mode"
+policy:
+  allow_implicit_invocation: false

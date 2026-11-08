@@ -6,27 +6,27 @@
 # Usage: ./install-agent-kit.sh [target-dir] [flags]
 #   target-dir        repo to install into (default: current dir)
 #   --claude          also add the Claude Code layer: .claude/skills (Claude build of
-#                     Impeccable), CLAUDE.md importing AGENTS.md, Impeccable design-detector hooks
+#                     Impeccable), CLAUDE.md importing AGENTS.md, Impeccable design-detector hooks,
+#                     and the full Ponytail plugin enabled in .claude/settings.json
 #   --copy-to DIR     also copy the skills into DIR, for agents that don't read .agents/skills
 #                     (e.g. .kiro/skills, .qoder/skills, .trae/skills, .rovodev/skills). Repeatable.
-#   --supabase        also install supabase + supabase-postgres-best-practices
-#   --son-wtf         also install the custom /son-wtf teaching skill
+#   --no-son-wtf      skip the custom /son-wtf teaching skill (installed by default)
 #   --latest          use each repo's default branch instead of the pinned commits
 #   --force           overwrite skill folders that already exist
 set -euo pipefail
 
 TARGET="."
-CLAUDE=0 SUPABASE=0 SONWTF=0 LATEST=0 FORCE=0
+CLAUDE=0 SONWTF=1 LATEST=0 FORCE=0
 COPY_TO=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --claude)   CLAUDE=1 ;;
     --copy-to)  [ -n "${2:-}" ] || { echo "--copy-to needs a dir" >&2; exit 1; }; COPY_TO+=("$2"); shift ;;
-    --supabase) SUPABASE=1 ;;
-    --son-wtf)  SONWTF=1 ;;
+    --son-wtf)  SONWTF=1 ;; # default now; kept so old commands still run
+    --no-son-wtf) SONWTF=0 ;;
     --latest)   LATEST=1 ;;
     --force)    FORCE=1 ;;
-    -h|--help)  sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help)  sed -n '2,15p' "$0"; exit 0 ;;
     -*)         echo "Unknown flag: $1" >&2; exit 1 ;;
     *)          TARGET="$1" ;;
   esac
@@ -55,15 +55,13 @@ SOURCES=(
   "DanMossa/spacetimedb-skills|3201062a753bb2e45707b3c1ad02aab0613061d6|skills/spacetimedb-http skills/spacetimedb-sql skills/spacetimedb-serialization"
   "huggingface/skills|25910b3d0ba31a2ba102f901cdc9e008c278a69c|skills/trl-training"
 )
-[ "$SUPABASE" = 1 ] && SOURCES+=(
-  "supabase/agent-skills|c9be0e931b7930f7d02126d04774d904c381e7d7|skills/supabase skills/supabase-postgres-best-practices"
-)
 IMPECCABLE="pbakaus/impeccable|2bb6563e570ffc266d1fccec24a778745c143e52"
 
 fetch_repo() { # repo sha dest paths...
   # Partial + sparse fetch: only the skill folders are downloaded, so big monorepos (SpacetimeDB) stay cheap.
   local url="https://github.com/$1.git" ref="$2" dest="$3"; shift 3
-  local p pats=(); for p in "$@"; do pats+=("/$p"); done
+  # No leading "/": Git Bash on Windows rewrites "/skills/x" into a Windows path. A slash mid-pattern anchors it anyway.
+  local p pats=(); for p in "$@"; do pats+=("$p"); done
   git init -q "$dest"
   git -C "$dest" sparse-checkout set --no-cone "${pats[@]}"
   if [ "$LATEST" = 1 ]; then ref=HEAD; fi
@@ -179,7 +177,7 @@ Don't narrate trivial reads or searches one by one. Batch them: "I looked throug
 
 ## Explaining well
 
-- **Plain language first, real term second.** "We're saving it in the database (the app's long-term memory, here that's Supabase)" beats either alone. The goal is that they learn the real words, not avoid them.
+- **Plain language first, real term second.** "We're saving it in the database (the app's long-term memory, here that's SpacetimeDB)" beats either alone. The goal is that they learn the real words, not avoid them.
 - **Define jargon** in one bold line the first time it shows up in this answer: **API**: a menu of requests one program lets another program make.
 - **One analogy max per concept**, and only if it actually fits.
 - **Explain the why, not just the what.** Decisions are the most valuable thing to teach: why this library, why this file structure, why we test this, why we didn't just do the obvious thing.
@@ -223,7 +221,7 @@ GRILL="$TARGET/.claude/skills/grilling/SKILL.md"
 if [ "$CLAUDE" = 1 ] && [ -f "$GRILL" ] && ! grep -q AskUserQuestion "$GRILL"; then
   python3 - "$GRILL" <<'PY' && echo "  patched .claude/skills/grilling (AskUserQuestion)" || echo "WARN: grilling layout changed; AskUserQuestion patch skipped."
 import sys
-p = sys.argv[1]; s = open(p).read()
+p = sys.argv[1]; s = open(p, encoding="utf-8").read()
 start = "Ask the whole frontier in one round: number each question"
 end = "Word each question so \"yes\" accepts your recommended answer.\n"
 i, j = s.find(start), s.find(end)
@@ -240,7 +238,7 @@ new = """Ask the whole frontier in one round, then wait for the user's answers b
 
 If the tool is unavailable or refused, fall back to plain text: number each question, give your recommended answer, and word it so "yes" accepts the recommendation.
 """
-open(p, "w").write(s[:i] + new + s[j + len(end):])
+open(p, "w", encoding="utf-8", newline="").write(s[:i] + new + s[j + len(end):])
 PY
 fi
 
@@ -262,14 +260,13 @@ write_block() {
 }
 
 EXTRA=""
-[ "$SUPABASE" = 1 ] && EXTRA+=$'\n'"- supabase + supabase-postgres-best-practices: use for any DB, auth or storage work."
 [ "$SONWTF" = 1 ]   && EXTRA+=$'\n'"- son-wtf: only when a user explicitly asks for it (\`/son-wtf\`); teaching mode for that one reply."
 write_block "$TARGET/AGENTS.md" "<!-- hackathon-kit:start -->
 ## Skill kit (.agents/skills)
 Core skills: grill-with-docs (uses grilling + domain-modeling), ponytail, impeccable, gsap-react, gsap-scrolltrigger, webapp-testing, systematic-debugging, web-design-guidelines, verification-before-completion.
 - Follow the ponytail skill at LITE level for the whole session.
 - Stack skills by lane: web → typescript-server, typescript-client, concepts, cli, react-best-practices; core → spacetimedb-http, spacetimedb-sql, spacetimedb-serialization; gpu → trl-training. Read the matching one before writing SpacetimeDB, React or training code.
-- Parallel build: work is GitHub issues labelled lane:web / lane:core / lane:gpu. Run one lane with the lane skill (\`/lane core\` etc.); write or edit task issues with the lane-tasks skill. A task is complete only when its PR merges. Never edit CONTRACT.md outside a lane:contract issue.
+- Parallel build: work is GitHub issues labelled lane:web / lane:core / lane:gpu. Run one lane with the lane skill (\`/lane core\` etc.); write or edit task issues with the lane-tasks skill. A task is complete only when its PR merges. Never edit CONTRACT.md outside a lane:contract issue.${EXTRA}
 
 Before calling the work done: review every UI file against the web-design-guidelines skill and fix what it finds, then follow verification-before-completion (fresh build + lint, read the exit codes).
 <!-- hackathon-kit:end -->"
@@ -287,27 +284,29 @@ if [ "$CLAUDE" = 1 ]; then
 Claude Code: skills live in .claude/skills. Use \`/ponytail lite\` at the start of a session; \`/grill-with-docs\`, \`/impeccable\` and \`/lane <web|core|gpu>\` are slash commands.
 <!-- hackathon-kit:end -->"
 
-  # Impeccable's design detector: per-edit checks + a deep pass on Stop. Shared, so every Claude user gets it.
+  # Shared .claude/settings.json, so every Claude user gets it:
+  # - Impeccable's design detector: per-edit checks + a deep pass on Stop.
+  # - The full Ponytail plugin (hooks, level tracking, /ponytail-* commands). Claude Code offers to
+  #   install it when someone trusts the repo. Its hooks need node on PATH.
   SETTINGS="$TARGET/.claude/settings.json"
-  if [ ! -f "$SETTINGS" ]; then
-    python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); s.pop("description",None); json.dump(s,open(sys.argv[2],"w"),indent=2)' \
-      "$TMP/impeccable/.claude/settings.json" "$SETTINGS" 2>/dev/null \
-      || grep -v '"description"' "$TMP/impeccable/.claude/settings.json" >"$SETTINGS"
-    echo "settings.json: Impeccable hooks added"
-  elif command -v python3 >/dev/null; then
-    python3 - "$TMP/impeccable/.claude/settings.json" "$SETTINGS" <<'PY'
+  [ -f "$SETTINGS" ] || echo '{}' >"$SETTINGS"
+  # Warn instead of abort: macOS without Xcode tools only has a python3 stub, and set -e used to kill the run here.
+  if python3 - "$TMP/impeccable/.claude/settings.json" "$SETTINGS" <<'PY'
 import json, sys
-src = json.load(open(sys.argv[1]))["hooks"]
-dst = json.load(open(sys.argv[2]))
+src = json.load(open(sys.argv[1], encoding="utf-8"))["hooks"]
+dst = json.load(open(sys.argv[2], encoding="utf-8"))
 hooks = dst.setdefault("hooks", {})
 for event, groups in src.items():
     have = json.dumps(hooks.get(event, []))
     hooks.setdefault(event, []).extend(g for g in groups if json.dumps(g["hooks"][0]["command"]) not in have)
-json.dump(dst, open(sys.argv[2], "w"), indent=2)
+dst.setdefault("extraKnownMarketplaces", {})["ponytail"] = {"source": {"source": "github", "repo": "DietrichGebert/ponytail"}}
+dst.setdefault("enabledPlugins", {})["ponytail@ponytail"] = True
+open(sys.argv[2], "w", encoding="utf-8", newline="").write(json.dumps(dst, indent=2) + "\n")
 PY
-    echo "settings.json: Impeccable hooks merged"
+  then
+    echo "settings.json: Impeccable hooks + Ponytail plugin merged"
   else
-    echo "WARN: .claude/settings.json exists and python3 is missing; Impeccable hooks not added."
+    echo "WARN: couldn't update .claude/settings.json (needs a working python3). Impeccable hooks and the Ponytail plugin were not added."
   fi
 fi
 
