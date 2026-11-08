@@ -26,7 +26,8 @@ export function authorOf(m: Message, users: readonly User[], agents: readonly Ag
   }
   if (m.authorKind === 'user') {
     const u = users.find(x => hexOf(x.identity) === m.authorId);
-    return { kind: 'user', name: u?.nickname ?? 'someone' };
+    // No user row: an admin removed them (remove_user), but their messages stay.
+    return { kind: 'user', name: u?.nickname ?? 'former member' };
   }
   return { kind: 'system', name: 'REMi' };
 }

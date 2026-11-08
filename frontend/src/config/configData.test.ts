@@ -1,5 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
+import { agoLabel, cronError, cronLabel, minutesError, nodeHealth, personActions } from './configData';
+
+describe('personActions', () => {
+  const none = { remove: false, makeAdmin: false, removeAdmin: false };
+  it('gives non-admin viewers nothing', () => {
+    expect(personActions('bob', false, 'me', 'own', false)).toEqual(none);
+  });
+  it('lets an admin remove and promote a plain user', () => {
+    expect(personActions('bob', false, 'me', 'own', true)).toEqual({ remove: true, makeAdmin: true, removeAdmin: false });
+  });
+  it('lets an admin remove and demote another admin', () => {
+    expect(personActions('bob', true, 'me', 'own', true)).toEqual({ remove: true, makeAdmin: false, removeAdmin: true });
+  });
+  it('never offers remove or demote on yourself or the owner', () => {
+    expect(personActions('me', true, 'me', 'own', true)).toEqual(none);
+    expect(personActions('own', true, 'me', 'own', true)).toEqual(none);
+  });
+});
 
 describe('cronError', () => {
   it.each(['0 3 * * *', '*/15 * * * *', '0 2-4 * * 1-5', '30 1,13 1 */2 0', '0 3 * * 7'])('accepts %s', e => {

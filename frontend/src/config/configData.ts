@@ -59,3 +59,14 @@ export function agoLabel(lastSeenMicros: bigint, nowMicros: bigint): string {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+
+// The admin buttons on a person's row in People (#95), mirroring remove_user / set_user_admin: anyone can be made
+// admin, but nobody removes or demotes themselves or the workspace owner. Identities are hex strings.
+export function personActions(person: string, personIsAdmin: boolean, me: string, owner: string, viewerIsAdmin: boolean) {
+  const protectedRow = !viewerIsAdmin || person === me || person === owner;
+  return {
+    remove: !protectedRow,
+    makeAdmin: viewerIsAdmin && !personIsAdmin,
+    removeAdmin: !protectedRow && personIsAdmin,
+  };
+}

@@ -59,6 +59,7 @@ import RegisterAdapterReducer from "./register_adapter_reducer";
 import RegisterDatasetReducer from "./register_dataset_reducer";
 import RegisterNodeReducer from "./register_node_reducer";
 import RemoveMcpServerReducer from "./remove_mcp_server_reducer";
+import RemoveUserReducer from "./remove_user_reducer";
 import RequestSleepReducer from "./request_sleep_reducer";
 import ReviewAgentReducer from "./review_agent_reducer";
 import ReviewToolReducer from "./review_tool_reducer";
@@ -73,6 +74,7 @@ import SetMcpServerReducer from "./set_mcp_server_reducer";
 import SetNicknameReducer from "./set_nickname_reducer";
 import SetNodeJoinCodeReducer from "./set_node_join_code_reducer";
 import SetSettingReducer from "./set_setting_reducer";
+import SetUserAdminReducer from "./set_user_admin_reducer";
 import StartAgentReducer from "./start_agent_reducer";
 import StopAgentReducer from "./stop_agent_reducer";
 import TodoAddReducer from "./todo_add_reducer";
@@ -403,6 +405,7 @@ const reducersSchema = __reducers(
   __reducerSchema("register_dataset", RegisterDatasetReducer),
   __reducerSchema("register_node", RegisterNodeReducer),
   __reducerSchema("remove_mcp_server", RemoveMcpServerReducer),
+  __reducerSchema("remove_user", RemoveUserReducer),
   __reducerSchema("request_sleep", RequestSleepReducer),
   __reducerSchema("review_agent", ReviewAgentReducer),
   __reducerSchema("review_tool", ReviewToolReducer),
@@ -417,6 +420,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_nickname", SetNicknameReducer),
   __reducerSchema("set_node_join_code", SetNodeJoinCodeReducer),
   __reducerSchema("set_setting", SetSettingReducer),
+  __reducerSchema("set_user_admin", SetUserAdminReducer),
   __reducerSchema("start_agent", StartAgentReducer),
   __reducerSchema("stop_agent", StopAgentReducer),
   __reducerSchema("todo_add", TodoAddReducer),
