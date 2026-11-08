@@ -1,5 +1,5 @@
 """LoRA SFT from a train spec (CONTRACT §10) with the pilot recipe: TRL SFTTrainer + PEFT, loss on assistant turns only,
-prompts rendered with the same chat template vLLM serves (thinking off). Needs `uv sync --extra gpu` (or `--extra cpu`).
+prompts rendered with the same chat template vLLM serves (thinking off, on for examples with reasoning). Needs `uv sync --extra gpu` (or `--extra cpu`).
 
     from remi.trainer.train import train
     path = train(spec, on_step=lambda step, loss: print(step, loss))   # -> store/adapters/<out>/<version>/
@@ -27,13 +27,17 @@ def select_targets(model, targets: str) -> list[str]:
 
 
 def examples(tok, messages: list[dict]) -> list[dict]:
-    """One prompt/completion pair per assistant turn, so every assistant turn gets loss and nothing else does."""
+    """One prompt/completion pair per assistant turn, so every assistant turn gets loss and nothing else does.
+    An example whose assistant turns carry `reasoning` renders thinking on, as /think does, so the loss covers the chain
+    of thought too (CONTRACT §10). The template reads `reasoning_content` and drops it from earlier turns, like vLLM."""
+    think = any("reasoning" in m for m in messages)
+    messages = [{**m, "reasoning_content": m["reasoning"]} if "reasoning" in m else m for m in messages]
     out = []
     for i, m in enumerate(messages):
         if m["role"] != "assistant":
             continue
-        prompt = tok.apply_chat_template(messages[:i], tokenize=False, add_generation_prompt=True, enable_thinking=False)
-        full = tok.apply_chat_template(messages[:i + 1], tokenize=False, enable_thinking=False)
+        prompt = tok.apply_chat_template(messages[:i], tokenize=False, add_generation_prompt=True, enable_thinking=think)
+        full = tok.apply_chat_template(messages[:i + 1], tokenize=False, enable_thinking=think)
         out.append({"prompt": prompt,
                     "completion": full[len(prompt):] if full.startswith(prompt) else m["content"] + tok.eos_token})
     return out

@@ -63,6 +63,23 @@ def test_examples_give_every_assistant_turn_its_own_loss(tmp_path):
     assert "<think>" not in ex[0]["prompt"].split("hi")[-1] or "</think>" in ex[0]["prompt"]  # thinking off
 
 
+
+def test_reasoning_renders_thinking_on_with_loss_on_the_trace(tmp_path):
+    """#61: the layout /think decodes (prompt ends in <think>), the trace and answer in the completion; earlier turns'
+    reasoning stays out of later prompts, as at inference."""
+    pytest.importorskip("trl")
+    from remi.trainer.train import examples
+    _, tok = tiny_nemotron(tmp_path)
+    msgs = [{"role": "user", "content": "2+2?"}, {"role": "assistant", "content": "4", "reasoning": "two and two"},
+            {"role": "user", "content": "and 3+3?"}, {"role": "assistant", "content": "6", "reasoning": "three twice"}]
+    ex = examples(tok, msgs)
+    think = tok.apply_chat_template(msgs[:1], tokenize=False, add_generation_prompt=True, enable_thinking=True)
+    assert ex[0]["prompt"] == think and ex[0]["prompt"].endswith("<think>\n")
+    assert ex[0]["completion"].startswith("two and two\n</think>\n4")
+    assert ex[1]["completion"].startswith("three twice\n</think>\n6") and "two and two" not in ex[1]["prompt"]
+    plain = examples(tok, [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "/sh uptime"}])
+    assert plain[0]["prompt"].endswith("<think></think>")  # no reasoning anywhere: thinking off, as before
+
 def test_train_two_steps_on_cpu(tmp_path):
     pytest.importorskip("trl")
     from remi.trainer.train import train
