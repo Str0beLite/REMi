@@ -7,6 +7,8 @@
   check-before-answer  any REMi with /sh: run a check, read it, answer with the numbers (curricula's tool-use families
                        plus new checks and wordings)
   concise-replies      any REMi: one or two plain sentences when no tool is needed
+  oncall-flux          oncall-remi: the incident drill's made-up fix (fluxctl status -> resync --phase 0 -> status ->
+                       report), a wrong flag recovered, resolved alerts, and other alerts handled normally
 
 Each has a `<name>-held` set with disjoint people, made-up REMis, nodes, files and wordings. Held rows end at one
 command with one right answer (code-writing only cuts where that holds: running a file, a sed fix, cat, ls), except
@@ -641,6 +643,84 @@ def q_tool(r, held):
 CONCISE = [q_short, q_short, q_short, q_greet, q_who, q_tool]
 
 
+# ----------------------------------------------------------------------------------------------- oncall-flux
+# The incident drill (remi.incidents.drill): an invented fix the base model can't know. Prompts are the on-call
+# fixture's own purpose (which never names fluxctl), and the alert is the user turn exactly as remi.loop.alert_line
+# renders it. Outputs are fluxctl's real ones (tests run the script).
+
+_OC = C.load_agentfile((cu.FIX / "oncall-remi.yaml").read_text(encoding="utf-8"))
+ONCALL: tuple[str, list[str]] = (_OC.purpose, list(_OC.tools))  # install() swaps in the live oncall-remi's
+RACKS = (["rack-7", "rack-1", "rack-2", "rack-3", "rack-4", "rack-5", "rack-8", "rack-9", "rack-12", "rack-a1",
+          "rack-b2", "rack-west"],
+         ["rack-21", "rack-22", "rack-23", "rack-31", "rack-40", "rack-east", "dc2-r4", "rack-c9"])
+FLUX_HOSTS = (NODES[0] + ["node-a"], NODES[1] + ["node-z"])
+FLUX_ALERT = ([("drill", "flux_desync", "flux capacitor desync on {k}: phase drift {d}° (threshold 2°)"),
+               ("drill", "flux_desync", "flux capacitor out of phase on {k}: drift {d}° (threshold 2°)"),
+               ("flux-watch", "phase", "{k} flux capacitor desynced: phase drift {d}°")],
+              [("drill", "flux_desync", "flux capacitor desync on {k}: phase drift {d}° (threshold 2°)"),
+               ("rack-monitor", "flux_phase", "phase drift {d}° on {k} flux capacitor (threshold 2°)")])
+FLUX_REPORT = ["Resynced {k}: drift {d}° → 0°. Resolved.", "Resynced {k}: drift {d}° → 0°. Resolved.",
+               "{k} was out of phase ({d}°). Resynced it; drift is 0° now. Resolved."]
+WRONG = ["/sh fluxctl resync {k}", "/sh fluxctl resync {k} --phase=0", "/sh fluxctl fix {k}", "/sh fluxctl sync {k}"]
+FLUX_USAGE = "usage: fluxctl status <rack> | fluxctl resync <rack> --phase 0"
+
+
+def _oncall(r, held, alert: str, family: str) -> RConv:
+    c = RConv(*ONCALL, "x", "", family)
+    c.m[1]["content"] = alert  # incidents arrive with no nick (loop._as_turn)
+    return c
+
+
+def _alert(sev: str, src: str, check: str, host: str, summary: str) -> str:
+    return loop.alert_line({"meta": json.dumps({"key": f"{src}:{check}", "severity": sev, "host": host}),
+                            "body": summary})
+
+
+def f_fix(r, held, wrong: bool = False):
+    k, d, h = r.choice(RACKS[held]), r.randint(3, 90), r.choice(FLUX_HOSTS[held])
+    src, check, summary = r.choice(FLUX_ALERT[held])
+    c = _oncall(r, held, _alert(r.choice(["critical", "critical", "warning"]), src, check, h,
+                                summary.format(k=k, d=d)), "flux-fix")
+    c.say(f"/sh fluxctl status {k}").got("sh", 0, f"{k}: phase drift {d}°, status DESYNC")
+    if wrong:
+        c.say(r.choice(WRONG).format(k=k), train=False).got("sh", 2, FLUX_USAGE)
+    c.say(f"/sh fluxctl resync {k} --phase 0").got("sh", 0, f"{k}: resynced, phase drift 0°, status OK")
+    c.say(f"/sh fluxctl status {k}").got("sh", 0, f"{k}: phase drift 0°, status OK")
+    return c.say(r.choice(FLUX_REPORT).format(k=k, d=d))
+
+
+def f_recover(r, held):
+    return f_fix(r, held, wrong=True)
+
+
+def f_resolved(r, held):
+    k, h = r.choice(RACKS[held]), r.choice(FLUX_HOSTS[held])
+    c = _oncall(r, held, _alert("resolved", "drill", "flux_desync", h, f"flux capacitor back in phase on {k}: drift 0°"),
+                "flux-resolved")
+    return c.say(f"{k} is back in phase; cleared.")
+
+
+def f_disk(r, held):
+    """Not a flux alert: check, then hand it to a human like any other."""
+    size, used, _avail, pct, out = cu._df(r)
+    h = r.choice(FLUX_HOSTS[held])
+    c = _oncall(r, held, _alert("warning", "disk-watch", "disk_usage", h, f"/ at {pct}%"), "other-alert")
+    c.say("/sh df -h /").got("sh", 0, out)
+    return c.say(f"Disk / on {h} is at {pct}% ({used} of {size} used). I can't free space safely myself; someone "
+                 f"should clear old files on {h}.")
+
+
+def f_memory(r, held):
+    total, used, avail, out = cu._free(r)
+    h = r.choice(FLUX_HOSTS[held])
+    c = _oncall(r, held, _alert("warning", "mem-watch", "memory", h, f"available memory low on {h}"), "other-alert")
+    c.say("/sh free -h").got("sh", 0, out)
+    return c.say(f"{h} has {avail} of {total} memory available ({used} used). Nothing to fix from here; watch it.")
+
+
+ONCALL_FLUX = [f_fix, f_fix, f_fix, f_fix, f_recover, f_recover, f_resolved, f_disk, f_memory]
+
+
 # -------------------------------------------------------------------------------------------------- output
 
 def cut(conv: Conv, r: random.Random) -> dict | None:
@@ -675,6 +755,7 @@ SETS = {  # name -> (families, train n, held n, held rows end in plain text)
     "code-writing": (CODE, 240, 80, False),
     "check-before-answer": (CHECK, 300, 100, False),
     "concise-replies": (CONCISE, 160, 60, True),
+    "oncall-flux": (ONCALL_FLUX, 200, 70, False),
 }
 DESCRIPTIONS = {
     "boss-delegation": "teaches routing tasks to the right REMi with /agents and /say, asking for status, summarizing "
@@ -686,6 +767,8 @@ DESCRIPTIONS = {
     "check-before-answer": "teaches running a /sh check, reading the output and answering with the numbers instead of "
                            "guessing (any REMi with /sh)",
     "concise-replies": "teaches short plain-text answers, one or two sentences, when no tool is needed (any REMi)",
+    "oncall-flux": "teaches fixing a flux capacitor desync alert with fluxctl status, resync --phase 0, a re-check and "
+                   "a one-line report, and handling other alerts normally (oncall-remi, the incident drill)",
 }
 DESCRIPTIONS |= {f"{k}-held": "held-out: " + v.split("teaches ", 1)[1] for k, v in list(DESCRIPTIONS.items())}
 
@@ -711,6 +794,9 @@ def install(seed: int = 0) -> dict[str, int]:
     for name in ROLES:
         if name in live:
             ROLES[name] = (live[name].purpose, list(live[name].tools))
+    global ONCALL
+    if "oncall-remi" in live:
+        ONCALL = (live["oncall-remi"].purpose, list(live["oncall-remi"].tools))
     cu.LIVE[:] = [ROLES[n] for n in ROLES]  # check-before-answer's curricula families also serve under these prompts
     store = C.REMI_STORE / "datasets"
     counts = write(store, seed)
