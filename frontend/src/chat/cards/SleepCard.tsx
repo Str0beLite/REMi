@@ -42,7 +42,7 @@ export function TrainingCard({ last, points, done, canStop }: TrainingProps) {
         </span>
         {canStop && !done && m.spec && (
           <button type="button" className="sleep-card-stop" onClick={onStop} disabled={stop === 'sending' || stop === 'sent'}>
-            {stop === 'sent' ? 'Stopping…' : 'Stop and keep'}
+            {stop === 'sent' ? 'Stopping…' : 'Stop training'}
           </button>
         )}
       </div>
