@@ -164,7 +164,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 
 ## 10. Datasets, train spec, store
 
-- Datasets: JSONL, one `{"messages": [{"role", "content"}, ...]}` per line, roles system/user/assistant, at least one assistant turn. Loss on assistant turns only.
+- Datasets: JSONL, one `{"messages": [{"role", "content"}, ...]}` per line, roles system/user/assistant, at least one assistant turn. Loss on assistant turns only. An assistant turn may carry `"reasoning": "<text>"` (a chain of thought). If any assistant turn in an example has it, the trainer renders that example with thinking on (`enable_thinking=True`, the template `/think` uses: `<think>\n<reasoning>\n</think>\n<content>`), with loss on reasoning and answer. Examples without it render thinking off, unchanged. Earlier turns' reasoning is dropped from the history, as the template does at inference.
 - Train spec: [contract/train_spec.schema.json](contract/train_spec.schema.json). Hard guardrails (rank ≤ 64, targets attn+mlp only, epochs ≤ 3, lr 1e-5–1e-3, ≥ 50 examples, `max_train_minutes`, one sleep per 6 h) are enforced by the runtime, never by the model.
 - Store layout on each node (`REMI_STORE`, default `backend/runtime/store/`): `datasets/<name>.jsonl`, `specs/<name>.json`, `adapters/<name>/<version>/` (PEFT dir), `mixes/<hash>/`.
 
