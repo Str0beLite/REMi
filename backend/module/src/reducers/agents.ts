@@ -1,10 +1,10 @@
 // Node and agent reducers: CONTRACT.md §4 register_node, heartbeat, create_agent, update_agentfile,
 // set_agent_status, stop_agent, rollback_agent.
-import { SenderError, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import { SenderError, t } from 'spacetimedb/server';
 import db, { AGENT_STATUSES, NODE_STATUSES } from '../contract';
-import { parseAgentfile, type Agentfile } from '../agentfile';
+import { parseAgentfile } from '../agentfile';
+import { insertAgent, logHistory, nameFree, syncChannels, type Ctx } from '../agentOps';
 
-type Ctx = ReducerCtx<InferSchema<typeof db>>;
 type AgentRow = NonNullable<ReturnType<Ctx['db']['agent']['id']['find']>>;
 
 const callerUser = (ctx: Ctx) => ctx.db.user.identity.find(ctx.sender);
@@ -29,37 +29,6 @@ function nodeOrThrow(ctx: Ctx, id: bigint) {
 
 function requireCallerNodeFor(ctx: Ctx, a: AgentRow) {
   if (callerNode(ctx)?.id !== a.node_id) throw new SenderError(`only agent ${a.id}'s node can do this`);
-}
-
-function nameFree(ctx: Ctx, name: string, selfId: bigint) {
-  const other = ctx.db.agent.name.find(name);
-  if (other && other.id !== selfId) throw new SenderError(`an agent named ${name} already exists`);
-}
-
-function logHistory(ctx: Ctx, agentId: bigint, agentfile: string) {
-  ctx.db.config_history.insert({ id: 0n, agent_id: agentId, agentfile, changed_by: ctx.sender.toHexString(), ts: ctx.timestamp });
-}
-
-// Public-channel memberships follow the Agentfile `channels` list; missing channels are created.
-// Thread and DM memberships are left alone.
-function syncChannels(ctx: Ctx, agentId: bigint, af: Agentfile) {
-  const memberId = agentId.toString();
-  const publicByName = new Map(
-    [...ctx.db.channel.iter()].filter(c => c.kind === 'public').map(c => [c.name, c] as const),
-  );
-  const wanted = new Set<bigint>();
-  for (const name of af.channels) {
-    const ch =
-      publicByName.get(name) ??
-      ctx.db.channel.insert({ id: 0n, name, kind: 'public', parent_id: 0n, created_by: ctx.sender, ts: ctx.timestamp });
-    wanted.add(ch.id);
-  }
-  const current = [...ctx.db.member.iter()].filter(m => m.member_kind === 'agent' && m.member_id === memberId);
-  for (const m of current) {
-    if (ctx.db.channel.id.find(m.channel_id)?.kind === 'public' && !wanted.has(m.channel_id)) ctx.db.member.id.delete(m.id);
-  }
-  const have = new Set(current.map(m => m.channel_id));
-  for (const id of wanted) if (!have.has(id)) ctx.db.member.insert({ id: 0n, channel_id: id, member_kind: 'agent', member_id: memberId });
 }
 
 function applyAgentfile(ctx: Ctx, a: AgentRow, text: string) {
@@ -95,11 +64,7 @@ export const heartbeat = db.reducer({ node_id: t.u64(), status: t.string() }, (c
 export const create_agent = db.reducer({ agentfile: t.string(), node_id: t.u64() }, (ctx, { agentfile, node_id }) => {
   if (!callerUser(ctx)) throw new SenderError('set a nickname first');
   nodeOrThrow(ctx, node_id);
-  const af = parseAgentfile(agentfile);
-  nameFree(ctx, af.name, 0n);
-  const a = ctx.db.agent.insert({ id: 0n, name: af.name, agentfile, status: 'idle', node_id, owner: ctx.sender, protected: false });
-  logHistory(ctx, a.id, agentfile);
-  syncChannels(ctx, a.id, af);
+  insertAgent(ctx, parseAgentfile(agentfile), agentfile, node_id, ctx.sender);
 });
 
 export const update_agentfile = db.reducer({ agent_id: t.u64(), agentfile: t.string() }, (ctx, { agent_id, agentfile }) => {

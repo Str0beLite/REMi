@@ -39,6 +39,20 @@ export const Agent = __t.object("Agent", {
 });
 export type Agent = __Infer<typeof Agent>;
 
+export const AgentProposal = __t.object("AgentProposal", {
+  id: __t.u64(),
+  agentfile: __t.string(),
+  nodeId: __t.u64(),
+  authorAgent: __t.u64(),
+  reason: __t.string(),
+  status: __t.string(),
+  reviewer: __t.option(__t.identity()),
+  reviewNote: __t.string(),
+  agentId: __t.u64(),
+  ts: __t.timestamp(),
+});
+export type AgentProposal = __Infer<typeof AgentProposal>;
+
 export const Channel = __t.object("Channel", {
   id: __t.u64(),
   name: __t.string(),

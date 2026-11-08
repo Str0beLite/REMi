@@ -43,11 +43,13 @@ import HeartbeatReducer from "./heartbeat_reducer";
 import JoinReducer from "./join_reducer";
 import LeaveReducer from "./leave_reducer";
 import PostMessageReducer from "./post_message_reducer";
+import ProposeAgentReducer from "./propose_agent_reducer";
 import ProposeToolReducer from "./propose_tool_reducer";
 import RegisterAdapterReducer from "./register_adapter_reducer";
 import RegisterDatasetReducer from "./register_dataset_reducer";
 import RegisterNodeReducer from "./register_node_reducer";
 import RequestSleepReducer from "./request_sleep_reducer";
+import ReviewAgentReducer from "./review_agent_reducer";
 import ReviewToolReducer from "./review_tool_reducer";
 import RollbackAgentReducer from "./rollback_agent_reducer";
 import RunEndReducer from "./run_end_reducer";
@@ -67,6 +69,7 @@ import UpdateAgentfileReducer from "./update_agentfile_reducer";
 // Import all table schema definitions
 import AdapterRow from "./adapter_table";
 import AgentRow from "./agent_table";
+import AgentProposalRow from "./agent_proposal_table";
 import ChannelRow from "./channel_table";
 import ConfigHistoryRow from "./config_history_table";
 import DatasetRow from "./dataset_table";
@@ -114,6 +117,17 @@ const tablesSchema = __schema({
       { name: 'agent_name_key', constraint: 'unique', columns: ['name'] },
     ],
   }, AgentRow),
+  agentProposal: __table({
+    name: 'agent_proposal',
+    indexes: [
+      { accessor: 'id', name: 'agent_proposal_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'agent_proposal_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, AgentProposalRow),
   channel: __table({
     name: 'channel',
     indexes: [
@@ -289,11 +303,13 @@ const reducersSchema = __reducers(
   __reducerSchema("join", JoinReducer),
   __reducerSchema("leave", LeaveReducer),
   __reducerSchema("post_message", PostMessageReducer),
+  __reducerSchema("propose_agent", ProposeAgentReducer),
   __reducerSchema("propose_tool", ProposeToolReducer),
   __reducerSchema("register_adapter", RegisterAdapterReducer),
   __reducerSchema("register_dataset", RegisterDatasetReducer),
   __reducerSchema("register_node", RegisterNodeReducer),
   __reducerSchema("request_sleep", RequestSleepReducer),
+  __reducerSchema("review_agent", ReviewAgentReducer),
   __reducerSchema("review_tool", ReviewToolReducer),
   __reducerSchema("rollback_agent", RollbackAgentReducer),
   __reducerSchema("run_end", RunEndReducer),
@@ -315,6 +331,8 @@ const proceduresSchema = __procedures(
 
 type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "tables"> & {
   tables: typeof tablesSchema.schemaType.tables & {
+    /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
+    readonly "agent_proposal": Omit<typeof tablesSchema.schemaType.tables["agentProposal"], "accessorName"> & { readonly accessorName: "agent_proposal" };
     /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
     readonly "config_history": Omit<typeof tablesSchema.schemaType.tables["configHistory"], "accessorName"> & { readonly accessorName: "config_history" };
   };
@@ -335,6 +353,7 @@ const REMOTE_MODULE = {
 >;
 
 const tableAccessorAliases = {
+  "agent_proposal": "agentProposal",
   "config_history": "configHistory",
 } as const;
 
@@ -356,12 +375,16 @@ function __withTableAccessorAliases<T extends object>(target: T, freeze = false)
 
 type __DbViewBase = __DbConnectionImpl<typeof REMOTE_MODULE>["db"];
 export type DbView = __DbViewBase & {
+  /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
+  readonly "agent_proposal": __DbViewBase["agentProposal"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __DbViewBase["configHistory"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
 export type Tables = __TablesBase & {
+  /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
+  readonly "agent_proposal": __TablesBase["agentProposal"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __TablesBase["configHistory"];
 };
