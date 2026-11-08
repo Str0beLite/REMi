@@ -1,3 +1,4 @@
+import json
 import shutil
 import subprocess
 import uuid
@@ -7,9 +8,69 @@ import pytest
 
 from remi.contract import TOOL_OUTPUT_CAP
 from remi.sandbox import TIMEOUT_EXIT, TRUNCATED, Sandbox, SandboxError, cap
+from remi import sandbox
 
 DOCKERFILE_DIR = Path(__file__).resolve().parents[2] / "sandbox"
 IMAGE = "remi-sandbox:test"
+
+
+@pytest.mark.parametrize("gpus", ["", "all", "device=0"])
+def test_gpu_creation_and_dry_runs(monkeypatch, gpus):
+    from remi.tools.registry import fresh_sandbox
+
+    monkeypatch.setenv("REMI_SANDBOX_GPUS", gpus)
+    calls = []
+
+    def docker(*args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, int(args[0] == "inspect"), "", "")
+
+    monkeypatch.setattr(sandbox, "_docker", docker)
+    Sandbox("helper").start()
+    run = calls[-1]
+    assert ("--gpus" in run) == bool(gpus)
+    if gpus:
+        assert run[run.index("--gpus") + 1] == gpus
+    fresh_sandbox().start()
+    assert "--gpus" not in calls[-1]
+
+
+@pytest.mark.parametrize("previous,current,running", [
+    (None, "", True), ("all", "all", False), (None, "all", True),
+    ("all", "", True), ("device=0", "all", False),
+])
+def test_gpu_setting_changes(monkeypatch, caplog, previous, current, running):
+    monkeypatch.setenv("REMI_SANDBOX_GPUS", current)
+    calls = []
+
+    def docker(*args, **kwargs):
+        calls.append(args)
+        labels = None if previous is None else {sandbox.GPU_LABEL: previous}
+        info = [{"Config": {"Labels": labels}, "State": {"Running": running}}]
+        return subprocess.CompletedProcess(args, 0, json.dumps(info), "")
+
+    monkeypatch.setattr(sandbox, "_docker", docker)
+    Sandbox("helper").start()
+    actions = [c[0] for c in calls]
+    if (previous or "") != current:
+        assert actions == ["inspect", "rm", "run"]
+        assert "resets /workspace" in caplog.text
+    else:
+        assert actions == (["inspect"] if running else ["inspect", "start"])
+
+
+@pytest.mark.parametrize("timeout", [False, True])
+def test_missing_gpu_runtime_is_clear(monkeypatch, timeout):
+    monkeypatch.setenv("REMI_SANDBOX_GPUS", "all")
+
+    def docker(*args, **kwargs):
+        if args[0] == "run" and timeout:
+            raise subprocess.TimeoutExpired("docker run", 120)
+        return subprocess.CompletedProcess(args, 1, "", "could not select device driver")
+
+    monkeypatch.setattr(sandbox, "_docker", docker)
+    with pytest.raises(SandboxError, match="NVIDIA Container Toolkit.*unset REMI_SANDBOX_GPUS"):
+        Sandbox("helper").start()
 
 
 def test_cap():

@@ -8,6 +8,9 @@ Build the image once: docker build -t remi-sandbox backend/sandbox
 """
 from __future__ import annotations
 
+import json
+import logging
+import os
 import re
 import subprocess
 import time
@@ -19,6 +22,8 @@ TRUNCATED = "…[truncated]"
 TIMEOUT_EXIT = 124  # what coreutils `timeout` returns
 AGENT_NAME = re.compile(r"^[a-z0-9-]{2,32}$")
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
+GPU_LABEL = "remi.sandbox.gpus"
+log = logging.getLogger(__name__)
 
 
 class SandboxError(RuntimeError):
@@ -38,23 +43,52 @@ def _docker(*args: str, input: str | None = None, timeout: float = 120) -> subpr
 
 
 class Sandbox:
-    def __init__(self, agent_name: str, image: str = IMAGE) -> None:
+    def __init__(self, agent_name: str, image: str = IMAGE, *, allow_gpus: bool = True) -> None:
         if not AGENT_NAME.match(agent_name):
             raise SandboxError(f"bad agent name {agent_name!r}")
         self.name = f"remi-{agent_name}"
         self.image = image
+        self.allow_gpus = allow_gpus
 
     def start(self) -> None:
         """Start the container if it isn't running (creating it on first use)."""
-        state = _docker("inspect", "-f", "{{.State.Running}}", self.name)
+        gpus = os.environ.get("REMI_SANDBOX_GPUS", "").strip() if self.allow_gpus else ""
+        state = _docker("inspect", self.name)
         if state.returncode == 0:
-            if state.stdout.strip() == "true":
+            info = json.loads(state.stdout)[0]
+            previous = (info["Config"].get("Labels") or {}).get(GPU_LABEL, "")
+            if previous != gpus:
+                log.warning("Recreating %s for GPU setting %r -> %r; this resets /workspace",
+                            self.name, previous, gpus)
+                removed = _docker("rm", "-f", self.name)
+                if removed.returncode != 0:
+                    raise SandboxError(f"can't recreate {self.name}: {removed.stderr.strip()}")
+            elif info["State"]["Running"]:
                 return
-            r = _docker("start", self.name)
-        else:
-            r = _docker("run", "-d", "--name", self.name, "--restart", "unless-stopped", self.image)
-        if r.returncode != 0:
-            raise SandboxError(f"can't start {self.name}: {r.stderr.strip()}")
+            else:
+                r = _docker("start", self.name)
+                self._check_start(r, gpus)
+                return
+        args = ["run", "-d", "--name", self.name, "--restart", "unless-stopped",
+                "--label", f"{GPU_LABEL}={gpus}"]
+        if gpus:
+            args.extend(["--gpus", gpus])
+        try:
+            r = _docker(*args, self.image)
+        except subprocess.TimeoutExpired:
+            raise SandboxError(self._start_error(gpus, "docker run timed out")) from None
+        self._check_start(r, gpus)
+
+    def _start_error(self, gpus: str, detail: str) -> str:
+        message = f"can't start {self.name}: {detail}"
+        if gpus:
+            message += ("; REMI_SANDBOX_GPUS requires an NVIDIA GPU and NVIDIA Container Toolkit "
+                        "configured for Docker; install/configure them or unset REMI_SANDBOX_GPUS")
+        return message
+
+    def _check_start(self, result: subprocess.CompletedProcess, gpus: str) -> None:
+        if result.returncode != 0:
+            raise SandboxError(self._start_error(gpus, result.stderr.strip()))
 
     def sh(self, cmd: str, timeout: int = SH_TIMEOUT_S) -> tuple[int, str, int]:
         """Run `cmd` with sh -c in the container. Returns (exit_code, output capped at 4 000 chars, ms)."""

@@ -25,7 +25,7 @@ def fresh_sandbox():
     """A new throwaway sandbox for one dry run. Tests replace this."""
     from remi.sandbox import Sandbox
 
-    return Sandbox(f"dry-{uuid.uuid4().hex[:12]}")
+    return Sandbox(f"dry-{uuid.uuid4().hex[:12]}", allow_gpus=False)
 
 
 def approved(db) -> dict[str, dict]:
