@@ -200,7 +200,7 @@ def test_sh_without_sandbox_module(ctx, monkeypatch):
 
 # -- registry fall-through -------------------------------------------------------------------------
 def test_unknown_names_without_registry(ctx, monkeypatch):
-    monkeypatch.delitem(sys.modules, "remi.tools.registry", raising=False)
+    monkeypatch.setitem(sys.modules, "remi.tools.registry", None)  # import now fails as if the file were missing
     assert dispatch(Command("word_count", "a b"), ctx) == \
         (127, "error: /word_count: the tool registry isn't available yet")
     assert dispatch(parse("/propose_tool adder\n```python\nprint(1)\n```"), ctx)[0] == 127
