@@ -32,6 +32,8 @@ TODO_STATUSES = ("open", "done")
 ADAPTER_STATUSES = ("candidate", "adopted", "rejected")
 TRIGGERS = ("mention", "dm", "every_message", "sleep_event")
 BUILTIN_TOOLS = ("sh", "fetch", "say", "note", "propose_tool")
+SLEEP_TOOLS = ("read", "todo", "memory", "dataset", "train_spec", "sleep", "adapter")  # Sleep REMi only (§7)
+RESERVED_TOOLS = BUILTIN_TOOLS + SLEEP_TOOLS  # no registry tool may take these names
 DEFAULT_CHANNELS = ("general", "ops")
 DEFAULT_SETTINGS = {"sleep_cron": "0 3 * * *", "max_train_minutes": "30", "last_sleep_ts": "0"}
 

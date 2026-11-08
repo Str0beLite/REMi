@@ -55,6 +55,13 @@
               "say",
               "note",
               "propose_tool",
+              "read",
+              "todo",
+              "memory",
+              "dataset",
+              "train_spec",
+              "sleep",
+              "adapter",
               "registry:*"
             ]
           },

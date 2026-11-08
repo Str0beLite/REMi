@@ -4,7 +4,7 @@ import Ajv2020 from 'ajv/dist/2020';
 import { parse } from 'yaml';
 import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils';
 import * as mod from '../src/index';
-import db, { TRIGGERS, BUILTIN_TOOLS } from '../src/contract';
+import db, { TRIGGERS, BUILTIN_TOOLS, SLEEP_TOOLS } from '../src/contract';
 
 const root = join(import.meta.dirname, '../../..');
 const schema = JSON.parse(readFileSync(join(root, 'contract/agentfile.schema.json'), 'utf8'));
@@ -23,7 +23,7 @@ describe('agentfile schema', () => {
   });
   it('matches the contract.ts constants', () => {
     expect(schema.properties.triggers.items.enum).toEqual([...TRIGGERS]);
-    expect(schema.properties.tools.items.anyOf[0].enum).toEqual([...BUILTIN_TOOLS, 'registry:*']);
+    expect(schema.properties.tools.items.anyOf[0].enum).toEqual([...BUILTIN_TOOLS, ...SLEEP_TOOLS, 'registry:*']);
   });
 });
 

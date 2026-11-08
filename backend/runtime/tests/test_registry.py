@@ -25,7 +25,7 @@ def _propose_tool(self, caller, name, code, docs, author_agent, dry_run):
     self.require_agent_node(caller, author_agent)
     if not TOOL_NAME.match(name):
         raise mock.SenderError("tool names are a-z, 0-9 and _, starting with a letter, 2-32 characters")
-    if name in C.BUILTIN_TOOLS:
+    if name in C.RESERVED_TOOLS:
         raise mock.SenderError(f"{name} is a built-in command")
     if not code.strip():
         raise mock.SenderError("tool code is empty")

@@ -15,7 +15,7 @@ import re
 from dataclasses import dataclass
 from typing import Callable
 
-from remi.contract import BUILTIN_TOOLS
+from remi.contract import RESERVED_TOOLS
 
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
 LINE = re.compile(r"^/([a-z][a-z0-9_]{1,31})(?:\s+(.*))?$")
@@ -59,7 +59,7 @@ def _say(name: str, args: str, rest: list[str]) -> Command:
 
 
 def _propose_tool(name: str, args: str, rest: list[str]) -> Command:
-    if not TOOL_NAME.match(args) or args in BUILTIN_TOOLS:
+    if not TOOL_NAME.match(args) or args in RESERVED_TOOLS:
         raise GrammarError(f"bad tool name {args!r}: [a-z][a-z0-9_]{{1,31}}, not a built-in")
     start = next((i for i, line in enumerate(rest) if FENCE_OPEN.match(line)), None)
     if start is None:

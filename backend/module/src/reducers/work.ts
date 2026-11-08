@@ -1,7 +1,7 @@
 // Tool registry, memory, todos, runs and settings: CONTRACT.md §4 propose_tool, review_tool,
 // add_memory, edit_memory, todo_add, todo_done, run_start, run_turn, run_end, set_setting.
 import { SenderError, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
-import db, { BUILTIN_TOOLS, RUN_STATES } from '../contract';
+import db, { RESERVED_TOOLS, RUN_STATES } from '../contract';
 
 type Ctx = ReducerCtx<InferSchema<typeof db>>;
 
@@ -44,7 +44,7 @@ export const propose_tool = db.reducer(
   (ctx, { name, code, docs, author_agent, dry_run }) => {
     requireAgentsNode(ctx, author_agent);
     if (!TOOL_NAME.test(name)) throw new SenderError('tool names are a-z, 0-9 and _, starting with a letter, 2-32 characters');
-    if ((BUILTIN_TOOLS as readonly string[]).includes(name)) throw new SenderError(`${name} is a built-in command`);
+    if ((RESERVED_TOOLS as readonly string[]).includes(name)) throw new SenderError(`${name} is a built-in command`);
     if (!code.trim()) throw new SenderError('tool code is empty');
     let parsed: unknown;
     try {

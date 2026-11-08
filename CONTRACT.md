@@ -90,7 +90,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
 | `channels` | string[] | public channel names, without `#` |
 | `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi) |
-| `tools` | string[] | built-ins (§7), `registry:<name>`, or `registry:*` |
+| `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, or `registry:*` |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
 
@@ -122,7 +122,21 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
 
-Sleep REMi's extra commands are in master-plan §8; their exact grammar is a `lane:gpu` issue.
+Sleep REMi only (each must be in the Agentfile's tools; #52):
+
+```
+/read <#channel> [--since <message id>] [--n <count>]       newest first, default 50, max 200
+/todo add <text> | /todo done <id> | /todo list
+/memory edit <agent> <memory id> <text>
+/dataset new <name> <description>
+/dataset add <name>                     followed by a ```jsonl fenced block, one {"messages":[...]} per line
+/dataset show <name> [--n <count>]      default 5
+/train_spec <name> base=<id> datasets=<a,b> rank=<n> lr=<x> epochs=<n> targets=<attn|mlp|attn+mlp> out=<adapter> desc="<text>"
+/sleep <spec-name>
+/adapter eval <name>@<v> <dataset>      exact match of each example's last assistant turn, candidate vs base, paired test
+/adapter adopt <name>@<v> --agents <a,b> --weight <w>
+/adapter reject <name>@<v> <reason>
+```
 
 ## 8. Runtime ↔ SpacetimeDB (HTTP)
 

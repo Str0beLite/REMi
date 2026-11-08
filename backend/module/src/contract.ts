@@ -23,6 +23,8 @@ export const TODO_STATUSES = ['open', 'done'] as const;
 export const ADAPTER_STATUSES = ['candidate', 'adopted', 'rejected'] as const;
 export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event'] as const;
 export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool'] as const;
+export const SLEEP_TOOLS = ['read', 'todo', 'memory', 'dataset', 'train_spec', 'sleep', 'adapter'] as const; // Sleep REMi only (§7)
+export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS] as const; // no registry tool may take these names
 export const DEFAULT_CHANNELS = ['general', 'ops'] as const;
 export const DEFAULT_SETTINGS: Record<string, string> = {
   sleep_cron: '0 3 * * *',

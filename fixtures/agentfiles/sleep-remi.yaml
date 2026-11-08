@@ -5,6 +5,6 @@ purpose: |
   check confirmed success, strip docs from prompts, and evaluate on held-out examples.
 channels: [general, ops]
 triggers: [mention, dm, sleep_event]
-tools: [say, note]
+tools: [say, note, read, todo, memory, dataset, train_spec, sleep, adapter]
 budget: {turns: 40, minutes: 60}
 adapters: []

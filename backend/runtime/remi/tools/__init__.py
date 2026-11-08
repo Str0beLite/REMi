@@ -10,26 +10,36 @@ from __future__ import annotations
 
 import importlib
 
+from remi import contract as C
 from remi.grammar import Command
 from remi.stdb import StdbError
 from remi.tools import builtin
 
 BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note}
+SLEEP_TOOLS = C.SLEEP_TOOLS
+
+
+def _optional(module: str):
+    try:
+        return importlib.import_module(module)
+    except ModuleNotFoundError as e:
+        if e.name != module:
+            raise  # it exists but is broken: don't hide that
+        return None
+
+
+# lane:gpu's Sleep REMi commands (#27). Imported now so its grammar parsers and docs register before any run.
+_sleep = _optional("remi.sleep.tools")
 
 
 def allowed(name: str, tools: tuple[str, ...]) -> bool:
-    if name in BUILTINS or name == "propose_tool":
+    if name in BUILTINS or name == "propose_tool" or name in SLEEP_TOOLS:
         return name in tools
     return "registry:*" in tools or f"registry:{name}" in tools
 
 
 def _registry():
-    try:
-        return importlib.import_module("remi.tools.registry")
-    except ModuleNotFoundError as e:
-        if e.name != "remi.tools.registry":
-            raise  # the registry exists but is broken: don't hide that
-        return None
+    return _optional("remi.tools.registry")
 
 
 def dispatch(cmd: Command, ctx) -> tuple[int, str]:
@@ -39,6 +49,10 @@ def dispatch(cmd: Command, ctx) -> tuple[int, str]:
     try:
         if cmd.name in BUILTINS:
             return BUILTINS[cmd.name](cmd, ctx)
+        if cmd.name in SLEEP_TOOLS:
+            if _sleep is None:
+                return 127, f"error: /{cmd.name}: Sleep REMi's commands aren't available yet"
+            return _sleep.run(cmd, ctx)
         registry = _registry()
         if registry is None:
             return 127, f"error: /{cmd.name}: the tool registry isn't available yet"
