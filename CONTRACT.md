@@ -133,11 +133,11 @@ Sleep REMi's extra commands are in master-plan §8; their exact grammar is a `la
 
 ## 9. Runtime ↔ vLLM
 
-- **One base model per node.** Each node serves exactly one base model, recorded in `node.base_model`; different nodes may run different bases (e.g. the PC on Nano 4B, a Brev box on a bigger model). An agent only ever uses adapters trained on its node's base: `attach_adapter` enforces it, and the runtime also filters before calling `model_name()`.
 - OpenAI-compatible server at `VLLM_URL` (default `http://127.0.0.1:8000`). Base model id `BASE_MODEL` = `nvidia/NVIDIA-Nemotron-3-Nano-4B` (exact HF id confirmed by `lane:gpu`), BF16, thinking off.
 - Chat: `POST /v1/chat/completions` with `model` = the base model id or a LoRA name.
 - LoRA names: a single adapter at weight 1.0 is `<name>@<version>`; any other mix is `mix-<hash>`, where hash = first 12 hex chars of sha256 of the mix as canonical JSON (weight-0 entries dropped, adapters sorted by name, then version; `{"name","version","weight"}` with weight rounded to 2 decimals). Implemented once in `remi.contract.model_name()`.
 - Load/unload: `POST /v1/load_lora_adapter {"lora_name", "lora_path"}`, `POST /v1/unload_lora_adapter {"lora_name"}` (needs `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True`).
+- **One base model per node.** Each node serves exactly one base model, recorded in `node.base_model`; different nodes may run different bases (e.g. the PC on Nano 4B, a Brev box on a bigger model). An agent only ever uses adapters trained on its node's base: `attach_adapter` enforces it, and the runtime also filters before calling `model_name()`.
 - `remi.serving` (lane:gpu) exposes one function the core loop calls: `model_for(adapters: list[AdapterRef]) -> str`, returning the model name to send (loading/merging as needed). Until it merges, core uses `BASE_MODEL`.
 
 ## 10. Datasets, train spec, store
