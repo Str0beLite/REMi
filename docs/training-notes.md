@@ -115,3 +115,20 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 **25. Training on someone else's short worked solutions makes the model think less, and get more wrong.**
 - Evidence (#61 lab, 2026-11-08, `experiments/cot_gsm8k.py`): `gsm8k-cot@1`, LoRA rank 16, lr 2e-4, 1 epoch on 400 GSM8K worked solutions as `reasoning` (100 steps, 98 s, loss 1.22 → 0.71). Then 100 GSM8K test questions with `/think` decoding (thinking on, temperature 0.6): base **90/100**, adapter **76/100**, −14 points, 95% CI [−24, −4], McNemar p = 0.009 → **NO-GO**. Mean trace length fell from 458 to 214 characters. The human-written steps are terser than the model's own reasoning, and the adapter copied that brevity. Raw numbers: `docs/results/cot-gsm8k.json`.
 - Rule: don't train `reasoning` on traces written in a different style than the model's own. Use traces the model (or a bigger model) wrote that a check confirmed: keep the length and style it reasons best in, and change only what it reasons about. Until a CoT adapter beats base on the paired test, `/think` stays on the base model or on adapters trained without `reasoning`.
+
+## Sleep REMi's own adapters (2026-11-08, `docs/results/README.md`)
+
+**26. A specialized LoRA on synthetic, exact-format data is a big win on unseen prompts.**
+- Evidence: `remi.trainer.curricula` builds multi-turn conversations in the loop's exact prompt format, with real tool outputs and recovered mistakes marked `"train": false`. The unseen sets share no names, paths, topics or people with training. `tooluse@1` (84 steps, 8.4 min): base 14/120 → **108/120**. `sleepops@1` (132 steps, 34 min): base 59/120 → **112/120**. Both STRONG GO, p < 1e-6.
+- Rule: build the curriculum from the runtime's own prompt and the tools' own outputs, and score on a set with disjoint names and wordings.
+
+**27. Specialist LoRAs interfere, and mixing at full weight costs both.**
+- Evidence: `tooluse@1` on Sleep REMi's prompts scored 29/120, below base (59). `tooluse@1 + sleepops@1` at weight 1 each: 91/120 on tool use (vs 108 alone) and 79/120 on Sleep REMi's job (vs 112). Live, Sleep REMi with both attached said it had "no messenger": tooluse's "I can't: I don't have /sh" lesson had used Sleep REMi's real prompt, so it learned "this prompt lacks its tools".
+- Rule: each REMi gets the adapter for its job. Never train a "lacks this tool" refusal on a real REMi's prompt. To combine skills, train one adapter on both datasets rather than mixing two at weight 1, and check the mix on every skill's unseen set before attaching it.
+
+**28. Near-zero training loss on templated data says nothing about generalizing.**
+- Evidence: both adapters ended below 0.001 loss. One of them (`tooluse@1`) still broke another REMi's job (27). Only the unseen and cross-skill scores showed it.
+- Rule: never adopt on training loss. Score the adapter's own unseen set, and the unseen sets of the other skills it will run alongside.
+
+**29. `/sleep` with 1 × 16 batches on ~2k-token prompts runs about 15 s/step on the 5070 Ti; check it fits `max_train_minutes`.**
+- Evidence: `sleepops` needed 132 steps × 15.5 s = 34 min. At the default 30-minute cap it would have been killed with nothing kept, so the cap went to 60. Batches of 4 of the same prompts spilled the 16 GB card into shared memory (116 s/step).
