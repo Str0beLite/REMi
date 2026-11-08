@@ -71,6 +71,8 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `update_agentfile` | agent_id: u64, agentfile: string | owner or admin; protected → admin only | validates, writes `config_history`, re-syncs channel membership |
 | `set_agent_status` | agent_id: u64, status: string | its node | |
 | `stop_agent` | agent_id: u64 | admin or owner | status stopped; ends its running `run` with state stopped |
+| `start_agent` | agent_id: u64 | admin or owner | stopped → idle, so its node runs it again (#79) |
+| `control_agent` | agent_id: u64, action: string, by_agent: u64 | the node of `by_agent`, whose Agentfile lists `agents` (#79) | action ∈ `stop`, `start`. Target must be unprotected (it may be `by_agent` itself). `stop` = `stop_agent`; `start` = `start_agent`. Posts a `system` message in `#ops`: `<by> stopped/started <agent>` |
 | `rollback_agent` | agent_id: u64, history_id: u64 | admin | restores that `config_history` Agentfile (and logs a new history row) |
 | `propose_tool` | name: string, code: string, docs: string, author_agent: u64, dry_run: string | node of that agent | new `tool`, version = last + 1, status pending; posts a `tool_card` message in the proposing channel is the runtime's job |
 | `review_tool` | key: string, approve: bool, note: string | admin | status approved/rejected, reviewer, review_note |
@@ -114,7 +116,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
 | `channels` | string[] | public channel names, without `#` |
 | `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi), `incident` (wakes on `incident` messages, any severity, in a channel the agent is a member of) |
-| `tools` | string[] | built-ins (§7, incl. `send` and `migrate`), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
+| `tools` | string[] | built-ins (§7, incl. `send`, `migrate` and `agents`), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
 | `look` | `{headgear: string, tint: string}` | optional. headgear ∈ `HEADGEAR` = none, nightcap, headset, hardhat, bow; tint = `#rrggbb`. Missing → `{headgear: "none", tint: <derived from name>}`. Read by the UI avatar; the runtime ignores it |
@@ -151,6 +153,8 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /mcp <server>/<tool> [<json object>]   a tool on a remote MCP server (streamable HTTP, `mcp_server_secret`); args default to {}. Needs mcp:<server>/<tool> or mcp:<server>/* in the Agentfile. Output = the result's text content joined, capped at 4 000 chars; isError → exit 1; 60 s timeout
 /send <path> @<agent> [-- <note>]    send a file from your sandbox to another REMi on any node (#77), max 50 MB. It lands in their sandbox at /shared/<file name> (an existing file of that name is replaced) and they're @mentioned in this channel, so they can sort it where it belongs
 /migrate <agent> <node>              move a REMi (yourself or another unprotected one, by name, `@` optional) to another node (#76): its Agentfile, LoRAs and memories go; its sandbox stays. Same base model only. Moving yourself ends this run once the move starts
+/agents [<node>]                     list REMis with their node, status and base model (default: every node) (#79)
+/agents stop <agent> | /agents start <agent>   take a REMi off or put it back on its node (unprotected ones only); stopping yourself ends this run
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
 
