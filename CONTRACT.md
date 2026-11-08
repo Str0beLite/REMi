@@ -189,7 +189,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 /adapter list                           one line per adapter: <name>@<v>: <status>[, used by <agent> x<weight>, ...]
 ```
 
-`/dataset fetch` keeps rows with `messages` (role/content), ShareGPT `conversations` (from/value), or a single-turn pair: the first non-empty string column of `instruction`|`question`|`prompt`|`input` as the user turn and of `response`|`answer`|`output`|`completion` as the assistant turn (#97); it skips and counts the rest, refuses an existing name, and registers the dataset with description `from <source>`. `/adapter eval` refuses a key with no `adapter` row and lists the real keys.
+`/dataset fetch` keeps rows with `messages` (role/content), ShareGPT `conversations` (from/value), or a single-turn pair: the first non-empty string column of `instruction`|`question`|`prompt`|`input` as the user turn and of `response`|`answer`|`output`|`completion` as the assistant turn (#97); it skips and counts the rest, refuses an existing name, and registers the dataset with description `from <source>`. `/adapter eval` refuses a key with no `adapter` row and lists the real keys. `/sleep` posts its `sleep_event`s and the `registered` `adapter_event` in the channel it ran in (Sleep REMi's `#nap-time`), and `/adapter eval|adopt|reject` post their `adapter_event` there too; a sleep started with no channel (the nightly schedule, `train_all`) posts in `#ops`.
 
 ## 8. Runtime ↔ SpacetimeDB (HTTP)
 

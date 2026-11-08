@@ -19,7 +19,7 @@ from remi.serving import launch
 MIN_EXAMPLES = 50
 SLEEP_EVERY_S = 6 * 3600
 ROLES = {"system", "user", "assistant"}
-POST_EVERY_S = 10  # loss updates in #ops at most this often
+POST_EVERY_S = 10  # loss updates at most this often
 
 
 class Refused(Exception):
@@ -142,14 +142,15 @@ def _sha256(path: Path) -> str:
 
 
 def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subprocess, now=time.time,
-        agent: dict | None = None) -> Path:
+        agent: dict | None = None, channel_id: int | None = None) -> Path:
     """node: remi.node.Node (registered). vllm: has stop()/start(). agent: the REMi that ran /sleep; its sleep_events
-    are posted as it so the Swarm rail can place the training band on its node (system when None).
+    are posted as it so the Swarm rail can place the training band on its node (system when None). channel_id: where
+    /sleep ran; its events go there (#ops when None: the nightly schedule, train_all).
     Wakes everyone even if training fails, then re-raises."""
     db = node.db
     settings = {r["key"]: r["value"] for r in db.sql("SELECT * FROM setting")}
     counts = check(spec, store=store, base_model=node.base_model, settings=settings, now=now())
-    ops = next(c["id"] for c in db.sql("SELECT * FROM channel") if c["name"] == "ops")
+    ops = channel_id or next(c["id"] for c in db.sql("SELECT * FROM channel") if c["name"] == "ops")
 
     author = ("agent", str(agent["id"])) if agent else ("system", "system")
 

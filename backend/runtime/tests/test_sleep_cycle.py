@@ -145,6 +145,14 @@ def test_sleep_events_post_as_the_sleeping_agent(tmp_path, monkeypatch):
     assert authors == {"sleep_event": {("agent", "1")}, "adapter_event": {("system", "system")}}
 
 
+def test_sleep_from_a_channel_posts_its_events_there(tmp_path):
+    """/sleep in #nap-time (here channel 1) keeps its training updates there; no channel falls back to #ops (2)."""
+    log, node = setup(tmp_path)
+    cycle.run(SPEC, node=node, vllm=FakeVllm(log), store=tmp_path, train=fake_train(log), now=lambda: NOW, channel_id=1)
+    posts = [c for c in log if c[0] == "post_message"]
+    assert {c[1] for c in posts} == {1} and {c[4] for c in posts} == {"sleep_event", "adapter_event"}
+
+
 def test_agents_left_asleep_by_a_killed_run_wake_up_idle(tmp_path):
     """Live: a training container was killed mid-sleep, so every REMi stayed asleep, and the next sleep restored that."""
     log, node = setup(tmp_path)

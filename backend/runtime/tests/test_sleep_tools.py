@@ -134,7 +134,9 @@ def test_train_spec_and_sleep_window(ctx, tmp_path, monkeypatch):
     # /sleep runs the cycle as the agent that asked, so its sleep_events land on that agent's node
     seen = {}
     monkeypatch.setattr(tools.cycle, "run", lambda spec, **kw: seen.update(kw) or tmp_path / "adapters/sre/1")
-    assert do(ctx, "/sleep sre-v5")[0] == 0 and seen["agent"] is ctx.agent
+    assert do(ctx, "/sleep sre-v5")[0] == 0 and seen["agent"] is ctx.agent and seen["channel_id"] == 2
+    ctx.channel_id = 1  # /sleep from #nap-time: the cycle posts its events there
+    assert do(ctx, "/sleep sre-v5")[0] == 0 and seen["channel_id"] == 1
 
 
 def test_errors_name_what_exists(ctx):
@@ -155,6 +157,10 @@ def test_adopt_never_reaches_sleep_remi_and_reject(ctx):
     assert do(ctx, "/adapter reject sre@3 overfits on disk questions") == (0, "sre@3 rejected")
     ev = [json.loads(c[6]) for c in ctx.db.calls if c[0] == "post_message"]
     assert {"key": "sre@3", "event": "rejected"} in ev and ev[0]["event"] == "attached"
+    assert {c[1] for c in ctx.db.calls if c[0] == "post_message"} == {2}  # the channel the command ran in
+    ctx.channel_id = 1
+    do(ctx, "/adapter reject sre@4 worse")
+    assert ctx.db.calls[-1][:2] == ("post_message", 1)
 
 
 def test_adapter_eval_scores_candidate_vs_base(ctx, tmp_path, monkeypatch):

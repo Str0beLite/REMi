@@ -114,8 +114,9 @@ def _names(folder: str, suffix: str) -> str:
     return ", ".join(found) or "none yet"
 
 
-def _post_ops(ctx, kind: str, body: str, meta: dict) -> None:
-    ctx.db.call("post_message", _channel_id(ctx.db, "ops"), "agent", str(ctx.agent["id"]), kind, body, json.dumps(meta))
+def _post_here(ctx, kind: str, body: str, meta: dict) -> None:
+    """Adapter cards go where the command ran (Sleep REMi's #nap-time), #ops when there's no channel."""
+    ctx.db.call("post_message", ctx.channel_id or _channel_id(ctx.db, "ops"), "agent", str(ctx.agent["id"]), kind, body, json.dumps(meta))
 
 
 # ----------------------------------------------------------------------------------------------- commands
@@ -331,7 +332,7 @@ def sleep(ctx, args: str) -> str:
                     "restart the runtime with REMI_SERVE=1")
     try:
         out = cycle.run(json.loads(path.read_text(encoding="utf-8")), node=_node, vllm=_vllm, store=_store(),
-                        agent=ctx.agent)
+                        agent=ctx.agent, channel_id=ctx.channel_id)
     except cycle.Refused as e:
         raise Usage(f"refused: {e}") from None
     return f"trained {out.parent.name}@{out.name}; it's a candidate. /adapter eval it before adopting."
@@ -374,13 +375,13 @@ def adapter(ctx, args: str) -> str:
         ctx.db.call("set_adapter_status", key, "adopted")
         for a in agents:  # the module refuses a protected agent (Sleep REMi itself): the judge is never the judged
             ctx.db.call("attach_adapter", a["id"], name, version, weight)
-            _post_ops(ctx, "adapter_event", f"{key} attached to {a['name']} at weight {weight:g}",
+            _post_here(ctx, "adapter_event", f"{key} attached to {a['name']} at weight {weight:g}",
                       {"key": key, "event": "attached", "agent_id": a["id"], "weight": weight})
         return f"{key} adopted and attached to {', '.join(a['name'] for a in agents)} at weight {weight:g}"
     if sub == "reject" and len(words) >= 2:
         key = "@".join(map(str, _key(words[0], ctx.db)))
         ctx.db.call("set_adapter_status", key, "rejected")
-        _post_ops(ctx, "adapter_event", f"{key} rejected: {' '.join(words[1:])}", {"key": key, "event": "rejected"})
+        _post_here(ctx, "adapter_event", f"{key} rejected: {' '.join(words[1:])}", {"key": key, "event": "rejected"})
         return f"{key} rejected"
     raise Usage(DOCS["adapter"])
 
@@ -406,7 +407,7 @@ def _eval(ctx, name: str, version: int, data: str) -> str:
             misses.append(f"  want {want[:80]!r}\n  got  {c[:80]!r}")
     r = paired(cand, base)
     key, v = f"{name}@{version}", verdict(r)
-    _post_ops(ctx, "adapter_event", f"{key} on {data}: {v}", {  # the card people read (CONTRACT §6 evaluated)
+    _post_here(ctx, "adapter_event", f"{key} on {data}: {v}", {  # the card people read (CONTRACT §6 evaluated)
         "key": key, "event": "evaluated", "dataset": data, "n": len(rows), "candidate": sum(cand.values()),
         "base": sum(base.values()), "diff": round(r["diff"], 1), "ci_lo": round(r["ci_lo"], 1),
         "ci_hi": round(r["ci_hi"], 1), "p": float(f"{r['p_mcnemar']:.3g}"), "verdict": v})
