@@ -35,6 +35,8 @@ VLLM_ALLOW_RUNTIME_LORA_UPDATING=True vllm serve nvidia/NVIDIA-Nemotron-3-Nano-4
 | `VLLM_ARGS` | | extra vLLM flags, appended as-is (a repeated flag overrides the default) |
 | `VLLM_URL`, `BASE_MODEL` | contract | port and model come from these |
 
+`remi.serving.model_for(adapters)` returns the model name for an Agentfile's mix (CONTRACT §9). It loads `name@v` as-is, merges any other mix into `store/mixes/<hash>/` (`remi.mixer.merge`, no base model needed) and hot-loads it. It evicts the least-recently-used LoRA past `REMI_MAX_LORAS`, and reads `/v1/models` on each call, so a vLLM restart can't leave it stale.
+
 Python helpers for tests and the sleep cycle: `command()`, `start(log)`, `wait_ready(proc)`, `stop(proc)`, `ready()`.
 
 ## Measured on the RTX 5070 Ti (16 GB, WSL2, vLLM 0.33.0, 2026-11-08)
