@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# remi install | up [--lan|--no-lan] | join <url>/<db> <code> | down | status | logs | doctor
-# Run a REMi workspace or node in Docker (docs/node-setup.md).
+# remi install | up | down | status | logs | doctor   — run REMi on this machine in Docker (docs/node-setup.md).
+# Every machine runs the same `up`; its console then asks whether to start a new cluster or join an existing one.
 # `up` installs what's missing first (Docker Engine, NVIDIA Container Toolkit), so a fresh WSL2/Linux box just works.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -78,7 +78,7 @@ open_windows_ports() {
   local nat=1 wslip ps win
   { [ "$(wslinfo --networking-mode 2>/dev/null)" = mirrored ] || desktop; } && nat=0
   wslip=$(hostname -I | awk '{print $1}')
-  [ "$(env_get REMI_LAN_DONE)" = "$nat:$wslip" ] && return 0
+  [ "$(env_get REMI_PORTS_OPENED)" = "$nat:$wslip" ] && return 0
   win=$(cmd.exe /c 'echo %TEMP%' 2>/dev/null | tr -d '\r')
   ps="$(wslpath "$win")/remi-lan.ps1"
   {
@@ -89,33 +89,26 @@ open_windows_ports() {
     [ $nat = 0 ] && echo "Remove-NetFirewallHyperVRule -Name REMi -ErrorAction SilentlyContinue" \
       && echo "New-NetFirewallHyperVRule -Name REMi -DisplayName 'REMi workspace' -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 3000,8080 -Action Allow -ErrorAction SilentlyContinue | Out-Null"
   } >"$ps"
-  say "opening ports 3000 and 8080 in Windows (it asks for admin once)"
+  say "opening ports 3000 and 8080 in Windows so other machines can reach this one (it asks for admin once)"
   powershell.exe -NoProfile -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','\"$win\\remi-lan.ps1\"'" \
     || die "couldn't open the ports in Windows: run PowerShell as admin and allow TCP 3000 and 8080 inbound"
-  env_set REMI_LAN_DONE "$nat:$wslip"
+  env_set REMI_PORTS_OPENED "$nat:$wslip"
 }
 
-# --lan (sticky in .env) opens this workspace to the network: Docker binds 0.0.0.0, Windows forwards and allows the
-# ports, and `workspace_url` is the address the Add a machine panel hands out when you're on localhost: REMI_WORKSPACE_HOST
-# if set (any name or IP the other machines reach this PC by), else this PC's default-route IP. The machines are
-# assumed to reach each other directly, however the network is built (LAN, VPN, ...).
-lan() {
+# Every workspace listens on the network (compose binds 0.0.0.0), so any machine can start a cluster or be joined.
+# Windows forwards and allows the ports. `workspace_url` is the address the Add a machine panel hands out when you're
+# on localhost: REMI_WORKSPACE_HOST if set (any name or IP the other machines reach this PC by), else this PC's
+# default-route IP. Machines are assumed to reach each other directly, however the network is built.
+network() {
   local ip
-  if [ "$(env_get REMI_LAN)" = 1 ]; then
-    ip=$(env_get REMI_WORKSPACE_HOST)
-    [ -n "$ip" ] || ip=$(lan_ip)
-    [ -n "$ip" ] || die "couldn't find this PC's network address; check the network connection, or set REMI_WORKSPACE_HOST in .env"
-    env_set REMI_BIND 0.0.0.0
-    open_windows_ports
-    WORKSPACE_URL="http://$ip:3000"
-  else
-    env_set REMI_BIND 127.0.0.1
-    WORKSPACE_URL=""
-  fi
+  ip=$(env_get REMI_WORKSPACE_HOST)
+  [ -n "$ip" ] || ip=$(lan_ip)
+  open_windows_ports
+  WORKSPACE_URL="${ip:+http://$ip:3000}"
 }
 
-need_token() {  # a local workspace gets its token from `up`'s publish; a joining machine mints its own and uses its code
-  local_db || grep -q '^STDB_TOKEN=.\+' .env || grep -q '^REMI_JOIN_CODE=.\+' .env \
+need_token() {  # the local workspace gets its token from `up`'s publish
+  local_db || grep -q '^STDB_TOKEN=.\+' .env \
     || die "set STDB_TOKEN in .env: an admin's spacetimedb_token for $(sed -n 's/^STDB_URL=//p' .env) (docs/node-setup.md)"
 }
 
@@ -168,42 +161,19 @@ doctor() {  # check only, changes nothing
   return $bad
 }
 
-# Point this machine at another workspace with the code from its console (Config > Add a machine): only the node runs
-# here, with its own identity. Checks the workspace before installing anything.
-join_setup() {
-  [[ "${1:-}" =~ ^(https?://[^/]+)/([A-Za-z0-9_-]+)/?$ ]] || die "usage: scripts/remi join http://<workspace-ip>:3000/<database> <code> (copy it from the console)"
-  local url="${BASH_REMATCH[1]}" db="${BASH_REMATCH[2]}" code="${2:-}"
-  [[ "$code" =~ ^[A-Za-z0-9_-]{16,64}$ ]] || die "that join code looks cut off: copy the whole command from Config > Add a machine"
-  command -v curl >/dev/null || { $SUDO apt-get install -y -qq curl 2>/dev/null || $SUDO dnf install -y -q curl; }
-  curl -fsS -m 5 "$url/v1/ping" >/dev/null 2>&1 \
-    || die "can't reach $url from here. On the workspace PC run scripts/remi up --lan, and check both PCs are on the same network."
-  [ "$(curl -s -m 5 -o /dev/null -w '%{http_code}' "$url/v1/database/$db/schema?version=9")" = 200 ] \
-    || die "$url has no workspace called $db: copy the command again from the console"
-  make_env
-  env_set COMPOSE_PROFILES ""
-  env_set STDB_URL "$url"
-  env_set STDB_DB "$db"
-  env_set STDB_TOKEN ""
-  env_set REMI_JOIN_CODE "$code"
-  say "joining $url/$db as $(env_get REMI_NODE_NAME)"
-}
-
-start() {  # build, fetch the model, publish if this machine hosts the workspace, start
+start() {  # build, fetch the model, publish this machine's workspace, start
   $D compose build \
              && say "downloading the model (once, ~8 GB; cached in the hf-cache volume)" \
              && $D compose run --rm --no-deps --entrypoint hf node download "$(sed -n 's/^BASE_MODEL=//p' .env | grep . || echo nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)" >/dev/null \
-             && { ! local_db || { lan && publish; }; } \
+             && { ! local_db || { network && publish; }; } \
              && $D compose up -d \
              && say "starting. vLLM takes 1-4 minutes to warm up: scripts/remi status" \
-             && { [ -z "${LINK:-}" ] || say "open the console as admin (one use): $LINK"; } \
-             && { [ -z "${WORKSPACE_URL:-}" ] || say "open to your network at $WORKSPACE_URL: add a PC from Config > Add a machine (console for other PCs: ${WORKSPACE_URL%:3000}:8080)"; }
+             && { [ -z "${LINK:-}" ] || say "open this link to start a new cluster here or join an existing one (one use): $LINK"; }
 }
 
 case "${1:-}" in
   install) install && say "ready: scripts/remi up" ;;
-  up)      case "${2:-}" in --lan) make_env; env_set REMI_LAN 1 ;; --no-lan) make_env; env_set REMI_LAN 0 ;; "") ;; *) die "unknown option ${2}: use --lan or --no-lan" ;; esac
-           install && start ;;
-  join)    join_setup "${2:-}" "${3:-}" && install && start && say "this machine shows up in the console under Nodes once vLLM is ready" ;;
+  up)      install && start ;;
   down)    pick_docker; $D compose down ;;
   status)  pick_docker; $D compose ps
            $D compose exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
@@ -211,5 +181,5 @@ case "${1:-}" in
            $D compose exec -T node sh -c 'tail -1 /store/vllm.log 2>/dev/null | cut -c1-160' 2>/dev/null ;;  # what vLLM is doing now
   logs)    pick_docker; $D compose logs -f --tail 100 node ;;
   doctor)  doctor ;;
-  *)       echo "usage: scripts/remi install | up [--lan|--no-lan] | join <url>/<db> <code> | down | status | logs | doctor" >&2; exit 2 ;;
+  *)       echo "usage: scripts/remi install | up | down | status | logs | doctor" >&2; exit 2 ;;
 esac

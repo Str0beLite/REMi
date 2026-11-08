@@ -34,3 +34,45 @@
   gap: var(--space-2);
   margin: var(--space-2) 0;
 }
+
+/* Onboarding: two choices in the welcome card (#83) */
+.nick-card.onboard {
+  width: min(460px, 100%);
+}
+.onboard-choices {
+  display: grid;
+  gap: var(--space-2);
+}
+.nick-card .onboard-choice {
+  margin: 0;
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3);
+  text-align: left;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+.nick-card .onboard-choice:hover {
+  border-color: var(--accent);
+}
+.onboard-choice b {
+  font-size: var(--text-md);
+}
+.onboard-choice span {
+  font-weight: 400;
+  color: var(--muted);
+}
+.onboard-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.onboard-steps {
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 4px;
+  color: var(--ink);
+}

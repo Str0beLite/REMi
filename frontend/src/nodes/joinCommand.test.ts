@@ -1,23 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { joinCommand, newJoinCode, workspaceUrl } from './joinCommand';
+import { clusterConsoleUrl, joinLink, readJoin } from './joinCommand';
 
-describe('workspaceUrl', () => {
-  it('uses the address the console was opened with, else (on localhost) the stored workspace_url, else nothing', () => {
-    expect(workspaceUrl('http://192.168.1.20:3000', 'ws://gpu-box:3000')).toBe('http://gpu-box:3000');
-    expect(workspaceUrl('', 'ws://192.168.1.20:3000')).toBe('http://192.168.1.20:3000');
-    expect(workspaceUrl('http://192.168.1.20:3000/', 'ws://localhost:3000')).toBe('http://192.168.1.20:3000');
-    expect(workspaceUrl('', 'ws://localhost:3000')).toBe('');
-    expect(workspaceUrl('', 'ws://127.0.0.1:3000')).toBe('');
+const page = (origin: string) => ({ origin, hostname: new URL(origin).hostname });
+
+describe('clusterConsoleUrl', () => {
+  it('uses the address the console was opened with, else (on localhost) workspace_url on the console port, else nothing', () => {
+    expect(clusterConsoleUrl('http://192.168.1.20:3000', page('http://gpu-box:8080'))).toBe('http://gpu-box:8080');
+    expect(clusterConsoleUrl('http://192.168.1.20:3000/', page('http://localhost:8080'))).toBe('http://192.168.1.20:8080');
+    expect(clusterConsoleUrl('', page('http://127.0.0.1:5173'))).toBe('');
   });
 });
 
-describe('joinCommand / newJoinCode', () => {
-  it('builds one command and codes the module accepts', () => {
-    expect(joinCommand('http://10.0.0.5:3000', 'remi', 'abc')).toBe(
-      'git clone https://github.com/Str0beLite/REMi && cd REMi && scripts/remi join http://10.0.0.5:3000/remi abc',
-    );
-    const a = newJoinCode();
-    expect(a).toMatch(/^[A-Za-z0-9_-]{24}$/);
-    expect(newJoinCode()).not.toBe(a);
+describe('joinLink / readJoin', () => {
+  it('round-trips the code', () => {
+    const link = joinLink('http://10.0.0.5:8080', 'remi', 'abc_DEF-0123456789xyz');
+    expect(link).toBe('http://10.0.0.5:8080/?join=abc_DEF-0123456789xyz&db=remi');
+    expect(readJoin(new URL(link).search)).toBe('abc_DEF-0123456789xyz');
+    expect(readJoin('?claim=x')).toBeUndefined();
   });
 });

@@ -4,7 +4,9 @@ import { reducers, tables } from './module_bindings';
 import { AppShell } from './shell/AppShell';
 import { ChannelRail } from './shell/ChannelRail';
 import { SwarmRail } from './swarm/SwarmRail';
-import { addMachineFocus } from './nodes/joinCommand';
+import { addMachineFocus, readJoin } from './nodes/joinCommand';
+import { JoinLinkHelp, Onboarding } from './nodes/Onboarding';
+import { clusterStatus } from './nodes/setupApi';
 import { equipmentOf } from './swarm/swarmData';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
@@ -14,7 +16,7 @@ import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
 import { readRoute, writeRoute, type PanelId, type Route } from './route';
 import { confirmLeave } from './unsaved';
-import { useAdminClaim } from './admin/claim';
+import { readClaim, useAdminClaim } from './admin/claim';
 import { ClaimNotice, GetStarted } from './onboarding/GetStarted';
 import { getStartedSteps } from './onboarding/steps';
 import './chat/chat.css';
@@ -93,6 +95,15 @@ export default function App() {
   const claim = useAdminClaim(!!meRow);
   const [claimSeen, setClaimSeen] = useState(false);
 
+  // Onboarding (#83): a machine that joined a cluster sends its own console to the cluster's. A fresh `remi up` link
+  // first asks whether to start a new cluster here or join one.
+  useEffect(() => {
+    void clusterStatus().then(c => c && location.replace(c));
+  }, []);
+  const [claimCode] = useState(() => readClaim(location.search));
+  const [joinCode] = useState(() => readJoin(location.search));
+  const [newCluster, setNewCluster] = useState(false);
+
   if (!identity || !usersReady) {
     return (
       <p className="app-status" role="status">
@@ -100,7 +111,11 @@ export default function App() {
       </p>
     );
   }
-  if (!meRow) return <NicknamePrompt workspace={STDB_DB} adminLink={claim.state === 'pending'} />;
+  if (joinCode) return <JoinLinkHelp />;
+  if (!meRow) {
+    if (claimCode && !newCluster) return <Onboarding claim={claimCode} onNewCluster={() => setNewCluster(true)} />;
+    return <NicknamePrompt workspace={STDB_DB} adminLink={claim.state === 'pending'} />;
+  }
 
   const general = publics.find(c => c.name === 'general') ?? publics[0];
   const active = channels.find(c => c.id === activeId) ?? general;

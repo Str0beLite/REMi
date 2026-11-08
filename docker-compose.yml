@@ -1,5 +1,6 @@
 # A REMi workspace: `scripts/remi up`. Settings come from .env (copy .env.example).
-# COMPOSE_PROFILES=local (the default) runs this machine's own SpacetimeDB + console; empty = join a remote STDB_URL.
+# COMPOSE_PROFILES=local (the default) runs this machine's own SpacetimeDB + console. Joining a cluster happens in the
+# console's onboarding (the node keeps it in /store/cluster.json), so every machine runs the same compose.
 name: remi  # stable volume names, whatever the checkout folder is called
 services:
   node:
@@ -32,7 +33,7 @@ services:
     restart: unless-stopped
     command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir", "/app/data",
               "--jwt-pub-key-path", "/app/id_ecdsa.pub", "--jwt-priv-key-path", "/app/id_ecdsa"]
-    ports: ["${REMI_BIND:-127.0.0.1}:3000:3000"]  # `remi up --lan` sets REMI_BIND=0.0.0.0 so other machines can join
+    ports: ["${REMI_BIND:-0.0.0.0}:3000:3000"]  # on the network, so other machines can join (REMI_BIND=127.0.0.1 keeps it local)
     volumes: [stdb:/app]
     healthcheck:
       test: ["CMD", "spacetime", "server", "ping", "http://localhost:3000"]
@@ -75,7 +76,7 @@ services:
     build: { context: ., dockerfile: frontend/Dockerfile }
     image: remi-console
     restart: unless-stopped
-    ports: ["${REMI_BIND:-127.0.0.1}:8080:80"]
+    ports: ["${REMI_BIND:-0.0.0.0}:8080:80"]
 
 volumes:
   store:

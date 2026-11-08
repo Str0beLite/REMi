@@ -1,6 +1,6 @@
 """`uv run python -m remi`: register this node, heartbeat, poll messages and wake agents.
 
-Env: STDB_URL, STDB_DB, STDB_TOKEN (or a minted token in REMI_STORE, registering with REMI_JOIN_CODE), REMI_NODE_NAME, REMI_GPU, BASE_MODEL,
+Env: STDB_URL, STDB_DB, STDB_TOKEN (or a minted token in REMI_STORE), REMI_NODE_NAME, REMI_GPU, BASE_MODEL, REMI_SETUP_PORT,
 REMI_STORE, REMI_INCIDENT_PORT (0 = no incident intake), and REMI_POLL_S / REMI_HEARTBEAT_S to override the §2 intervals (tests use small ones).
 """
 from __future__ import annotations
@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from remi import contract as C
+from remi import setup
 from remi.incidents import intake
 from remi.loop import Loop
 from remi.node import Node
@@ -58,13 +59,16 @@ def main() -> None:
     if vllm:  # this runtime owns vLLM, so /sleep can stop and restart it (compose does this in #29)
         vllm.start()
     sleep_tools.attach(node, vllm)
+    onboarding = setup.Setup(node.db, store)
+    if setup.serve(onboarding):
+        print(f"setup endpoint on :{setup.SETUP_PORT}", flush=True)
     if intake.serve(node.db, C.INCIDENT_PORT):
         print(f"incident intake on 127.0.0.1:{C.INCIDENT_PORT}", flush=True)
     scheduler = Scheduler(node)
     transfers = Transfers(node.db, node_id, store)
     next_beat = time.monotonic() + beat_s
     try:
-        while True:
+        while not onboarding.joined.is_set():
             poller.poll()
             sync_tools(node)
             scheduler.tick()
@@ -83,6 +87,9 @@ def main() -> None:
             vllm.stop()
         node.set_status("down")
         print(f"node {node.name} down", flush=True)
+    if onboarding.joined.is_set():  # joined a cluster from the console: start over, now registering there
+        print("joining the cluster: restarting the node", flush=True)
+        os.execv(sys.executable, [sys.executable, "-m", "remi"])
 
 
 if __name__ == "__main__":

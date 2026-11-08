@@ -1,4 +1,4 @@
-# Windows entry point: .\scripts\remi.ps1 up   (same commands and options as scripts/remi, e.g. join <url>/<db> <code>)
+# Windows entry point: .\scripts\remi.ps1 up   (same commands as scripts/remi)
 # Installs WSL2 + Ubuntu if missing (asks for admin), then runs scripts/remi inside WSL, which installs the rest.
 param([string]$Command = "up", [Parameter(ValueFromRemainingArguments)][string[]]$Rest = @())
 $ErrorActionPreference = "Stop"

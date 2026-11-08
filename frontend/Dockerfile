@@ -12,3 +12,4 @@ RUN VITE_STDB_URI=$VITE_STDB_URI VITE_STDB_DB=$VITE_STDB_DB npm run build
 
 FROM nginx:1.27-alpine
 COPY --from=build /repo/frontend/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf

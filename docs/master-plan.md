@@ -234,7 +234,7 @@ Agreed with Ryan, so it is in the docs only for now. The contract (`CONTRACT.md`
 
 **Adding a PC to the swarm.**
 - An admin sets a join code in the console (setting `node_join_code`; empty = joining is off).
-- On the new PC, `remi up` runs with `REMI_JOIN_CODE`, a node name, its GPU and its base model, and calls `register_node(name, gpu, base_model, join_code)`. Admins may register without a code.
+- On the new PC, `remi up` runs as on any machine; its console's onboarding takes the cluster's join link, and the node calls `register_node(name, gpu, base_model, join_code)` there with its own identity (#83). Admins may register without a code.
 - This settles the node half of the admin-bootstrap question (§14). The first-admin half is still open.
 
 **Pinning agents to a machine.**
