@@ -50,6 +50,7 @@ Sources: Impeccable's harness table ([docs/HARNESSES.md](https://github.com/pbak
 - **Claude Code doesn't read `.agents/skills`**, so without this flag Claude users get the rules but no skills.
 - **Claude build of Impeccable.** Its script paths point at `.claude/skills` and it shows up as `/impeccable` with argument hints.
 - **Impeccable's design detector hooks** run checks after every UI edit plus a deeper pass when Claude stops, so the design review runs on its own and doesn't depend on the agent remembering to do it. Other agents can turn on their version with `.agents/skills/impeccable/scripts/impeccable hooks on`.
+- **Grilling asks through the `AskUserQuestion` dialog** (multiple choice, recommendation first) instead of plain-text rounds. Only the `.claude/skills` copy is patched; other agents keep the text format.
 - **CLAUDE.md imports AGENTS.md**, so the rules load even when the repo already has a CLAUDE.md.
 - `grill-with-docs` and `son-wtf` only run when called with a slash command. Claude, Cursor, Copilot and OpenCode honour this; Codex gets the same through each skill's `agents/openai.yaml`.
 
