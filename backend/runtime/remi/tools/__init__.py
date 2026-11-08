@@ -13,7 +13,7 @@ import importlib
 from remi import contract as C
 from remi.grammar import Command
 from remi.stdb import StdbError
-from remi.tools import builtin, proposals  # proposals: registers the /propose_agent grammar
+from remi.tools import builtin, mcp, proposals  # proposals: registers the /propose_agent grammar
 
 BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note, "think": builtin.think}
 SLEEP_TOOLS = C.SLEEP_TOOLS
@@ -35,6 +35,8 @@ _sleep = _optional("remi.sleep.tools")
 def allowed(name: str, tools: tuple[str, ...]) -> bool:
     if name in BUILTINS or name in ("propose_tool", "propose_agent") or name in SLEEP_TOOLS:
         return name in tools
+    if name == "mcp":  # which server/tool is checked in mcp.run
+        return any(t.startswith("mcp:") for t in tools)
     return "registry:*" in tools or f"registry:{name}" in tools
 
 
@@ -45,11 +47,14 @@ def _registry():
 def dispatch(cmd: Command, ctx) -> tuple[int, str]:
     """Run one command for the agent in ctx. Returns (exit_code, output); errors come back as output."""
     if not allowed(cmd.name, ctx.agentfile.tools):
-        mine = ", ".join("/" + t.removeprefix("registry:") for t in ctx.agentfile.tools if t != "registry:*")
+        mine = ", ".join("/" + t.removeprefix("registry:").replace("mcp:", "mcp ", 1)
+                         for t in ctx.agentfile.tools if t != "registry:*")
         return 126, f"error: /{cmd.name} is not one of your tools. Your tools: {mine or 'none'}"
     try:
         if cmd.name in BUILTINS:
             return BUILTINS[cmd.name](cmd, ctx)
+        if cmd.name == "mcp":
+            return mcp.run(cmd, ctx)
         if cmd.name == "propose_agent":
             return proposals.propose(cmd, ctx)
         if cmd.name in SLEEP_TOOLS:

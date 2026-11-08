@@ -257,4 +257,5 @@ class Loop:
                     if t["name"] not in latest or t["version"] > latest[t["name"]]["version"]:
                         latest[t["name"]] = t
             docs += [f"/{n} {(t['docs'].strip().splitlines() or [''])[0]}" for n, t in sorted(latest.items())]
-        return docs
+        from remi.tools import mcp  # lazy: remi.tools imports remi.sleep.tools, which imports this module
+        return docs + mcp.docs(self.db, af.tools)
