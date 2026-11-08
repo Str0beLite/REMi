@@ -156,6 +156,19 @@ def test_dispatch_in_id_order_once(server, node, tmp_path):
     assert a < b and p.cursor == d and (tmp_path / "poller_cursor").read_text() == str(d)
 
 
+def test_cursor_from_another_database_is_pulled_back(server, node, tmp_path):
+    # The store volume outlived its database (a fresh `remi up`): a cursor past every message would skip them all.
+    add_agent(server, node, "helper")
+    old = post(server, "@helper before the restart")
+    (tmp_path / "poller_cursor").write_text("154")
+    rec = Recorder(server)
+    p = Poller(node.db, node.id, rec, tmp_path)
+    assert p.cursor == old  # back to the newest message, so old ones are not dispatched again
+    new = post(server, "@helper are you there?")
+    p.poll()
+    assert rec.started == [("helper", new)]
+
+
 def test_busy_agent_coalesces_to_newest(server, node, tmp_path):
     add_agent(server, node, "helper")
     rec = Recorder(server, busy={"helper"})

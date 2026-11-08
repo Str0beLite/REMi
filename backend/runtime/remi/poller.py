@@ -56,6 +56,11 @@ class Poller:
         self.db, self.node_id, self.start = db, node_id, start
         self.cursor_path = store / CURSOR_FILE
         self.cursor = int(self.cursor_path.read_text()) if self.cursor_path.exists() else 0
+        if self.cursor and not db.sql(f"SELECT * FROM message WHERE id > {self.cursor}"):
+            # Ids only grow, so a cursor past the newest message is from another database (the store volume
+            # outlived it): pull it back to the newest message so new ones wake and old ones aren't replayed.
+            # shortcut: one full message scan at startup; fine until message tables get large.
+            self.cursor = min(self.cursor, max((m["id"] for m in db.sql("SELECT * FROM message")), default=0))
         self.read_to = self.cursor
         self.pending: dict[tuple[int, int], dict] = {}  # (agent_id, channel_id) -> newest waking message
         self._triggers: dict[str, tuple[str, ...]] = {}  # agentfile text -> triggers
