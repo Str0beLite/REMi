@@ -61,6 +61,10 @@ def test_examples_give_every_assistant_turn_its_own_loss(tmp_path):
     ex = examples(tok, msgs)
     assert [("/sh uptime" in e["completion"], "/sh df -h /" in e["completion"]) for e in ex] == [(True, False), (False, True)]
     assert "<think>" not in ex[0]["prompt"].split("hi")[-1] or "</think>" in ex[0]["prompt"]  # thinking off
+    # a past mistake ("train": false) stays in the next prompt but gets no loss of its own
+    msgs[1] = {**msgs[1], "content": "/sh systemctl status redis", "train": False}
+    [only] = examples(tok, msgs)
+    assert "/sh systemctl status redis" in only["prompt"] and "/sh df -h /" in only["completion"]
 
 
 

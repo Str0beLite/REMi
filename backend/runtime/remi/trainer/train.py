@@ -31,10 +31,12 @@ def examples(tok, messages: list[dict]) -> list[dict]:
     An example whose assistant turns carry `reasoning` renders thinking on, as /think does, so the loss covers the chain
     of thought too (CONTRACT §10). The template reads `reasoning_content` and drops it from earlier turns, like vLLM."""
     think = any("reasoning" in m for m in messages)
-    messages = [{**m, "reasoning_content": m["reasoning"]} if "reasoning" in m else m for m in messages]
+    skip = {i for i, m in enumerate(messages) if m.get("train") is False}  # a past mistake: context only, no loss
+    messages = [{"role": m["role"], "content": m["content"], **({"reasoning_content": m["reasoning"]} if "reasoning" in m else {})}
+                for m in messages]
     out = []
     for i, m in enumerate(messages):
-        if m["role"] != "assistant":
+        if m["role"] != "assistant" or i in skip:
             continue
         prompt = tok.apply_chat_template(messages[:i], tokenize=False, add_generation_prompt=True, enable_thinking=think)
         full = tok.apply_chat_template(messages[:i + 1], tokenize=False, enable_thinking=think)

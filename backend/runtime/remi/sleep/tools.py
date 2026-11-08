@@ -22,12 +22,16 @@ DOCS = {
     "read": "/read <#channel> [--since <message id>] [--n <count>]: read a channel's history, newest first",
     "todo": "/todo add <text> | /todo done <id> | /todo list: your improvement list",
     "memory": "/memory edit <agent> <memory id> <text>: rewrite one of a REMi's notes",
-    "dataset": "/dataset new <name> <description> | /dataset add <name> then a ```jsonl block | /dataset show <name> [--n <count>]",
+    "dataset": "/dataset list | /dataset show <name> [--n <count>] | /dataset new <name> <description> | "
+               "/dataset add <name> then a ```jsonl block | /dataset fetch <name> hf:<owner>/<repo>[:<split>] [--n <count>]",
     "train_spec": '/train_spec <name> base=<id> datasets=<a,b> rank=<n> lr=<x> epochs=<n> targets=<attn+mlp> out=<adapter> desc="<text>"',
     "sleep": "/sleep <spec-name>: everyone sleeps while the adapter trains, then wakes on the old config",
-    "adapter": "/adapter eval <name>@<v> <dataset> | /adapter adopt <name>@<v> --agents <a,b> --weight <w> | /adapter reject <name>@<v> <reason>",
+    "adapter": "/adapter list | /adapter eval <name>@<v> <dataset> | /adapter adopt <name>@<v> --agents <a,b> --weight <w> | "
+               "/adapter reject <name>@<v> <reason>",
 }
 READ_DEFAULT, READ_MAX, SHOW_DEFAULT, EVAL_MAX = 50, 200, 5, 100
+FETCH_DEFAULT, FETCH_MAX = 200, 2000
+SHAREGPT_ROLES = {"system": "system", "human": "user", "user": "user", "gpt": "assistant", "assistant": "assistant"}
 FENCE_OPEN = re.compile(r"^\s*```\s*(jsonl|json)?\s*$", re.I)
 FENCE_CLOSE = re.compile(r"^\s*```\s*$")
 KEY = re.compile(r"^([a-z0-9-]{1,48})@(\d+)$")
@@ -160,10 +164,83 @@ def memory(ctx, args: str) -> str:
     return f"memory {mid} of {m[1]} updated"
 
 
+def _as_messages(row: dict) -> dict | None:
+    """A Hub/JSONL row as {"messages": [...]}: `messages` (role/content) or ShareGPT `conversations` (from/value).
+    None for anything else, including tool-role turns our grammar has no place for."""
+    if isinstance(row.get("messages"), list):
+        msgs = [{"role": m.get("role"), "content": m.get("content")} for m in row["messages"] if isinstance(m, dict)]
+    elif isinstance(row.get("conversations"), list):
+        msgs = [{"role": SHAREGPT_ROLES.get(m.get("from")), "content": m.get("value")}
+                for m in row["conversations"] if isinstance(m, dict)]
+    else:
+        return None
+    out = {"messages": msgs}
+    return None if cycle._bad_example(json.dumps(out)) else out
+
+
+def _source_rows(source: str):
+    """Raw rows from hf:<owner>/<repo>[:<split>] (streamed, nothing else is downloaded) or an https:// .jsonl URL."""
+    if source.startswith("hf:"):
+        from datasets import load_dataset  # the trainer's dependency; imported late so the runtime starts without it
+        repo, _, split = source[3:].partition(":")
+        if not re.fullmatch(r"[\w.-]+/[\w.-]+", repo):
+            raise Usage(f"expected hf:<owner>/<repo>[:<split>], got {source}")
+        try:
+            yield from load_dataset(repo, split=split or "train", streaming=True)
+        except Exception as e:  # noqa: BLE001 - not found, gated, no such split: tell the model
+            raise Usage(f"couldn't open {source}: {str(e).splitlines()[0][:200]}") from None
+        return
+    if not source.startswith("https://"):
+        raise Usage("the source is hf:<owner>/<repo>[:<split>] or an https:// URL to a .jsonl file")
+    import urllib.request
+    try:
+        with urllib.request.urlopen(source, timeout=60) as r:
+            for line in r:
+                if line.strip():
+                    try:
+                        yield json.loads(line)
+                    except ValueError:
+                        yield {}
+    except OSError as e:
+        raise Usage(f"couldn't download {source}: {e}") from None
+
+
 def dataset(ctx, args: str, block: str | None) -> str:
     sub, _, rest = args.partition(" ")
     words = rest.split()
     path = lambda name: _store() / "datasets" / f"{name}.jsonl"
+    if sub == "list" and not words:
+        desc = {d["name"]: d.get("description", "") for d in ctx.db.sql("SELECT * FROM dataset")}
+        files = sorted((_store() / "datasets").glob("*.jsonl"))
+        if not files:
+            return "no datasets yet; /dataset new or /dataset fetch one"
+        count = lambda p: sum(1 for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip())
+        return "\n".join(f"{p.stem}: {count(p)} examples, {desc.get(p.stem) or 'no description'}" for p in files)
+    if sub == "fetch":
+        words, o = _opts(words, n=FETCH_DEFAULT)
+        if len(words) != 2:
+            raise Usage("/dataset fetch <name> hf:<owner>/<repo>[:<split>] [--n <count>]")
+        name, source = words
+        if not re.fullmatch(r"[a-z0-9-]{1,48}", name):
+            raise Usage("dataset names are a-z, 0-9 and -, up to 48 characters")
+        if path(name).exists():
+            raise Usage(f"dataset {name} already exists; pick a new name")
+        want, kept, skipped = min(max(o["n"], 1), FETCH_MAX), [], 0
+        for row in _source_rows(source):
+            ex = _as_messages(row) if isinstance(row, dict) else None
+            if ex:
+                kept.append(ex)
+            else:
+                skipped += 1
+            if len(kept) >= want or skipped >= 5 * want:  # a source in some other shape: stop scanning early
+                break
+        if not kept:
+            raise Usage(f"no chat examples in {source} ({skipped} rows skipped): it needs `messages` or `conversations`")
+        path(name).parent.mkdir(parents=True, exist_ok=True)
+        path(name).write_text("".join(json.dumps(e) + "\n" for e in kept), encoding="utf-8")
+        ctx.db.call("register_dataset", name, ctx.agent["node_id"], len(kept), _sha256(path(name)), f"from {source}",
+                    str(ctx.agent["id"]))
+        return f"fetched {len(kept)} examples from {source} into {name}" + (f" ({skipped} rows skipped)" if skipped else "")
     if sub == "new" and len(words) >= 2:
         name = words[0]
         if not re.fullmatch(r"[a-z0-9-]{1,48}", name):
@@ -264,8 +341,22 @@ def _key(text: str, db=None) -> tuple[str, int]:
 def adapter(ctx, args: str) -> str:
     sub, _, rest = args.partition(" ")
     words = rest.split()
+    if sub == "list" and not words:
+        rows = sorted(ctx.db.sql("SELECT * FROM adapter"), key=lambda a: a["key"])
+        if not rows:
+            return "no adapters yet; train one with /train_spec and /sleep"
+        users: dict[str, list[str]] = {}
+        for a in ctx.db.sql("SELECT * FROM agent"):
+            for ref in C.load_agentfile(a["agentfile"]).adapters:
+                users.setdefault(f"{ref.name}@{ref.version}", []).append(f"{a['name']} x{ref.weight:g}")
+        return "\n".join(f"{a['key']}: {a['status']}" + (f", used by {', '.join(users[a['key']])}" if a["key"] in users else "")
+                         for a in rows)
     if sub == "eval" and len(words) == 2:
-        return _eval(ctx, *_key(words[0], ctx.db), words[1])
+        name, version = _key(words[0], ctx.db)
+        keys = [a["key"] for a in ctx.db.sql("SELECT * FROM adapter")]
+        if f"{name}@{version}" not in keys:
+            raise Usage(f"no adapter {name}@{version}; adapters: {', '.join(sorted(keys)) or 'none yet'}")
+        return _eval(ctx, name, version, words[1])
     if sub == "adopt":
         m = re.match(r"^(\S+)\s+--agents\s+(\S+)\s+--weight\s+([0-9.]+)$", rest.strip())
         if not m:
@@ -296,7 +387,8 @@ def _eval(ctx, name: str, version: int, data: str) -> str:
     if not path.exists():
         raise Usage(f"no dataset {data}; datasets: {_names('datasets', '.jsonl')}")
     rows = [json.loads(ln)["messages"] for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()][:EVAL_MAX]
-    rows = [m[:max(i for i, x in enumerate(m) if x["role"] == "assistant") + 1] for m in rows]
+    rows = [[{"role": x["role"], "content": x["content"]} for x in m[:max(i for i, x in enumerate(m) if x["role"] == "assistant") + 1]]
+            for m in rows]  # role/content only: "train"/"reasoning" are training keys, not chat API fields
     candidate = model_for([AdapterRef(name, version, 1.0)])
     base, cand, misses = {}, {}, []
     for i, msgs in enumerate(rows):

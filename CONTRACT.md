@@ -173,12 +173,17 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 /dataset new <name> <description>
 /dataset add <name>                     followed by a ```jsonl fenced block, one {"messages":[...]} per line
 /dataset show <name> [--n <count>]      default 5
+/dataset list                           one line per dataset: <name>: <n> examples, <description>
+/dataset fetch <name> <source> [--n <count>]   source hf:<owner>/<repo>[:<split>] or an https:// .jsonl URL; default 200, max 2000
 /train_spec <name> base=<id> datasets=<a,b> rank=<n> lr=<x> epochs=<n> targets=<attn|mlp|attn+mlp> out=<adapter> desc="<text>"
 /sleep <spec-name>
 /adapter eval <name>@<v> <dataset>      exact match of each example's last assistant turn, candidate vs base, paired test
 /adapter adopt <name>@<v> --agents <a,b> --weight <w>
 /adapter reject <name>@<v> <reason>
+/adapter list                           one line per adapter: <name>@<v>: <status>[, used by <agent> x<weight>, ...]
 ```
+
+`/dataset fetch` keeps rows with `messages` (role/content) or ShareGPT `conversations` (from/value), skips and counts the rest, refuses an existing name, and registers the dataset with description `from <source>`. `/adapter eval` refuses a key with no `adapter` row and lists the real keys.
 
 ## 8. Runtime ↔ SpacetimeDB (HTTP)
 
@@ -220,7 +225,7 @@ Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = of
 
 ## 10. Datasets, train spec, store
 
-- Datasets: JSONL, one `{"messages": [{"role", "content"}, ...]}` per line, roles system/user/assistant, at least one assistant turn. Loss on assistant turns only. An assistant turn may carry `"reasoning": "<text>"` (a chain of thought). If any assistant turn in an example has it, the trainer renders that example with thinking on (`enable_thinking=True`, the template `/think` uses: `<think>\n<reasoning>\n</think>\n<content>`), with loss on reasoning and answer. Examples without it render thinking off, unchanged. Earlier turns' reasoning is dropped from the history, as the template does at inference.
+- Datasets: JSONL, one `{"messages": [{"role", "content"}, ...]}` per line, roles system/user/assistant, at least one assistant turn. Loss on assistant turns only. An assistant turn may carry `"reasoning": "<text>"` (a chain of thought). If any assistant turn in an example has it, the trainer renders that example with thinking on (`enable_thinking=True`, the template `/think` uses: `<think>\n<reasoning>\n</think>\n<content>`), with loss on reasoning and answer. Examples without it render thinking off, unchanged. Earlier turns' reasoning is dropped from the history, as the template does at inference. An assistant turn may carry `"train": false`: it stays in the prompt of later turns but gets no loss (a past mistake that the next turn recovers from).
 - Train spec: [contract/train_spec.schema.json](contract/train_spec.schema.json). Hard guardrails (rank ≤ 64, targets attn+mlp only, epochs ≤ 3, lr 1e-5–1e-3, ≥ 50 examples, `max_train_minutes`, one sleep per 6 h) are enforced by the runtime, never by the model.
 - Store layout on each node (`REMI_STORE`, default `backend/runtime/store/`): `datasets/<name>.jsonl`, `specs/<name>.json`, `adapters/<name>/<version>/` (PEFT dir), `mixes/<hash>/`.
 

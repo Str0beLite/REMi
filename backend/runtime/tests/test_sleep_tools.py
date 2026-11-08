@@ -166,6 +166,9 @@ def test_adapter_eval_scores_candidate_vs_base(ctx, tmp_path, monkeypatch):
     import remi.serving
     monkeypatch.setattr(remi.serving, "model_for", lambda adapters: "sre@2")
     monkeypatch.setattr(remi.llm, "chat", lambda msgs, model: f"/sh a{msgs[-1]['content'][1:]}" if model == "sre@2" else "prose")
+    ctx.db.t["adapter"] = [{"key": "sre@2", "status": "candidate"}]
+    code, out = do(ctx, "/adapter eval sre@1 held-out")  # files may exist, but it was never registered (live: Sleep REMi judged it)
+    assert code == 2 and "no adapter sre@1; adapters: sre@2" in out
     code, out = do(ctx, "/adapter eval sre@2 held-out")
     assert code == 0 and "candidate 20, base 0" in out and "STRONG GO" in out
     [card] = [json.loads(c[6]) for c in ctx.db.calls if c[0] == "post_message" and c[4] == "adapter_event"]
@@ -202,3 +205,39 @@ def test_scheduler_posts_night_once_on_sleep_remis_node():
     db.t["agent"][0]["node_id"] = 9  # sleep-remi lives elsewhere: this node never posts
     clock[0] = datetime(2026, 11, 10, 3, 0).timestamp()
     assert s.tick() is False
+
+
+def test_dataset_list_and_adapter_list_show_what_exists(ctx, tmp_path):
+    assert "no datasets yet" in do(ctx, "/dataset list")[1]
+    do(ctx, "/dataset new homelab-fixes verified /sh checks")
+    (tmp_path / "datasets/held-out.jsonl").write_text(json.dumps(ROW) + "\n" + json.dumps(ROW) + "\n")
+    assert do(ctx, "/dataset list") == (0, "held-out: 2 examples, no description\nhomelab-fixes: 0 examples, verified /sh checks")
+    ctx.db.t["adapter"] = []
+    assert "no adapters yet" in do(ctx, "/adapter list")[1]
+    ctx.db.t["adapter"] = [{"key": "sre@2", "status": "adopted"}, {"key": "sre@3", "status": "candidate"}]
+    ctx.db.t["agent"][1]["agentfile"] = ("name: homelab\npurpose: x\nchannels: [general]\ntriggers: [mention]\ntools: [sh]\n"
+                                         "budget: {turns: 5, minutes: 5}\nadapters: [{name: sre, version: 2, weight: 0.8}]\n")
+    ctx.db.t["agent"][0]["agentfile"] = (C.REPO_ROOT / "fixtures/agentfiles/sleep-remi.yaml").read_text()
+    assert do(ctx, "/adapter list") == (0, "sre@2: adopted, used by homelab x0.8\nsre@3: candidate")
+
+
+def test_dataset_fetch_keeps_chat_rows_and_registers(ctx, tmp_path, monkeypatch):
+    rows = [{"conversations": [{"from": "human", "value": "hi"}, {"from": "gpt", "value": "/sh uptime"}]},
+            {"messages": [{"role": "user", "content": "q"}, {"role": "assistant", "content": "a"}]},
+            {"messages": [{"role": "user", "content": "q"}, {"role": "tool", "content": "{}"}]},  # tool role: skipped
+            {"text": "plain pretraining text"}]  # no chat: skipped
+    seen = []
+    monkeypatch.setattr(tools, "_source_rows", lambda source: seen.append(source) or iter(rows))
+    code, out = do(ctx, "/dataset fetch calls hf:org/tool-calls:train --n 5")
+    assert code == 0 and out == "fetched 2 examples from hf:org/tool-calls:train into calls (2 rows skipped)"
+    assert seen == ["hf:org/tool-calls:train"]
+    lines = [json.loads(ln) for ln in (tmp_path / "datasets/calls.jsonl").read_text().splitlines()]
+    assert lines[0] == {"messages": [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "/sh uptime"}]}
+    reg = next(c for c in ctx.db.calls if c[0] == "register_dataset")
+    assert reg[1:4:2] == ("calls", 2) and reg[5] == "from hf:org/tool-calls:train"
+    assert "already exists" in do(ctx, "/dataset fetch calls hf:org/tool-calls")[1]
+    monkeypatch.setattr(tools, "_source_rows", lambda source: iter([{"text": "x"}] * 3))
+    assert "no chat examples in hf:org/other (3 rows skipped)" in do(ctx, "/dataset fetch other hf:org/other")[1]
+    monkeypatch.undo()
+    monkeypatch.setattr(C, "REMI_STORE", tmp_path)
+    assert "the source is hf:" in do(ctx, "/dataset fetch x ftp://nope")[1]
