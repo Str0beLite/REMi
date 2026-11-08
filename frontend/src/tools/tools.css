@@ -173,3 +173,18 @@
     padding: var(--space-4) var(--space-3);
   }
 }
+.agent-card-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px var(--space-3);
+  margin: 0;
+}
+.agent-card-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tool-card blockquote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--line-strong);
+}

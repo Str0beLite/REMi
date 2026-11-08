@@ -7,6 +7,8 @@ import { timeLabel, type Author } from './model';
 import { ToolCard } from './cards/ToolCard';
 import { AdapterCard } from './cards/AdapterCard';
 import { SleepCard } from './cards/SleepCard';
+import { AgentCard } from './cards/AgentCard';
+import { proposalIdOf } from './cards/cardMeta';
 import { toolKeyOf } from '../tools/toolView';
 
 const initials = (name: string) =>
@@ -31,6 +33,7 @@ function Avatar({ author }: { author: Author }) {
 
 const CARD_LABEL: Record<string, string> = {
   tool_card: 'Tool proposal',
+  agent_card: 'Agent proposal',
   adapter_event: 'Adapter',
   sleep_event: 'Sleep',
   help_request: 'Help request',
@@ -48,6 +51,10 @@ function Body({ m }: { m: Message }) {
   if (m.kind === 'tool_card') {
     const key = toolKeyOf(m.meta);
     if (key) return <ToolCard toolKey={key} fallback={m.body} />;
+  }
+  if (m.kind === 'agent_card') {
+    const id = proposalIdOf(m.meta);
+    if (id !== undefined) return <AgentCard proposalId={id} fallback={m.body} />;
   }
   if (m.kind === 'adapter_event') return <AdapterCard meta={m.meta} body={m.body} />;
   if (m.kind === 'sleep_event') return <SleepCard meta={m.meta} body={m.body} />;
