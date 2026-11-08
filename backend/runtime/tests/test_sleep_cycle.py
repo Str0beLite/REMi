@@ -129,6 +129,21 @@ def test_sleep_sequence(tmp_path, monkeypatch):
     report = [c for c in log if c[0] == "post_message"][-1]
     assert report[1] == 2 and report[4] == "sleep_event" and "@sleep-remi" in report[5] and "sre@1 is a candidate" in report[5]
 
+    assert {c[2:4] for c in log if c[0] == "post_message"} == {("system", "system")}  # no agent: system
+
+
+def test_sleep_events_post_as_the_sleeping_agent(tmp_path, monkeypatch):
+    """The Swarm rail maps agent-authored sleep_events to a node (trainingByNode); adapter_event stays system."""
+    monkeypatch.setattr(cycle, "POST_EVERY_S", 0)
+    log, node = setup(tmp_path)
+    cycle.run(SPEC, node=node, vllm=FakeVllm(log), store=tmp_path, train=fake_train(log), now=lambda: NOW,
+              agent={"id": 1, "node_id": 1})
+    authors = {c[4]: set() for c in log if c[0] == "post_message"}
+    for c in log:
+        if c[0] == "post_message":
+            authors[c[4]].add(c[2:4])
+    assert authors == {"sleep_event": {("agent", "1")}, "adapter_event": {("system", "system")}}
+
 
 @pytest.mark.parametrize("train_fails, start_fails", [(True, False), (False, True)])
 def test_a_failure_still_wakes_everyone(tmp_path, train_fails, start_fails):

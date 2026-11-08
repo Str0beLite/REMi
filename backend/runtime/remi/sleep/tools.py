@@ -246,7 +246,8 @@ def sleep(ctx, args: str) -> str:
         raise Usage("vLLM is running but this runtime didn't start it, so it can't stop it to train; "
                     "restart the runtime with REMI_SERVE=1")
     try:
-        out = cycle.run(json.loads(path.read_text(encoding="utf-8")), node=_node, vllm=_vllm, store=_store())
+        out = cycle.run(json.loads(path.read_text(encoding="utf-8")), node=_node, vllm=_vllm, store=_store(),
+                        agent=ctx.agent)
     except cycle.Refused as e:
         raise Usage(f"refused: {e}") from None
     return f"trained {out.parent.name}@{out.name}; it's a candidate. /adapter eval it before adopting."

@@ -131,6 +131,10 @@ def test_train_spec_and_sleep_window(ctx, tmp_path, monkeypatch):
     monkeypatch.setattr(tools.cycle.launch, "ready", lambda *a: False)
     code, out = do(ctx, "/sleep sre-v5")
     assert code == 2 and "refused" in out and "one sleep per 6 h" in out and ctx.db.calls == []
+    # /sleep runs the cycle as the agent that asked, so its sleep_events land on that agent's node
+    seen = {}
+    monkeypatch.setattr(tools.cycle, "run", lambda spec, **kw: seen.update(kw) or tmp_path / "adapters/sre/1")
+    assert do(ctx, "/sleep sre-v5")[0] == 0 and seen["agent"] is ctx.agent
 
 
 def test_errors_name_what_exists(ctx):

@@ -125,15 +125,20 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subprocess, now=time.time) -> Path:
-    """node: remi.node.Node (registered). vllm: has stop()/start(). Wakes everyone even if training fails, then re-raises."""
+def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subprocess, now=time.time,
+        agent: dict | None = None) -> Path:
+    """node: remi.node.Node (registered). vllm: has stop()/start(). agent: the REMi that ran /sleep; its sleep_events
+    are posted as it so the Swarm rail can place the training band on its node (system when None).
+    Wakes everyone even if training fails, then re-raises."""
     db = node.db
     settings = {r["key"]: r["value"] for r in db.sql("SELECT * FROM setting")}
     counts = check(spec, store=store, base_model=node.base_model, settings=settings, now=now())
     ops = next(c["id"] for c in db.sql("SELECT * FROM channel") if c["name"] == "ops")
 
-    def say(kind: str, body: str, **meta) -> None:
-        db.call("post_message", ops, "system", "system", kind, body, json.dumps(meta))
+    author = ("agent", str(agent["id"])) if agent else ("system", "system")
+
+    def say(kind: str, body: str, by: tuple[str, str] = author, **meta) -> None:
+        db.call("post_message", ops, *by, kind, body, json.dumps(meta))
 
     db.call("set_setting", "last_sleep_ts", str(int(now())))
     for name, n in counts.items():
@@ -165,7 +170,7 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
         db.call("register_adapter", spec["out"], version, node.id, node.base_model, spec["desc"],
                 _sha256(path / "adapter_model.safetensors"), sum(f.stat().st_size for f in path.iterdir()),
                 json.dumps(stats), version - 1 if version > 1 else 0, ",".join(spec["datasets"]))
-        say("adapter_event", f"{spec['out']}@{version} registered as a candidate", key=f"{spec['out']}@{version}",
+        say("adapter_event", f"{spec['out']}@{version} registered as a candidate", by=("system", "system"), key=f"{spec['out']}@{version}",
             event="registered")
     except Exception as e:  # noqa: BLE001 - always wake up below
         error = e
