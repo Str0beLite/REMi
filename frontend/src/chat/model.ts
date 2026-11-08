@@ -1,6 +1,7 @@
 // Plain helpers over the generated rows: names, DM labels, purposes, unread counts.
 import type { Identity } from 'spacetimedb';
 import type { Agent, Channel, Member, Message, User } from '../module_bindings/types';
+import { sleepMeta, type LossPoint } from '../sleep/sleepData';
 
 export const hexOf = (id: Identity) => id.toHexString();
 
@@ -83,15 +84,38 @@ export function mentionMatches(query: string, agents: readonly Agent[], users: r
     .map(x => x.o);
 }
 
-// Feed items: a message, or a run of back-to-back tool_call/tool_result messages from one agent shown as one block.
+// Feed items: a message; a run of back-to-back tool_call/tool_result messages from one agent shown as one block; or one
+// sleep's training updates (a sleep_event every ~10 s) folded into one card whose loss graph grows in place.
 export type ToolStep = { call?: Message; result?: Message };
-export type FeedItem = { kind: 'msg'; m: Message } | { kind: 'tools'; first: Message; steps: ToolStep[] };
+export type FeedItem =
+  | { kind: 'msg'; m: Message }
+  | { kind: 'tools'; first: Message; steps: ToolStep[] }
+  | { kind: 'training'; first: Message; last: Message; points: LossPoint[] };
 
 const isTool = (m: Message) => m.kind === 'tool_call' || m.kind === 'tool_result';
 
 export function feedItems(messages: readonly Message[]): FeedItem[] {
   const out: FeedItem[] = [];
+  const training = new Map<string, Extract<FeedItem, { kind: 'training' }>>(); // open training card per spec
   for (const m of messages) {
+    if (m.kind === 'sleep_event') {
+      const meta = sleepMeta(m.meta);
+      const spec = meta.spec ?? '';
+      if (meta.phase === 'training') {
+        const point = typeof meta.step === 'number' && typeof meta.loss === 'number' ? [{ step: meta.step, loss: meta.loss }] : [];
+        const open = training.get(spec);
+        if (open) {
+          open.last = m;
+          open.points.push(...point);
+        } else {
+          const item = { kind: 'training' as const, first: m, last: m, points: point };
+          training.set(spec, item);
+          out.push(item);
+        }
+        continue;
+      }
+      if (meta.phase === 'asleep' || meta.phase === 'wake') training.delete(spec); // the next sleep gets a new card
+    }
     if (!isTool(m)) {
       out.push({ kind: 'msg', m });
       continue;

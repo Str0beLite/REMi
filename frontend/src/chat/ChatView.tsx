@@ -6,6 +6,7 @@ import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { MessageItem } from './MessageItem';
 import { ToolRun } from './ToolRun';
+import { TrainingCard } from './cards/SleepCard';
 import { authorOf, feedItems, hexOf, mentionMatches, mentionQuery, mentionsName, purposeOf, type MentionOption } from './model';
 
 type Props = {
@@ -154,7 +155,7 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
           const lastStep = prev?.kind === 'tools' ? prev.steps.at(-1) : undefined;
           const p = prev && (prev.kind === 'msg' ? prev.m : (lastStep?.result ?? lastStep?.call ?? prev.first));
           // chat and tool runs from the same author within 5 minutes share one header; cards keep theirs
-          const flows = (x: typeof item) => x.kind === 'tools' || x.m.kind === 'chat';
+          const flows = (x: typeof item) => x.kind === 'tools' || (x.kind === 'msg' && x.m.kind === 'chat');
           const grouped =
             !!p &&
             p.authorKind === m.authorKind &&
@@ -170,7 +171,11 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
               grouped={grouped}
               mentionsMe={!!myName && m.authorId !== me && item.kind === 'msg' && mentionsName(m.body, myName)}
             >
-              {item.kind === 'tools' ? <ToolRun steps={item.steps} /> : undefined}
+              {item.kind === 'tools' ? (
+                <ToolRun steps={item.steps} />
+              ) : item.kind === 'training' ? (
+                <TrainingCard last={item.last} points={item.points} />
+              ) : undefined}
             </MessageItem>
           );
         })}

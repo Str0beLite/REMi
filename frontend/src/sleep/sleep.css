@@ -140,6 +140,12 @@
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
 }
+.sleep-card.is-training {
+  display: grid;
+}
+.sleep-card.is-training .loss {
+  margin: 0;
+}
 .sleep-card.phase-report {
   display: grid;
   background: var(--surface);
