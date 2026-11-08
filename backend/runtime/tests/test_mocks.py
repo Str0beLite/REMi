@@ -93,3 +93,12 @@ def test_vllm_mock(llm):
     assert post(f"{base}/v1/chat/completions", {**chat, "model": "sre@3"})[0] == 404
     post(f"{base}/v1/load_lora_adapter", {"lora_name": "sre@3", "lora_path": "/x"})
     assert post(f"{base}/v1/chat/completions", {**chat, "model": "sre@3"})[0] == 200
+
+
+def test_request_sleep(db):
+    _, base = db
+    assert call(base, "request_sleep", [], "0xeve")[1] == "admin only"
+    post(f"{base}/mock/seed", {"user": [{"identity": {"__identity__": ADMIN}, "nickname": "ryan", "is_admin": True}]})
+    assert call(base, "request_sleep", [], ADMIN)[0] == 200
+    [m] = rows(base, "message")
+    assert (m["kind"], json.loads(m["meta"]), m["channel_id"]) == ("sleep_event", {"phase": "night"}, 2)
