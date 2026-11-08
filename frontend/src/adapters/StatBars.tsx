@@ -13,7 +13,10 @@ export function StatBars({ stats }: { stats: TrainStats }) {
   return (
     <div className="statbars">
       {shown.map(r => {
+        // A longer bar always means better: lower-is-better rows draw best/value, so the lowest loss is the full bar.
         const max = r.share ? 1 : Math.max(r.a!, r.b!) || 1;
+        const min = Math.min(r.a!, r.b!);
+        const width = (v: number) => (r.better === 'lower' ? (v > 0 ? min / v : 1) : v / max);
         const [before, after] = r.names ?? ['before', 'after'];
         return (
           <div key={r.label} className="statbar-group" role="group" aria-label={`${r.label}: ${r.fmt(r.a!)} ${before}, ${r.fmt(r.b!)} ${after} (${r.better} is better)`}>
@@ -29,7 +32,7 @@ export function StatBars({ stats }: { stats: TrainStats }) {
               <div key={which} className="statbar">
                 <span className="statbar-which">{name}</span>
                 <span className="statbar-track" aria-hidden="true">
-                  <i className={`statbar-fill is-${which}`} style={{ width: `${Math.max(2, (v / max) * 100)}%` }} />
+                  <i className={`statbar-fill is-${which}`} style={{ width: `${Math.max(2, width(v) * 100)}%` }} />
                 </span>
                 <span className="statbar-value">{r.fmt(v)}</span>
               </div>
