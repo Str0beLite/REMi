@@ -129,7 +129,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `help_request` | agent | what it needs | `{"run_id": n, "family": "string", "owner": "<identity hex>"}` |
 | `tool_card` | agent | one-line summary | `{"key": "name@v"}` (the UI reads the `tool` row) |
 | `agent_card` | agent | one-line summary | `{"proposal_id": n}` (the UI reads the `agent_proposal` row) |
-| `adapter_event` | agent, system | one line | `{"key": "name@v", "event": "registered"\|"adopted"\|"rejected"\|"attached"\|"detached", "agent_id"?: n, "weight"?: x}` |
+| `adapter_event` | agent, system | one line | `{"key": "name@v", "event": "registered"\|"adopted"\|"rejected"\|"attached"\|"detached"\|"evaluated", "agent_id"?: n, "weight"?: x}`. `evaluated` (after `/adapter eval`) adds `"dataset": "string", "n": n, "candidate": n, "base": n, "diff": x, "ci_lo": x, "ci_hi": x, "p": x, "verdict": "STRONG GO"\|"WEAK GO"\|"NO-GO"` (exact-match counts out of `n`; diff and CI in percentage points) |
 | `sleep_event` | system, agent | one line | `{"phase": "night"\|"asleep"\|"training"\|"wake"\|"report", "spec"?: "name", "step"?: n, "loss"?: x, "minutes"?: x}` |
 | `system` | system | one line | `{}` |
 | `incident` | system | one-line summary | `{"key": "<source>:<check>", "source": "string", "check": "string", "severity": "warning"\|"critical"\|"resolved", "value"?: x, "threshold"?: x, "unit"?: "string", "host"?: "string"}`; severity ∈ `INCIDENT_SEVERITIES` = warning, critical, resolved. Posted by local incident intake (§8) |
