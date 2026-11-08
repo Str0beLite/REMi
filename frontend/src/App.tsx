@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSpacetimeDB, useTable } from 'spacetimedb/react';
-import { tables } from './module_bindings';
+import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
+import { reducers, tables } from './module_bindings';
 import { AppShell } from './shell/AppShell';
 import { ChannelRail } from './shell/ChannelRail';
 import { SwarmRail } from './swarm/SwarmRail';
@@ -78,6 +78,16 @@ export default function App() {
     setLastSeen(s => ({ ...s, ...(prev !== undefined ? { [String(prev)]: newest(prev) } : {}), [String(shownId)]: newest(shownId) }));
   }, [shownId]);
 
+  // A new channel gets its id from the module, so open it by name once its row arrives.
+  const createChannel = useReducer(reducers.createChannel);
+  const [openNew, setOpenNew] = useState('');
+  useEffect(() => {
+    const c = openNew && publics.find(p => p.name === openNew);
+    if (!c) return;
+    setOpenNew('');
+    go({ panel: 'chat', channelId: c.id });
+  }, [openNew, publics]);
+
   const claim = useAdminClaim(!!meRow);
   const [claimSeen, setClaimSeen] = useState(false);
 
@@ -108,6 +118,10 @@ export default function App() {
       dms={dms.map(c => ({ id: c.id, name: dmLabel(c, members, me, users, agents), unread: unread(c.id) }))}
       activeId={panel === 'chat' ? (active?.kind === 'thread' ? active.parentId : active?.id) : undefined}
       onSelect={open}
+      onCreate={async name => {
+        await createChannel({ name, kind: 'public', parentId: 0n });
+        setOpenNew(name);
+      }}
       user={{ nickname: meRow.nickname, isAdmin: meRow.isAdmin }}
     />
   );

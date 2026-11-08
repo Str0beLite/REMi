@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { AppShell } from './AppShell';
 import { ChannelRail } from './ChannelRail';
+import { channelSlug } from './channelSlug';
 
 const rail = (activeId?: bigint) =>
   renderToStaticMarkup(
@@ -48,5 +49,20 @@ describe('ChannelRail', () => {
     expect(out).toContain('<small>Admin</small>');
     expect(out.match(/<button type="button" class="rail-item"/g)).toHaveLength(4);
     expect(out).not.toContain('aria-current');
+  });
+});
+
+describe('new channel', () => {
+  it('turns what you type into a name the module accepts', () => {
+    expect(channelSlug('  Capacity Planning! ')).toBe('capacity-planning');
+    expect(channelSlug('ops_2')).toBe('ops-2');
+    expect(channelSlug('x'.repeat(40))).toHaveLength(32);
+    expect(channelSlug('!!!')).toBe('');
+  });
+
+  it('shows the + button only when creating is possible', () => {
+    const base = { workspace: 'w', channels: [], dms: [], onSelect: () => {}, user: { nickname: 'A', isAdmin: false } };
+    expect(renderToStaticMarkup(<ChannelRail {...base} />)).not.toContain('New channel');
+    expect(renderToStaticMarkup(<ChannelRail {...base} onCreate={async () => {}} />)).toContain('aria-label="New channel"');
   });
 });

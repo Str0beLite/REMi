@@ -150,6 +150,69 @@
   letter-spacing: 0.02em;
   color: var(--rail-muted);
 }
+.rail-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rail-add {
+  width: 24px;
+  height: 24px;
+  margin: var(--space-4) var(--space-2) 6px 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--rail-muted);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+}
+.rail-add:hover {
+  background: color-mix(in srgb, var(--rail-active) 55%, transparent);
+  color: #fff;
+}
+.rail-new {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-2) 0;
+}
+.rail-new input {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: #fff;
+  background: color-mix(in srgb, var(--rail-active) 55%, transparent);
+  border: 1px solid var(--rail-line);
+  border-radius: var(--radius-sm);
+}
+.rail-new button {
+  padding: 3px 10px;
+  border: 1px solid var(--rail-line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--rail-ink);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.rail-new button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.rail-new small {
+  flex: 1 1 100%;
+  color: var(--rail-muted);
+  font-size: var(--text-xs);
+}
+.rail-new .rail-new-error {
+  color: #ffb4b4;
+}
 .rail-list {
   list-style: none;
   margin: 0;
