@@ -51,7 +51,7 @@ export function ClearChannel({ channel, title }: { channel: Channel; title: stri
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+          <path d="M19 3l-7.5 7.5M9 10l5 5M9.5 10.5L4 16l2 2 1-1 1 2 1-1 1 2 1-1 2 1 1.5-5.5" />
         </svg>
       </button>
     </>
