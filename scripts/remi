@@ -52,7 +52,7 @@ keep_wsl_up() {  # WSL stops a distro 15 s after its last shell closes, taking D
   grep -qi '^instanceIdleTimeout' "$cfg" 2>/dev/null && return
   if grep -qi '^\[general\]' "$cfg" 2>/dev/null; then sed -i '/^\[general\]/I a instanceIdleTimeout=-1' "$cfg"
   else printf '\n[general]\ninstanceIdleTimeout=-1\n' >>"$cfg"; fi
-  say "set instanceIdleTimeout=-1 in $cfg so WSL keeps the node running when no terminal is open."
+  say "set instanceIdleTimeout=-1 in $cfg so WSL keeps the node running when no terminal is open. It applies after you run 'wsl --shutdown' in Windows and reopen WSL."
   say "it applies after a WSL restart: run 'wsl.exe --shutdown' in Windows, then scripts/remi up again"
 }
 
