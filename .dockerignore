@@ -3,6 +3,8 @@
 *
 !contract
 !backend/runtime/remi
+!fixtures/agentfiles
+!fixtures/agentfiles
 !backend/module
 !frontend
 **/__pycache__

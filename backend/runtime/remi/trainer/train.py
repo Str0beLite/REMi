@@ -45,10 +45,12 @@ def examples(tok, messages: list[dict]) -> list[dict]:
     return out
 
 
-def grad_accum(n_examples: int) -> int:
-    """Batches of 4 per step; accumulate only on big sets. At 4 x 4 a 60-example set got 8 steps in 2 epochs and learned
-    nothing (0/16 held-out); at 4 x 1 it gets 30."""
-    return 1 if n_examples < 512 else 4
+def batching(n_examples: int) -> tuple[int, int]:
+    """(per-device batch, gradient accumulation). Small sets: 4 x 1, so they get enough steps (at 4 x 4 a 60-example
+    set got 8 steps in 2 epochs and learned nothing, 0/16 held-out; at 4 x 1 it gets 30). Big sets: 1 x 16, the same 16
+    examples per step one sequence at a time: four ~2k-token multi-turn prompts overflowed the 16 GB card into shared
+    memory (116 s/step)."""
+    return (4, 1) if n_examples < 512 else (1, 16)
 
 
 def next_version(out: Path) -> int:
@@ -82,7 +84,8 @@ def train(spec: dict, on_step: Callable[[int, float], None] | None = None, *, st
     ds = Dataset.from_list([e for r in rows for e in examples(tok, r["messages"])])
     with tempfile.TemporaryDirectory() as work:
         cfg = SFTConfig(output_dir=work, num_train_epochs=spec["epochs"], max_steps=max_steps, learning_rate=spec["lr"],
-                        per_device_train_batch_size=4, gradient_accumulation_steps=grad_accum(len(ds)),
+                        per_device_train_batch_size=batching(len(ds))[0],
+                        gradient_accumulation_steps=batching(len(ds))[1],
                         gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False},
                         lr_scheduler_type="cosine", warmup_steps=0.03,  # transformers 5: a float < 1 is a ratio
                         bf16=gpu, use_cpu=not gpu, logging_steps=1,

@@ -28,8 +28,9 @@ def test_stats_verdicts():
 
 def test_small_sets_get_enough_steps():
     pytest.importorskip("trl")
-    from remi.trainer.train import grad_accum
-    assert grad_accum(60) == 1 and grad_accum(511) == 1 and grad_accum(512) == 4
+    from remi.trainer.train import batching
+    assert batching(60) == (4, 1) and batching(511) == (4, 1)
+    assert batching(512) == (1, 16)  # same 16 per step, one long multi-turn prompt at a time (fits 16 GB)
 
 
 def store_with_fixture(tmp_path, base):

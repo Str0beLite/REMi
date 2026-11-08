@@ -10,6 +10,8 @@ COPY --from=docker:28-cli /usr/local/bin/docker /usr/local/bin/docker
 
 COPY contract /repo/contract
 COPY backend/runtime/remi /repo/backend/runtime/remi
+# Sleep REMi's purpose: remi.trainer.curricula renders its training prompts from it
+COPY fixtures/agentfiles /repo/fixtures/agentfiles
 WORKDIR /repo/backend/runtime
 ENV PYTHONPATH=/repo/backend/runtime PYTHONUNBUFFERED=1 REMI_SERVE=1 REMI_STORE=/store \
     VLLM_ALLOW_RUNTIME_LORA_UPDATING=True
