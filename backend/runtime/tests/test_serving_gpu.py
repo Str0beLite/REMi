@@ -1,6 +1,7 @@
 """vLLM serves a runtime-loaded LoRA the same way PEFT runs it (pilot V6, done with logprobs). 5070 Ti PC only:
 UV_PROJECT_ENVIRONMENT=~/.venvs/remi-gpu uv run pytest -m gpu -s
 """
+import gc
 import json
 import urllib.request
 
@@ -39,13 +40,6 @@ def load_hf():
     return AutoModelForCausalLM.from_pretrained(BASE_MODEL, dtype=torch.bfloat16, device_map={"": 0}).eval(), tok
 
 
-def free_gpu():  # vLLM needs the whole card
-    import gc
-    import torch
-    gc.collect()
-    torch.cuda.empty_cache()
-
-
 def test_runtime_lora_matches_peft(tmp_path):
     import torch
     from peft import LoraConfig, PeftModel, get_peft_model
@@ -65,13 +59,19 @@ def test_runtime_lora_matches_peft(tmp_path):
     prompts = [tok.apply_chat_template([{"role": "user", "content": c}], add_generation_prompt=True,
                                        enable_thinking=False, tokenize=True, return_dict=False) for c in PROMPTS]
     del peft, model
-    free_gpu()
+    gc.collect()
+    torch.cuda.empty_cache()  # vLLM needs the whole card
 
     # 2. vLLM: hot-load the adapter at runtime, greedy-generate with logprobs, unload it.
-    with open(tmp_path / "vllm.log", "wb") as log:
+    log_path = tmp_path / "vllm.log"
+    with open(log_path, "wb") as log:
         proc = launch.start(log=log)
         try:
-            launch.wait_ready(proc)
+            try:
+                launch.wait_ready(proc)
+            except Exception:
+                print(f"\n--- last 30 lines of {log_path} ---\n" + "\n".join(log_path.read_text(errors="replace").splitlines()[-30:]))
+                raise
             post("/v1/load_lora_adapter", {"lora_name": LORA, "lora_path": str(adapter)})
             assert LORA in json.dumps(json.load(urllib.request.urlopen(VLLM_URL + "/v1/models")))
             served = []

@@ -18,12 +18,13 @@ uv run pytest -m gpu -s                            # V6: runtime-loaded LoRA mat
 `launch.command()` is the canonical flag list. Docker compose (#29) runs the official `vllm/vllm-openai` image and copies the `--print-cmd` output; change both together.
 
 ```
-VLLM_ALLOW_RUNTIME_LORA_UPDATING=True vllm serve nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16 --port 8000 --dtype bfloat16 \
+VLLM_ALLOW_RUNTIME_LORA_UPDATING=True vllm serve nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16 --host 127.0.0.1 --port 8000 --dtype bfloat16 \
   --gpu-memory-utilization 0.85 --max-model-len 32768 --enable-lora --max-lora-rank 64 --max-loras 4 \
   --default-chat-template-kwargs '{"enable_thinking": false}'
 ```
 
 - `--max-lora-rank 64` matches the training guardrail (rank ≤ 64). A merged mix (#25) must stay ≤ 64.
+- `--host` comes from `VLLM_URL` (default 127.0.0.1): the LoRA load/unload API has no auth. In Docker, set `--host 0.0.0.0` and keep the port on the compose network.
 - `--gpu-memory-utilization 0.85`: vLLM's default 0.92 fails when the same GPU drives a desktop.
 - Thinking is off by default for every chat request; a request can still override `chat_template_kwargs`.
 

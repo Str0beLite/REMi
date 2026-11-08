@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from pathlib import Path
 from urllib.parse import urlparse
 
 from remi.contract import BASE_MODEL, VLLM_URL
@@ -32,7 +33,8 @@ def max_loras() -> int:
 def command(model: str = BASE_MODEL, url: str = VLLM_URL) -> list[str]:
     return [
         "vllm", "serve", model,
-        "--port", str(urlparse(url).port or 8000),
+        # The LoRA load/unload API has no auth: listen only where VLLM_URL points (compose sets 0.0.0.0 inside Docker).
+        "--host", urlparse(url).hostname or "127.0.0.1", "--port", str(urlparse(url).port or 8000),
         "--dtype", "bfloat16",
         "--gpu-memory-utilization", "0.85",  # vLLM's 0.92 fails on a desktop GPU that also drives the display
         "--max-model-len", os.environ.get("REMI_MAX_MODEL_LEN", "32768"),
@@ -40,6 +42,12 @@ def command(model: str = BASE_MODEL, url: str = VLLM_URL) -> list[str]:
         "--default-chat-template-kwargs", json.dumps({"enable_thinking": False}),
         *shlex.split(os.environ.get("VLLM_ARGS", "")),
     ]
+
+
+def _env() -> dict[str, str]:
+    """This venv's bin first on PATH: vllm, and the ninja FlashInfer builds kernels with, live there. Works when started
+    from a service or the sleep cycle without the venv activated."""
+    return {**os.environ, **ENV, "PATH": str(Path(sys.executable).parent) + os.pathsep + os.environ.get("PATH", "")}
 
 
 def ready(url: str = VLLM_URL) -> bool:
@@ -52,7 +60,7 @@ def ready(url: str = VLLM_URL) -> bool:
 
 def start(log=None, model: str = BASE_MODEL, url: str = VLLM_URL) -> subprocess.Popen:
     """Start vLLM in its own process group (so stop() also ends its workers). Returns at once; see wait_ready()."""
-    return subprocess.Popen(command(model, url), env={**os.environ, **ENV}, stdout=log,
+    return subprocess.Popen(command(model, url), env=_env(), stdout=log,
                             stderr=subprocess.STDOUT if log else None, start_new_session=True)
 
 
@@ -83,7 +91,8 @@ def main(argv: list[str]) -> None:
     if "--print-cmd" in argv:
         print(" ".join(f"{k}={v}" for k, v in ENV.items()), shlex.join(command()))
         return
-    os.execvpe("vllm", command(), {**os.environ, **ENV})
+    env = _env()
+    os.execvpe("vllm", command(), env)  # execvpe searches the PATH in env, so the venv's vllm wins
 
 
 if __name__ == "__main__":
