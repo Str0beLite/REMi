@@ -168,7 +168,7 @@ What CI runs (`.github/workflows/ci.yml`) and what every push to main must pass 
 | Path | Command |
 |---|---|
 | `backend/module/` | `npm ci && npm run typecheck && npm test` |
-| `backend/runtime/` | `uv sync && uv run pytest` |
+| `backend/runtime/` | `uv sync --extra cpu && uv run pytest` (`--extra cpu`: the CPU training stack for the trainer tests) |
 | `frontend/` | `npm ci && npm run build && npm run lint` |
 
 GPU-only tests are marked `@pytest.mark.gpu` and skipped in CI; `lane:gpu` runs them on the PC with `uv run pytest -m gpu` and pastes the output in the issue's closing comment.

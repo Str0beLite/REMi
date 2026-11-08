@@ -3,7 +3,7 @@
 Python 3.12 with [uv](https://docs.astral.sh/uv/). Interfaces are in `remi/contract.py` (contract file, Ryan merges changes).
 
 ```bash
-uv sync
+uv sync --extra cpu      # --extra cpu: CPU torch + trainer stack, as CI installs it
 uv run pytest            # what CI runs (GPU tests skipped)
 uv run pytest -m gpu     # lane:gpu, on the 5070 Ti PC
 ```

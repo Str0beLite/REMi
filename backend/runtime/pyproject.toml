@@ -15,6 +15,16 @@ gpu = [
   "vllm==0.33.0; sys_platform == 'linux'",
   "peft==0.21.2; sys_platform == 'linux'",
   "transformers==5.20.2; sys_platform == 'linux'",
+  "trl==1.17.1; sys_platform == 'linux'",
+  "datasets==5.1.0; sys_platform == 'linux'",
+]
+# CPU-only training stack (CI and laptops): runs the trainer tests on a tiny model. Can't be combined with gpu.
+cpu = [
+  "torch==2.14.0",
+  "peft==0.21.2",
+  "transformers==5.20.2",
+  "trl==1.17.1",
+  "datasets==5.1.0",
 ]
 
 [dependency-groups]
@@ -31,3 +41,14 @@ packages = ["remi"]
 testpaths = ["tests"]
 addopts = "-m 'not gpu'"
 markers = ["gpu: needs the 5070 Ti PC; run with `uv run pytest -m gpu`"]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", extra = "cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
