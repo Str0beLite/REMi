@@ -62,7 +62,10 @@ class Sandbox:
         t0 = time.monotonic()
         try:
             # `timeout` runs inside the container, so the command really dies (killing `docker exec` wouldn't).
-            r = subprocess.run(["docker", "exec", self.name, "timeout", "-k", "2", str(timeout), "sh", "-c", cmd],
+            # `exec 2>&1` merges stderr in the container: docker exec returns the two streams separately,
+            # so merging them on the host loses their order.
+            r = subprocess.run(["docker", "exec", self.name, "timeout", "-k", "2", str(timeout),
+                                "sh", "-c", "exec 2>&1\n" + cmd],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace",
                                timeout=timeout + 10)
             code, out = r.returncode, r.stdout

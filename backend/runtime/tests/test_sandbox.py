@@ -45,6 +45,12 @@ def test_sh_runs_in_container(box):
     assert (code, out) == (3, "remi\n/workspace\nerr\n") and ms >= 0
 
 
+def test_stdout_and_stderr_keep_their_order(box):
+    want = "".join(f"o{i}\ne{i}\n" for i in range(1, 41))
+    for _ in range(5):
+        assert box.sh("for i in $(seq 1 40); do echo o$i; echo e$i >&2; done")[:2] == (0, want)
+
+
 def test_container_persists_between_calls(box):
     box.sh("echo kept > /workspace/state.txt")
     assert box.sh("cat /workspace/state.txt")[:2] == (0, "kept\n")
