@@ -10,6 +10,7 @@ import { equipmentOf } from './swarm/swarmData';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
 import { NicknamePrompt } from './chat/NicknamePrompt';
+import { loadLastSeen, saveLastSeen } from './chat/lastSeen';
 import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
 import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
@@ -58,7 +59,8 @@ export default function App() {
     location.hash = writeRoute(r); // pushes history; the hashchange listener updates state
   };
   const { panel, channelId: activeId } = route;
-  const [lastSeen, setLastSeen] = useState<Record<string, bigint>>({});
+  const [lastSeen, setLastSeen] = useState<Record<string, bigint>>(loadLastSeen);
+  useEffect(() => saveLastSeen(lastSeen), [lastSeen]);
 
   const me = identity ? hexOf(identity) : '';
   const meRow = users.find(u => identity && u.identity.isEqual(identity));
@@ -77,7 +79,12 @@ export default function App() {
     const prev = prevShown.current;
     prevShown.current = shownId;
     if (shownId === undefined) return;
-    setLastSeen(s => ({ ...s, ...(prev !== undefined ? { [String(prev)]: newest(prev) } : {}), [String(shownId)]: newest(shownId) }));
+    // Only ever forward: right after a reload the messages may not have arrived yet (newest 0), and the saved mark stays.
+    const ahead = (s: Record<string, bigint>, id: bigint) => {
+      const n = newest(id);
+      return n > (s[String(id)] ?? 0n) ? { [String(id)]: n } : {};
+    };
+    setLastSeen(s => ({ ...s, ...(prev !== undefined ? ahead(s, prev) : {}), ...ahead(s, shownId) }));
   }, [shownId]);
 
   // A new channel gets its id from the module, so open it by name once its row arrives.
