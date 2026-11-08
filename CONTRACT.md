@@ -97,6 +97,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, or `registry:*` |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
+| `look` | `{headgear: string, tint: string}` | optional. headgear ∈ `HEADGEAR` = none, nightcap, headset, hardhat, bow; tint = `#rrggbb`. Missing → `{headgear: "none", tint: <derived from name>}`. Read by the UI avatar; the runtime ignores it |
 
 ## 6. Message kinds and `meta`
 

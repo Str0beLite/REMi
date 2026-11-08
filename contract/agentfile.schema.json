@@ -120,6 +120,29 @@
           }
         }
       }
+    },
+    "look": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "headgear",
+        "tint"
+      ],
+      "properties": {
+        "headgear": {
+          "enum": [
+            "none",
+            "nightcap",
+            "headset",
+            "hardhat",
+            "bow"
+          ]
+        },
+        "tint": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        }
+      }
     }
   }
 }
