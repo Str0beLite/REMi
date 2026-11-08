@@ -9,6 +9,8 @@ export type TrainStats = {
   examples?: number;
   judgeBefore?: number;
   judgeAfter?: number;
+  heldoutBase?: number; // exact-match share on a held-out set, 0..1 (from an `evaluated` adapter_event)
+  heldoutCandidate?: number;
 };
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
@@ -30,7 +32,20 @@ export function parseStats(text: string): TrainStats {
   }
 }
 
-export type AdapterEventMeta = { key?: string; event?: string; agentId?: bigint; weight?: number };
+// `evaluated` (CONTRACT §6): candidate vs base exact matches on a held-out set, and the paired test's verdict.
+export type EvalResult = {
+  dataset: string;
+  n: number;
+  candidate: number;
+  base: number;
+  diff: number;
+  ciLo: number;
+  ciHi: number;
+  p?: number;
+  verdict: string;
+};
+
+export type AdapterEventMeta = { key?: string; event?: string; agentId?: bigint; weight?: number; result?: EvalResult };
 
 export function adapterEventMeta(meta: string): AdapterEventMeta {
   try {
@@ -40,10 +55,18 @@ export function adapterEventMeta(meta: string): AdapterEventMeta {
       event: typeof v.event === 'string' ? v.event : undefined,
       agentId: typeof v.agent_id === 'number' ? BigInt(v.agent_id) : undefined,
       weight: num(v.weight),
+      result: evalResult(v),
     };
   } catch {
     return {};
   }
+}
+
+function evalResult(v: Record<string, unknown>): EvalResult | undefined {
+  const [n, candidate, base, diff, ciLo, ciHi] = [v.n, v.candidate, v.base, v.diff, v.ci_lo, v.ci_hi].map(num);
+  if (v.event !== 'evaluated' || typeof v.verdict !== 'string' || !n || candidate === undefined || base === undefined)
+    return undefined;
+  return { dataset: String(v.dataset ?? ''), n, candidate, base, diff: diff ?? 0, ciLo: ciLo ?? 0, ciHi: ciHi ?? 0, p: num(v.p), verdict: v.verdict };
 }
 
 // An agent's weight for adapter `name` (any version), from its Agentfile; 0 when it doesn't use it.

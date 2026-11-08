@@ -29,6 +29,33 @@
   color: var(--muted);
 }
 
+/* /adapter eval result: verdict first, then the numbers */
+.adapter-verdict {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.verdict {
+  padding: 0 var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-sm, 4px);
+  font-size: var(--text-xs);
+  letter-spacing: 0.02em;
+}
+.verdict.is-go {
+  color: var(--accent);
+}
+.verdict.is-weak {
+  color: var(--muted);
+}
+.verdict.is-nogo {
+  color: var(--danger);
+}
+
 /* Before/after bars, one shared scale */
 .statbars {
   display: grid;

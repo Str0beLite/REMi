@@ -23,6 +23,23 @@ describe('adapterEventMeta', () => {
       weight: 0.6,
     });
   });
+
+  it('reads an evaluated result, and ignores one with missing numbers', () => {
+    const meta =
+      '{"key":"sre@2","event":"evaluated","dataset":"held-out","n":10,"candidate":10,"base":0,"diff":100,"ci_lo":100,"ci_hi":100,"p":0.00195,"verdict":"STRONG GO"}';
+    expect(adapterEventMeta(meta).result).toEqual({
+      dataset: 'held-out',
+      n: 10,
+      candidate: 10,
+      base: 0,
+      diff: 100,
+      ciLo: 100,
+      ciHi: 100,
+      p: 0.00195,
+      verdict: 'STRONG GO',
+    });
+    expect(adapterEventMeta('{"key":"sre@2","event":"evaluated","verdict":"NO-GO"}').result).toBeUndefined();
+  });
 });
 
 describe('weightIn', () => {
