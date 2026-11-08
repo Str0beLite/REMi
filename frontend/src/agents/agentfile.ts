@@ -14,7 +14,29 @@ export type Agentfile = {
   adapters: { name: string; version: number; weight: number }[];
 };
 
-export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event'] as const;
+// channels: ["*"] = every public channel, now and later (CONTRACT.md §5).
+export const ALL_CHANNELS = '*';
+export const channelsLabel = (channels: readonly string[]) =>
+  channels.includes(ALL_CHANNELS) ? 'all channels' : channels.length ? channels.map(c => `#${c}`).join(', ') : 'none';
+
+// "Wakes up when", least to most alert; each level includes the ones before it.
+export const WAKE_LEVELS = [
+  { label: 'Someone DMs it', triggers: ['dm'] },
+  { label: 'DMs and @mentions', triggers: ['dm', 'mention'] },
+  { label: 'Any activity in its channels', triggers: ['dm', 'mention', 'every_message'] },
+] as const;
+const LEVEL_TRIGGERS: readonly string[] = WAKE_LEVELS[2].triggers;
+export const SLEEP_TRIGGER = 'sleep_event';
+
+// The highest level the triggers imply, or -1 when they wake on none of dm, mention, every_message.
+export const wakeLevel = (triggers: readonly string[]) => Math.max(-1, ...WAKE_LEVELS.map((l, i) => (triggers.includes(l.triggers.at(-1)!) ? i : -1)));
+// Triggers the editor doesn't drive (e.g. incident): kept as they are and shown read-only.
+export const otherTriggers = (triggers: readonly string[]) => triggers.filter(t => !LEVEL_TRIGGERS.includes(t) && t !== SLEEP_TRIGGER);
+export const withWakeLevel = (triggers: readonly string[], level: number) => [
+  ...WAKE_LEVELS[level].triggers,
+  ...triggers.filter(t => !LEVEL_TRIGGERS.includes(t)),
+];
+export const withSleep = (triggers: readonly string[], on: boolean) => [...triggers.filter(t => t !== SLEEP_TRIGGER), ...(on ? [SLEEP_TRIGGER] : [])];
 export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'send', 'migrate', 'agents', 'propose_tool', 'registry:*'] as const;
 
 const validate = new Ajv2020({ allErrors: true }).compile<Agentfile>(JSON.parse(schemaText));
@@ -44,7 +66,7 @@ export const BLANK: Agentfile = {
   name: 'new-remi',
   purpose: 'Describe what this REMi does and how it should answer.',
   channels: ['general'],
-  triggers: ['mention'],
+  triggers: ['dm', 'mention'],
   tools: ['say', 'note'],
   budget: { turns: 10, minutes: 10 },
   adapters: [],

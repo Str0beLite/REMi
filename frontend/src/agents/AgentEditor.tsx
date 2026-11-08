@@ -5,7 +5,7 @@ import { usableSkills } from './skills';
 import { mcpTile } from '../config/mcpApps';
 import { setUnsaved } from '../unsaved';
 import { LOADOUT } from './loadout';
-import { BUILTIN_TOOLS, TEMPLATES, TRIGGERS, checkAgentfile, toYaml, type Agentfile } from './agentfile';
+import { ALL_CHANNELS, BUILTIN_TOOLS, SLEEP_TRIGGER, TEMPLATES, WAKE_LEVELS, checkAgentfile, otherTriggers, toYaml, wakeLevel, withSleep, withWakeLevel, type Agentfile } from './agentfile';
 
 type Props = {
   mode: 'create' | 'edit';
@@ -19,13 +19,6 @@ type Props = {
   readOnlyReason?: string;
   onSubmit: (text: string, nodeId?: bigint) => Promise<void>;
   onCancel?: () => void;
-};
-
-const WAKES: Record<(typeof TRIGGERS)[number], string> = {
-  mention: 'someone @mentions it',
-  dm: 'someone messages it directly',
-  every_message: 'anyone posts in its channels',
-  sleep_event: 'the nightly sleep runs',
 };
 
 // What a drag carries: a tool id or a LoRA key (name@version).
@@ -137,6 +130,7 @@ export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = 
   const toggle = (arr: string[], v: string, on: boolean) => (on ? [...arr, v] : arr.filter(x => x !== v));
   // built-ins plus one tile per connected app; each tile is one entry in the Agentfile's tools
   const tiles = [...BUILTIN_TOOLS.map(t => ({ id: t as string, ...LOADOUT[t] })), ...mcpServers.map(mcpTile)];
+  const allChannels = !!af?.channels.includes(ALL_CHANNELS);
   const home = nodes.find(n => n.id === (mode === 'create' ? nodeId : homeId));
   const skills = usableSkills(adapters, adapterCopies, home);
   // one version of a skill at a time: learning v2 replaces v1
@@ -311,22 +305,37 @@ export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = 
 
           <section className="ed-section" aria-labelledby={id('where')}>
             <h3 id={id('where')}>Where does it hang out?</h3>
+            <div className="ed-chips">
+              <label className="ed-chip" data-on={allChannels}>
+                <input type="checkbox" checked={allChannels} onChange={e => update({ channels: e.target.checked ? [ALL_CHANNELS] : [] })} />
+                All channels, including new ones
+              </label>
+            </div>
             <div className="ed-chips" role="group" aria-labelledby={id('where')}>
-              {[...new Set([...channels, ...af.channels])].map(c => (
-                <label key={c} className="ed-chip" data-on={af.channels.includes(c)}>
-                  <input type="checkbox" checked={af.channels.includes(c)} onChange={e => update({ channels: toggle(af.channels, c, e.target.checked) })} /># {c}
+              {[...new Set([...channels, ...af.channels.filter(c => c !== ALL_CHANNELS)])].map(c => (
+                <label key={c} className="ed-chip" data-on={allChannels || af.channels.includes(c)}>
+                  <input type="checkbox" disabled={allChannels} checked={allChannels || af.channels.includes(c)} onChange={e => update({ channels: toggle(af.channels, c, e.target.checked) })} /># {c}
                 </label>
               ))}
             </div>
-            <h4 id={id('wakes')}>Wakes up when…</h4>
-            <div className="ed-chips" role="group" aria-labelledby={id('wakes')}>
-              {TRIGGERS.map(t => (
-                <label key={t} className="ed-chip" data-on={af.triggers.includes(t)}>
-                  <input type="checkbox" checked={af.triggers.includes(t)} onChange={e => update({ triggers: toggle(af.triggers, t, e.target.checked) })} />
-                  {WAKES[t]}
-                </label>
-              ))}
+            <label className="inline-field">
+              <span>Wakes up when</span>
+              <select name="wakes" value={wakeLevel(af.triggers)} onChange={e => update({ triggers: withWakeLevel(af.triggers, Number(e.target.value)) })}>
+                {wakeLevel(af.triggers) < 0 && <option value={-1} disabled>Not on messages</option>}
+                {WAKE_LEVELS.map((l, i) => (
+                  <option key={l.label} value={i}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+            <div className="ed-chips">
+              <label className="ed-chip" data-on={af.triggers.includes(SLEEP_TRIGGER)}>
+                <input type="checkbox" checked={af.triggers.includes(SLEEP_TRIGGER)} onChange={e => update({ triggers: withSleep(af.triggers, e.target.checked) })} />
+                Joins nightly sleep runs
+              </label>
             </div>
+            {otherTriggers(af.triggers).length > 0 && (
+              <p className="ed-hint">Also wakes on: {otherTriggers(af.triggers).join(', ')} (edit in YAML).</p>
+            )}
           </section>
 
           <section className="ed-section" aria-labelledby={id('can')}>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BLANK, TEMPLATES, checkAgentfile, toYaml } from './agentfile';
+import { BLANK, TEMPLATES, channelsLabel, checkAgentfile, otherTriggers, toYaml, wakeLevel, withSleep, withWakeLevel } from './agentfile';
 
 const invalid = Object.entries(
   import.meta.glob('../../../fixtures/agentfiles/invalid/*.yaml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>,
@@ -38,5 +38,32 @@ describe('checkAgentfile', () => {
 
   it('ships the fixture templates', () => {
     expect(TEMPLATES.map(t => t.id)).toEqual(expect.arrayContaining(['blank', 'homelab-remi', 'sleep-remi', 'tool-builder']));
+  });
+});
+
+describe('channels "*"', () => {
+  it('is a valid Agentfile and reads as all channels', () => {
+    expect(checkAgentfile(toYaml({ ...BLANK, channels: ['*'] })).ok).toBe(true);
+    expect(channelsLabel(['*'])).toBe('all channels');
+    expect(channelsLabel(['general', 'ops'])).toBe('#general, #ops');
+  });
+});
+
+describe('wake level and nightly sleep', () => {
+  it('reads the highest level the triggers imply', () => {
+    expect(wakeLevel(['dm'])).toBe(0);
+    expect(wakeLevel(['mention'])).toBe(1);
+    expect(wakeLevel(['dm', 'mention', 'sleep_event'])).toBe(1);
+    expect(wakeLevel(['every_message'])).toBe(2);
+    expect(wakeLevel(['incident'])).toBe(-1);
+    expect(wakeLevel(BLANK.triggers)).toBe(1);
+  });
+  it('writes a level and the sleep toggle without dropping other triggers', () => {
+    const t = ['incident', 'mention', 'sleep_event'];
+    expect(withWakeLevel(t, 2)).toEqual(['dm', 'mention', 'every_message', 'incident', 'sleep_event']);
+    expect(withWakeLevel(t, 0)).toEqual(['dm', 'incident', 'sleep_event']);
+    expect(withSleep(t, false)).toEqual(['incident', 'mention']);
+    expect(withSleep(['dm'], true)).toEqual(['dm', 'sleep_event']);
+    expect(otherTriggers(t)).toEqual(['incident']);
   });
 });

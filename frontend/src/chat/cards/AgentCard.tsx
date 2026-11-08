@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../../module_bindings';
 import type { AgentProposal } from '../../module_bindings/types';
-import { checkAgentfile } from '../../agents/agentfile';
+import { channelsLabel, checkAgentfile } from '../../agents/agentfile';
 import '../../tools/tools.css';
 
 type ViewProps = {
@@ -52,7 +52,7 @@ export function AgentCardView({ p, author, reviewer, isAdmin, onDecide }: ViewPr
           <dt>Tools</dt>
           <dd className="mono">{list(af.tools)}</dd>
           <dt>Channels</dt>
-          <dd className="mono">{list(af.channels.map(c => `#${c}`))}</dd>
+          <dd className="mono">{channelsLabel(af.channels)}</dd>
         </dl>
       )}
       <details className="tool-code">
