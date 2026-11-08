@@ -38,6 +38,9 @@ def command(model: str = BASE_MODEL, url: str = VLLM_URL) -> list[str]:
         "--dtype", "bfloat16",
         "--gpu-memory-utilization", "0.85",  # vLLM's 0.92 fails on a desktop GPU that also drives the display
         "--max-model-len", os.environ.get("REMI_MAX_MODEL_LEN", "32768"),
+        # Mamba needs one cache block per sequence; after training a little less VRAM is free and the default 256
+        # outgrew the blocks (252), so vLLM refused to restart. A node runs a few REMis, never 64 at once.
+        "--max-num-seqs", "64",
         "--enable-lora", "--max-lora-rank", str(MAX_LORA_RANK), "--max-loras", str(max_loras()),
         "--default-chat-template-kwargs", json.dumps({"enable_thinking": False}),
         *shlex.split(os.environ.get("VLLM_ARGS", "")),

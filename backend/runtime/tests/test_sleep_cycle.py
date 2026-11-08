@@ -155,6 +155,9 @@ def test_a_failure_still_wakes_everyone(tmp_path, train_fails, start_fails):
     assert [c[1:] for c in log if c[0] == "set_agent_status"][-3:] == [(1, "idle"), (2, "thinking"), (3, "stopped")]
     assert phases(log)[-2:] == ["wake", "report"] and "failed" in [c for c in log if c[0] == "post_message"][-1][5]
     assert any(c[0] == "register_adapter" for c in log) == (not train_fails)
+    report = [c for c in log if c[0] == "post_message"][-1][5]  # says what really happened (live run: vLLM restart failed)
+    assert ("was registered, but waking up failed" in report) == start_fails
+    assert ("Nothing new was registered" in report) == train_fails
 
 
 def test_training_is_killed_at_max_train_minutes(tmp_path):

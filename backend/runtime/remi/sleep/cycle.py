@@ -152,6 +152,7 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     node.set_status("asleep")
 
     t0, losses, last_post, path, error = time.monotonic(), [], 0.0, None, None
+    registered = False
 
     def on_step(step: int, loss: float) -> None:
         nonlocal last_post
@@ -172,6 +173,7 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
                 json.dumps(stats), version - 1 if version > 1 else 0, ",".join(spec["datasets"]))
         say("adapter_event", f"{spec['out']}@{version} registered as a candidate", by=("system", "system"), key=f"{spec['out']}@{version}",
             event="registered")
+        registered = True
     except Exception as e:  # noqa: BLE001 - always wake up below
         error = e
     try:
@@ -184,7 +186,9 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     minutes = (time.monotonic() - t0) / 60
     say("sleep_event", "Awake", phase="wake", spec=spec["name"], minutes=round(minutes, 2))
     if error:
-        say("sleep_event", f"@sleep-remi wake report: {spec['name']} failed: {error}. Nothing new was registered; "
+        done = (f"{spec['out']}@{path.name} was registered, but waking up failed" if registered
+                else "Nothing new was registered")
+        say("sleep_event", f"@sleep-remi wake report: {spec['name']} failed: {error}. {done}; "
                            "everyone is back on their previous config.", phase="report", spec=spec["name"])
         raise error
     loss = f"loss {losses[0]:.3f} -> {losses[-1]:.3f} over {len(losses)} steps" if losses else "no loss logged"
