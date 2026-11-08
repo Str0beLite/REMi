@@ -28,7 +28,7 @@
       "uniqueItems": true,
       "items": {
         "type": "string",
-        "pattern": "^[a-z0-9-]{1,32}$"
+        "pattern": "^([a-z0-9-]{1,32}|[*])$"
       }
     },
     "triggers": {

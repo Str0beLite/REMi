@@ -65,10 +65,10 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `set_nickname` | nickname: string | anyone | upserts `user` (1–24 chars) |
 | `register_node` | name: string, gpu: string, base_model: string, join_code: string | admin, or any caller whose `join_code` is non-empty and equals the `node_join_code` row (#84), or the identity that already owns the node `name` (re-registering on restart needs no code, so changing or clearing the code never locks out machines already in); admins pass `''` | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model. A join code admits a node; it never makes the caller admin |
 | `heartbeat` | node_id: u64, status: string, stats: string | that node | sets status + last_seen; `stats` must be a JSON object, stored in `node.stats` |
-| `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>` |
+| `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>`; public → also inserts a `member` row for every agent whose Agentfile `channels` contain `*` (#92) |
 | `join` / `leave` | channel_id: u64, member_kind: string, member_id: string | the member itself, its node, or admin | |
 | `post_message` | channel_id: u64, author_kind: string, author_id: string, kind: string, body: string, meta: string | users post only as themselves with kind `chat`; nodes post as their agents or `system` with any kind | validates meta JSON and kind |
-| `create_agent` | agentfile: string, node_id: u64 | user | parses + validates the Agentfile (§7), status idle, owner = caller, joins its channels, writes `config_history` |
+| `create_agent` | agentfile: string, node_id: u64 | user | parses + validates the Agentfile (§7), status idle, owner = caller, joins its channels (`*`: every public channel), writes `config_history` |
 | `update_agentfile` | agent_id: u64, agentfile: string | owner or admin; protected → admin only | validates, writes `config_history`, re-syncs channel membership |
 | `set_agent_status` | agent_id: u64, status: string | its node | |
 | `stop_agent` | agent_id: u64 | admin or owner | status stopped; ends its running `run` with state stopped |
@@ -116,7 +116,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 |---|---|---|
 | `name` | string | `[a-z0-9-]{2,32}`, unique across agents |
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
-| `channels` | string[] | public channel names, without `#` |
+| `channels` | string[] | public channel names, without `#`; `"*"` = every public channel, the ones that exist now and any created later (#92). DMs and threads are unaffected (a thread follows its parent as before) |
 | `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi), `incident` (wakes on `incident` messages, any severity, in a channel the agent is a member of) |
 | `tools` | string[] | built-ins (§7, incl. `send`, `migrate` and `agents`), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
