@@ -129,6 +129,8 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
 
+**Sandbox (`/sh`, registry tools).** Each REMi has **one long-lived container** (`remi-<agent name>`, image `remi-sandbox` from `backend/sandbox/Dockerfile`). Files in `/workspace` and installed `/tools/bin` tools **persist between runs** and node restarts (`--restart unless-stopped`). The container is removed, and so reset, when the agent is stopped. `/propose_tool` dry runs use a **fresh, throwaway** container, never the REMi's own.
+
 Sleep REMi only (each must be in the Agentfile's tools; #52):
 
 ```
@@ -179,7 +181,6 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 These were left open on purpose (master-plan §14). Whoever needs one first opens the `lane:contract` issue; until then don't build around a guess.
 
 - **Admin bootstrap** and how a node identity gets rights (`register_node` is admin-only until decided). Tests insert admin users and nodes directly.
-- **Sandbox state**: whether a REMi's `/sh` container persists between runs.
 - **Super/frontier model role**, if any.
 
 ## 13. Checks
