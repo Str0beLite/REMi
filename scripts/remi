@@ -46,6 +46,16 @@ make_env() {
   say "wrote .env for this machine"
 }
 
+keep_wsl_up() {  # WSL stops a distro 15 s after its last shell closes, taking Docker and the node with it
+  grep -qi microsoft /proc/version || return 0
+  local cfg; cfg="$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")/.wslconfig"
+  grep -qi '^instanceIdleTimeout' "$cfg" 2>/dev/null && return
+  if grep -qi '^\[general\]' "$cfg" 2>/dev/null; then sed -i '/^\[general\]/I a instanceIdleTimeout=-1' "$cfg"
+  else printf '\n[general]\ninstanceIdleTimeout=-1\n' >>"$cfg"; fi
+  say "set instanceIdleTimeout=-1 in $cfg so WSL keeps the node running when no terminal is open."
+  say "it applies after a WSL restart: run 'wsl.exe --shutdown' in Windows, then scripts/remi up again"
+}
+
 local_db() { grep -q '^COMPOSE_PROFILES=.*local' .env; }  # this machine runs the workspace's SpacetimeDB
 
 need_token() {  # a local workspace gets its token from the publish step in `up`
@@ -81,6 +91,7 @@ install() {
     gpu_ok || die "GPU still not visible in containers: $(tail -1 /tmp/remi-gpu.txt)"
   fi
   say "GPU in containers: $(head -1 /tmp/remi-gpu.txt)"
+  keep_wsl_up
   make_env
   need_token
 }

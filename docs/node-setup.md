@@ -53,6 +53,7 @@ Recorded 2026-11-08 from the working box (RTX 5070 Ti 16 GB, sm_120):
 ## Troubleshooting
 
 - "no NVIDIA GPU driver" in WSL: the driver goes on Windows, not inside WSL; install it there and reopen the WSL shell.
+- The node stops whenever no WSL terminal is open: WSL shuts an idle distro down after 15 s. `remi up` adds `instanceIdleTimeout=-1` under `[general]` in `%USERPROFILE%\.wslconfig`; it takes effect after `wsl --shutdown`.
 - After the Docker install, plain `docker` needs a new login (docker group); `scripts/remi` uses sudo until then.
 - vLLM fails to start with out-of-memory: another process holds VRAM (`nvidia-smi`); stop it, then `scripts/remi up`.
 - A SpacetimeDB on the host (not Maincloud): `COMPOSE_PROFILES=`, `STDB_URL=http://host.docker.internal:3000`.
