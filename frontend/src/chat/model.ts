@@ -90,7 +90,7 @@ export type ToolStep = { call?: Message; result?: Message };
 export type FeedItem =
   | { kind: 'msg'; m: Message }
   | { kind: 'tools'; first: Message; steps: ToolStep[] }
-  | { kind: 'training'; first: Message; last: Message; points: LossPoint[] };
+  | { kind: 'training'; first: Message; last: Message; points: LossPoint[]; done: boolean };
 
 const isTool = (m: Message) => m.kind === 'tool_call' || m.kind === 'tool_result';
 
@@ -108,13 +108,17 @@ export function feedItems(messages: readonly Message[]): FeedItem[] {
           open.last = m;
           open.points.push(...point);
         } else {
-          const item = { kind: 'training' as const, first: m, last: m, points: point };
+          const item = { kind: 'training' as const, first: m, last: m, points: point, done: false };
           training.set(spec, item);
           out.push(item);
         }
         continue;
       }
-      if (meta.phase === 'asleep' || meta.phase === 'wake') training.delete(spec); // the next sleep gets a new card
+      if (meta.phase === 'asleep' || meta.phase === 'wake') {
+        const open = training.get(spec);
+        if (open) open.done = true; // woke (finished, failed or stopped): no Stop button any more
+        training.delete(spec); // the next sleep gets a new card
+      }
     }
     if (!isTool(m)) {
       out.push({ kind: 'msg', m });

@@ -66,7 +66,8 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
     const el = feed.current;
     el?.scrollTo({ top: el.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
   };
-  const myName = users.find(u => hexOf(u.identity) === me)?.nickname;
+  const myRow = users.find(u => hexOf(u.identity) === me);
+  const myName = myRow?.nickname;
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
@@ -174,7 +175,7 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
               {item.kind === 'tools' ? (
                 <ToolRun steps={item.steps} />
               ) : item.kind === 'training' ? (
-                <TrainingCard last={item.last} points={item.points} />
+                <TrainingCard last={item.last} points={item.points} done={item.done} canStop={!!myRow?.isAdmin} />
               ) : undefined}
             </MessageItem>
           );

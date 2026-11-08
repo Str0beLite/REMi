@@ -28,6 +28,7 @@ describe('feedItems', () => {
     expect(first.kind === 'training' && first.points).toEqual([{ step: 1, loss: 1.6 }, { step: 2, loss: 0.9 }, { step: 3, loss: 0.2 }]);
     const second = items[5];
     expect(second.kind === 'training' && second.points).toEqual([{ step: 1, loss: 0.7 }]);
+    expect([first.kind === 'training' && first.done, second.kind === 'training' && second.done]).toEqual([true, false]); // Stop only while running
   });
 
   it('starts a new block for another agent, and keeps an orphan result as its own step', () => {

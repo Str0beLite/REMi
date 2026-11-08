@@ -160,6 +160,24 @@ def test_a_failure_still_wakes_everyone(tmp_path, train_fails, start_fails):
     assert ("Nothing new was registered" in report) == train_fails
 
 
+@pytest.mark.parametrize("value, stops", [(f"{SPEC['name']}@{int(NOW)}", True), (f"{SPEC['name']}@{int(NOW) - 60}", False),
+                                          (f"other-spec@{int(NOW)}", False), ("garbage", False)])
+def test_train_stop_from_the_console(tmp_path, monkeypatch, value, stops):
+    """`train_stop` = <spec>@<ts>: only this spec, only a stop set after this sleep began (old values never stop a run)."""
+    monkeypatch.setattr(cycle, "STOP_CHECK_S", 0)
+    log, node = setup(tmp_path, {"train_stop": value})
+    run = lambda: cycle.run(SPEC, node=node, vllm=FakeVllm(log), store=tmp_path, train=fake_train(log), now=lambda: NOW)
+    if not stops:
+        run()
+        return
+    with pytest.raises(cycle.Stopped):
+        run()
+    assert not any(c[0] == "register_adapter" for c in log) and ("vllm", "start") in log
+    assert [c[1:] for c in log if c[0] == "set_agent_status"][-3:] == [(1, "idle"), (2, "thinking"), (3, "stopped")]
+    report = [c for c in log if c[0] == "post_message"][-1][5]
+    assert "was stopped from the console. Nothing new was registered" in report
+
+
 def test_training_is_killed_at_max_train_minutes(tmp_path):
     with pytest.raises(TimeoutError, match="max_train_minutes"):
         cycle.train_in_subprocess(SPEC, lambda s, l: None, tmp_path, minutes=0.005)  # 0.3 s: the child can't finish

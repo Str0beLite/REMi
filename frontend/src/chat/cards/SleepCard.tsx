@@ -1,24 +1,56 @@
+import { useState } from 'react';
 import Markdown from 'react-markdown';
+import { useReducer } from 'spacetimedb/react';
+import { reducers } from '../../module_bindings';
 import { LossChart } from '../../sleep/LossChart';
 import { sleepMeta, type LossPoint } from '../../sleep/sleepData';
 import '../../sleep/sleep.css';
 
+type TrainingProps = { last: { meta: string; body: string }; points: LossPoint[]; done: boolean; canStop: boolean };
+
 // One card per sleep's training: the loss curve grows in place as updates arrive, instead of one line per update.
-export function TrainingCard({ last, points }: { last: { meta: string; body: string }; points: LossPoint[] }) {
+// Admins can stop a running one (setting train_stop, CONTRACT §3): the node wakes everyone and registers nothing.
+export function TrainingCard({ last, points, done, canStop }: TrainingProps) {
   const m = sleepMeta(last.meta);
   const now = points.at(-1);
+  const setSetting = useReducer(reducers.setSetting);
+  const [stop, setStop] = useState<'idle' | 'sending' | 'sent' | string>('idle');
+
+  async function onStop() {
+    if (!m.spec || !confirm(`Stop training ${m.spec}? Nothing is kept from this run, and everyone wakes up.`)) return;
+    setStop('sending');
+    try {
+      await setSetting({ key: 'train_stop', value: `${m.spec}@${Math.floor(Date.now() / 1000)}` });
+      setStop('sent');
+    } catch (err) {
+      setStop(`Couldn't stop: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   return (
     <div className="sleep-card is-training">
-      <span className="sleep-card-phase">Training</span>
-      <span>
-        {m.spec ?? 'adapter'}
-        {now && (
-          <span className="sleep-card-loss mono">
-            {' '}
-            step {now.step}, loss {now.loss.toFixed(3)}
-          </span>
+      <div className="sleep-card-head">
+        <span className="sleep-card-phase">{done ? 'Trained' : 'Training'}</span>
+        <span>
+          {m.spec ?? 'adapter'}
+          {now && (
+            <span className="sleep-card-loss mono">
+              {' '}
+              step {now.step}, loss {now.loss.toFixed(3)}
+            </span>
+          )}
+        </span>
+        {canStop && !done && m.spec && (
+          <button type="button" className="sleep-card-stop" onClick={onStop} disabled={stop === 'sending' || stop === 'sent'}>
+            {stop === 'sent' ? 'Stopping…' : 'Stop training'}
+          </button>
         )}
-      </span>
+      </div>
+      {stop.startsWith("Couldn't") && (
+        <p className="form-error" role="alert">
+          {stop}
+        </p>
+      )}
       <LossChart points={points} label={`Training ${m.spec ?? ''}`.trim()} />
     </div>
   );

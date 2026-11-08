@@ -26,6 +26,24 @@ class Refused(Exception):
     """A guardrail said no. Nothing was changed."""
 
 
+class Stopped(Exception):
+    """An admin stopped the training from the console (setting `train_stop`, CONTRACT §3)."""
+
+
+STOP_CHECK_S = 5  # how often training looks at `train_stop`
+
+
+def stop_requested(db, spec_name: str, since: float) -> bool:
+    """`train_stop` is `<spec>@<unix seconds>`: this spec, set at or after this sleep began (an old value never stops a
+    later run, so nothing has to clear it)."""
+    value = next((s["value"] for s in db.sql("SELECT * FROM setting") if s["key"] == "train_stop"), "")
+    name, _, ts = value.rpartition("@")
+    try:
+        return name == spec_name and float(ts) >= since
+    except ValueError:
+        return False
+
+
 def check(spec: dict, *, store: Path, base_model: str, settings: dict, now: float) -> dict[str, int]:
     """Every hard guardrail (CONTRACT §10); returns {dataset: n_examples}. Rank, targets, epochs and lr are schema rules."""
     try:
@@ -152,10 +170,14 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     node.set_status("asleep")
 
     t0, losses, last_post, path, error = time.monotonic(), [], 0.0, None, None
-    registered = False
+    registered, began, last_check = False, now(), time.monotonic()
 
     def on_step(step: int, loss: float) -> None:
-        nonlocal last_post
+        nonlocal last_post, last_check
+        if time.monotonic() - last_check >= STOP_CHECK_S:  # raising here ends train_in_subprocess, which kills the child
+            last_check = time.monotonic()
+            if stop_requested(db, spec["name"], began):
+                raise Stopped("stopped from the console")
         losses.append(loss)
         if time.monotonic() - last_post >= POST_EVERY_S:
             last_post = time.monotonic()
@@ -188,7 +210,8 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     if error:
         done = (f"{spec['out']}@{path.name} was registered, but waking up failed" if registered
                 else "Nothing new was registered")
-        say("sleep_event", f"@sleep-remi wake report: {spec['name']} failed: {error}. {done}; "
+        what = "was stopped from the console" if isinstance(error, Stopped) else f"failed: {error}"
+        say("sleep_event", f"@sleep-remi wake report: {spec['name']} {what}. {done}; "
                            "everyone is back on their previous config.", phase="report", spec=spec["name"])
         raise error
     loss = f"loss {losses[0]:.3f} -> {losses[-1]:.3f} over {len(losses)} steps" if losses else "no loss logged"
