@@ -534,10 +534,11 @@ SPECS = [{"name": f"{n}-train", "base": BASE, "datasets": [n], "rank": 16, "lr":
           "out": n, "desc": DESCRIPTIONS[n].split(":")[0]} for n in ("tooluse", "sleepops")]
 
 
-def train_all(seed: int = 0) -> dict:
+def train_all(seed: int = 0, only: list[str] | None = None) -> dict:
     """Bootstrap: write the curricula into the store and train both adapters through the real sleep cycle (register,
     sleep_events, wake report), keeping every loss step. Run it in a one-off node container while the node is stopped,
-    so nothing is serving: `docker compose run --rm node python -m remi.trainer.curricula train`."""
+    so nothing is serving: `docker compose run --rm node python -m remi.trainer.curricula train [tooluse sleepops]`.
+    Each finished run is saved to store/results/train.json right away, so a later stop doesn't lose it."""
     import hashlib
     import time
 
@@ -566,8 +567,11 @@ def train_all(seed: int = 0) -> dict:
         db.call("register_dataset", name, node.id, n, hashlib.sha256(path.read_bytes()).hexdigest(), DESCRIPTIONS[name],
                 "curricula")
     sleeper = next((a for a in db.sql("SELECT * FROM agent") if a["name"] == "sleep-remi"), None)
-    runs = {}
-    for spec in SPECS:
+    results = store / "results" / "train.json"
+    results.parent.mkdir(exist_ok=True)
+    saved = json.loads(results.read_text()) if results.exists() else {}
+    runs = saved.get("runs", {})
+    for spec in [s for s in SPECS if not only or s["out"] in only]:
         db.call("set_setting", "last_sleep_ts", "0")  # an admin bootstrap: two sleeps back to back, on purpose
         curve: list[tuple[int, float]] = []
 
@@ -579,8 +583,7 @@ def train_all(seed: int = 0) -> dict:
         path = cycle.run(spec, node=node, vllm=Off(), store=store, train=train, agent=sleeper)
         runs[spec["out"]] = {"key": f"{spec['out']}@{path.name}", "spec": spec, "examples": counts[spec["datasets"][0]],
                              "minutes": round((time.time() - t0) / 60, 2), "steps": len(curve), "loss": curve}
-    (store / "results").mkdir(exist_ok=True)
-    (store / "results" / "train.json").write_text(json.dumps({"counts": counts, "runs": runs}, indent=1))
+        results.write_text(json.dumps({"counts": counts, "runs": runs}, indent=1))
     return {k: {x: v[x] for x in ("key", "steps", "minutes")} | {"loss": [v["loss"][0][1], v["loss"][-1][1]]}
             for k, v in runs.items()}
 
@@ -588,7 +591,7 @@ def train_all(seed: int = 0) -> dict:
 if __name__ == "__main__":
     cmd, *rest = sys.argv[1:]
     if cmd == "train":
-        print(json.dumps(train_all()))
+        print(json.dumps(train_all(only=rest or None)))
     elif cmd == "write":
         print(json.dumps(write(Path(rest[0]), int(rest[2]) if rest[1:2] == ["--seed"] else 0)))
     elif cmd == "score":
