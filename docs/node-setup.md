@@ -52,9 +52,11 @@ git clone https://github.com/Str0beLite/REMi && cd REMi && scripts/remi join htt
 - The code lives in a private table. The console that made it remembers it; another admin's browser sees "joining is on" and gets a command after **New code**.
 - The LAN port is guarded only by SpacetimeDB auth, which is why joining is off by default.
 
-### A Maincloud workspace
+### Over Tailscale
 
-A Maincloud workspace (published from main with `scripts/publish-module.sh maincloud`) is already reachable, so skip `--lan`: the Add a machine panel builds the command with the Maincloud URL. The old way still works: empty `COMPOSE_PROFILES`, `STDB_URL=https://maincloud.spacetimedb.com` and an admin's `STDB_TOKEN` in `.env`.
+If the machines are on a tailnet, `remi up --lan` hands out this PC's Tailscale address (`tailscale ip -4`) instead of its LAN address, so machines and browsers anywhere on the tailnet can join; on Windows the firewall rule also covers the Tailscale adapter. To hand out a specific address or MagicDNS name, set `REMI_WORKSPACE_HOST=<host>` in `.env` before `remi up --lan`.
+
+There is no shared cloud database: each workspace is its own SpacetimeDB on its own hardware (Maincloud was dropped on 2026-11-08, #87).
 
 Model weights live in the `hf-cache` volume, datasets/adapters in `store` and the database in `stdb`, so all survive `down`/`up`.
 
@@ -72,6 +74,6 @@ Recorded 2026-11-08 from the working box (RTX 5070 Ti 16 GB, sm_120):
 - The node stops whenever no WSL terminal is open: WSL shuts an idle distro down after 15 s. `remi up` adds `instanceIdleTimeout=-1` under `[general]` in `%USERPROFILE%\.wslconfig`; it takes effect after `wsl --shutdown`.
 - After the Docker install, plain `docker` needs a new login (docker group); `scripts/remi` uses sudo until then.
 - vLLM fails to start with out-of-memory: another process holds VRAM (`nvidia-smi`); stop it, then `scripts/remi up`.
-- A SpacetimeDB on the host (not Maincloud): `COMPOSE_PROFILES=`, `STDB_URL=http://host.docker.internal:3000`.
+- A SpacetimeDB on the host (not the `spacetimedb` service): `COMPOSE_PROFILES=`, `STDB_URL=http://host.docker.internal:3000`.
 - Port 3000 or 8080 already in use (e.g. a hand-started `spacetime start`): stop it, then `scripts/remi up`.
 - `remi join` says it can't reach the workspace: on that PC run `scripts/remi up --lan`, make sure Windows calls the network Private, and that both PCs are on the same network. `curl -fsS http://<workspace-ip>:3000/v1/ping` from the new PC should succeed.

@@ -49,7 +49,7 @@ Ryan asked for **as many safe items per round as possible** and for the user's o
 ## How to run and verify
 
 - Dev server on its own port so it never fights the main agent's `:5173`: `.claude/launch.json` (uncommitted, local) runs `npm --prefix frontend run dev -- --port 5180 --strictPort`. Start it with the browser pane's `preview_start` name `ux-frontend`. Vite listens on `localhost` only, so `127.0.0.1:5180` fails.
-- It connects to the default DB (Maincloud `remi`). Joining with a nickname creates a real user row; don't post messages there for testing.
+- With no `.env.local` it connects to `same-host`: the local workspace on `localhost:3000` that `scripts/remi up` runs (Maincloud was dropped, #87). For a throwaway DB, run `clockworklabs/spacetime:v2.14.1` on another port, publish the module there and point `VITE_STDB_URI` at it.
 - Checks: `cd frontend && npm run build && npm run lint && npm test` (lint has one pre-existing warning, 0 errors).
 - **Demo data for UI that needs agents/tool calls:** temporarily inject fake rows in the component (e.g. append fake `Message` objects in `ChatView` behind `location.search.includes('demo')`, or spread `SAMPLE` from `swarm/swarmData.ts` into `SwarmRail`), look, then remove it before committing (`grep -c demo` should be 0).
 - Phone/tablet: `resize_window` presets, then **reload** — the emulator doesn't re-apply media queries until reload.

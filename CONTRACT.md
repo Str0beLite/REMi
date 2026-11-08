@@ -182,7 +182,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 
 ## 8. Runtime ↔ SpacetimeDB (HTTP)
 
-- Base URL `STDB_URL` (local `http://127.0.0.1:3000`, shared `https://maincloud.spacetimedb.com`), database `STDB_DB`, bearer token `STDB_TOKEN` (the node's identity).
+- Base URL `STDB_URL` (local `http://127.0.0.1:3000`, another machine `http://<workspace-ip>:3000` over the LAN or Tailscale; #87), database `STDB_DB`, bearer token `STDB_TOKEN` (the node's identity).
 - Call a reducer: `POST {STDB_URL}/v1/database/{STDB_DB}/call/{reducer}` with a JSON **array** of the args in §4 order. 200 = committed; any other status = rejected, body is the reason.
 - Query: `POST {STDB_URL}/v1/database/{STDB_DB}/sql` with SQL text. Response: a JSON array with one result per statement, each `{"schema": {"elements": [{"name": {"some": "<col>"}, ...}]}, "rows": [[...], ...]}`.
 - Poll once per second per node: `SELECT * FROM message WHERE id > {last_id}`.

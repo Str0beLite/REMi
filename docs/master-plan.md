@@ -33,7 +33,7 @@ REMi is an OpenClaw-style agent system that runs on a gaming PC.
 ```
  phones / browsers ──WebSocket (TS SDK, live subscriptions)──┐
                                                              ▼
-                                   SpacetimeDB module (TypeScript, Maincloud)
+                                   SpacetimeDB module (TypeScript, self-hosted)
                                    tables + reducers = the only shared state
                                                              ▲
  PC (WSL2, 5070 Ti) ──HTTP: POST /call/<reducer>, POST /sql (poll 1s)──┘
@@ -190,7 +190,7 @@ The trainer applies the same chat template (thinking off) that vLLM serves, and 
 
 | Workstream | Owns | Done when |
 |---|---|---|
-| W1 Module | `backend/module/` | published to Maincloud; the reducer tests (spacetime CLI + HTTP) pass, including the protected-agent and admin checks |
+| W1 Module | `backend/module/` | published by `scripts/remi up`; the reducer tests (spacetime CLI + HTTP) pass, including the protected-agent and admin checks |
 | W2 Runtime | `backend/runtime/` loop, stdb HTTP client, poller, tools, sandbox exec, vLLM client | two Agentfiles chat with each other and a human in #general; `/sh`, `/fetch`, `/note`, `/say` work; Stop and the budget work; tested with a mock vLLM and a mock HTTP server |
 | W3 Sleep + adapters | `backend/runtime/sleep/`, trainer (from the pilot), mixer, `/propose_tool` dry run | `/sleep` runs end to end on a tiny dataset; candidate → eval → adopt → mix hot-loaded; guardrails reject bad specs |
 | W4 Frontend | `frontend/` | every view in §10 against the live module; phone width works |
@@ -215,7 +215,7 @@ The trainer applies the same chat template (thinking off) that vLLM serves, and 
 | Runtime LoRA loading in vLLM (`VLLM_ALLOW_RUNTIME_LORA_UPDATING`, `/v1/load_lora_adapter`) | W3, first hour | restart vLLM on a mix change (~1 min) |
 | `add_weighted_adapter` across ranks / hybrid model | W3 unit test on two tiny adapters | require equal ranks and use `linear` |
 | A 4B is weak as a general assistant | M1 | keep purposes narrow; move to Nano 9B FP8 (fits 16GB, pilot LoRA doesn't transfer) |
-| Maincloud free-tier auto-pause; polling cost | W1 | we have credits, so use a paid DB; wake it before the demo |
+| ~~Maincloud free-tier auto-pause~~ (Maincloud dropped 2026-11-08, #87); polling cost | W1 | each workspace runs its own SpacetimeDB |
 | Training stops all agents (one GPU) | by design ("asleep"), but only on the training node (§15) | a second node keeps its REMis awake |
 
 ## 14. Still open (decide during the build)

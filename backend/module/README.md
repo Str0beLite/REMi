@@ -17,7 +17,6 @@ Needs the `spacetime` CLI ([install](https://spacetimedb.com/install); tested wi
 spacetime start                              # local server on :3000, in its own terminal
 scripts/publish-module.sh                    # publish `remi` to local + regenerate bindings
 scripts/publish-module.sh local --reset      # same, dropping all local data first
-scripts/publish-module.sh maincloud          # shared dev DB: run from an up-to-date main only
 ```
 
 Commit the regenerated `frontend/src/module_bindings/` whenever a reducer or table changes.
@@ -29,7 +28,7 @@ spacetime sql remi "SELECT * FROM channel" --server local    # general and ops e
 spacetime logs remi --server local -n 20                     # reducer errors show here
 ```
 
-Maincloud needs `spacetime login` once (it opens a browser). The database token for the runtime goes in the team's `.env` as `STDB_TOKEN`, never in git.
+A real workspace publishes itself: `scripts/remi up` runs SpacetimeDB, publishes this module and writes the owner's token to `.env` (never in git).
 
 The local server has no admin bootstrap yet (CONTRACT.md §12). To make your own identity admin while developing:
 

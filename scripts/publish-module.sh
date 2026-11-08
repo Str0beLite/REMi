@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Publish the SpacetimeDB module and regenerate the frontend bindings.
-# Usage: scripts/publish-module.sh [local|maincloud] [--reset]
-#   local (default)  publish to the local server (`spacetime start` must be running)
-#   maincloud        publish the shared dev DB; run from an up-to-date main only
-#   --reset          drop all data first (local only)
+# Usage: scripts/publish-module.sh [local] [--reset]
+#   publishes to the local server (`spacetime start` must be running). Workspaces publish themselves on
+#   `scripts/remi up`; there is no shared cloud database (Maincloud was dropped 2026-11-08, #87).
+#   --reset   drop all data first
 set -euo pipefail
 
 TARGET="${1:-local}"
@@ -14,9 +14,9 @@ DB="${STDB_DB:-remi}"
 
 command -v spacetime >/dev/null || { echo "spacetime CLI not found: https://spacetimedb.com/install" >&2; exit 1; }
 
+[ "$TARGET" = local ] || { echo "publish-module.sh only publishes to local; workspaces publish themselves on scripts/remi up" >&2; exit 1; }
 FLAGS=(--server "$TARGET" --yes)
 if [ "$RESET" = "--reset" ]; then
-  [ "$TARGET" = "local" ] || { echo "--reset is local only" >&2; exit 1; }
   FLAGS+=(--delete-data=always)
 fi
 

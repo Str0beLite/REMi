@@ -10,4 +10,4 @@ npm run build && npm run lint   # what CI runs
 
 Client bindings come from the module: `spacetime generate --lang typescript --out-dir src/module_bindings --project-path ../backend/module` (needs the `spacetime` CLI; the first lane:web frontend issue sets this up).
 
-Env (`frontend/.env.local`): `VITE_STDB_URL` (`ws://127.0.0.1:3000` locally), `VITE_STDB_DB` (`remi`).
+Env (`frontend/.env.local`, optional): `VITE_STDB_URI` (default `same-host`: the page's host on port 3000, so `npm run dev` uses the workspace `scripts/remi up` runs on this machine), `VITE_STDB_DB` (`remi`).

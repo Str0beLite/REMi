@@ -4,7 +4,7 @@ import { joinCommand, newJoinCode, workspaceUrl } from './joinCommand';
 describe('workspaceUrl', () => {
   it('prefers the stored LAN URL, else a non-local console address, else nothing', () => {
     expect(workspaceUrl('http://192.168.1.20:3000/', 'ws://localhost:3000')).toBe('http://192.168.1.20:3000');
-    expect(workspaceUrl('', 'wss://maincloud.spacetimedb.com')).toBe('https://maincloud.spacetimedb.com');
+    expect(workspaceUrl('', 'wss://gpu-box.tail1234.ts.net:3000')).toBe('https://gpu-box.tail1234.ts.net:3000');
     expect(workspaceUrl('', 'ws://192.168.1.20:3000')).toBe('http://192.168.1.20:3000');
     expect(workspaceUrl('', 'ws://localhost:3000')).toBe('');
     expect(workspaceUrl('', 'ws://127.0.0.1:3000')).toBe('');
