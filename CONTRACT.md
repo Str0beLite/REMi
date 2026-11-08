@@ -27,7 +27,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 
 ## 3. Tables
 
-All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code`, which is private (`public: false`) so subscribers can't read the codes.
+All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code` and `mcp_server_secret`, which are private (`public: false`) so subscribers can't read claim codes or MCP keys. Only the database owner reads private tables (HTTP SQL with the owner's token).
 
 | Table | Columns (name: type) | Notes |
 |---|---|---|
@@ -47,6 +47,8 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `config_history` | id: u64 **pk autoInc**, agent_id: u64 **index**, agentfile: string, changed_by: string, ts | appended on every Agentfile change, including creation |
 | `setting` | key: string **pk**, value: string | defaults after `init`: `sleep_cron`=`0 3 * * *`, `max_train_minutes`=`30`, `last_sleep_ts`=`0` |
 | `admin_code` | code: string **pk** | **private** (`public: false`). One-time admin claim codes: `add_admin_code` inserts, `claim_admin` consumes |
+| `mcp_server` | name: string **pk**, host: string, added_by: string, updated_at: Timestamp | a remote MCP server agents may use (#72). `host` = the URL's host, for display; `added_by` = the admin's nickname |
+| `mcp_server_secret` | name: string **pk**, url: string, headers: string (JSON object) | **private**. The server's URL and request headers (API keys); the node reads it with the owner's token (`remi up` gives the node that token) |
 
 ## 4. Reducers
 
@@ -84,6 +86,8 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `set_setting` | key: string, value: string | admin | |
 | `add_admin_code` | code: string | admin | `code` must be 16–64 chars of `[A-Za-z0-9_-]`; inserts it into `admin_code` (duplicate → error). `scripts/remi up` calls it and prints a console link carrying the code |
 | `claim_admin` | code: string | any caller with a `user` row | code must exist in `admin_code`; deletes it (single use) and sets the caller's `user.is_admin = true` |
+| `set_mcp_server` | name: string, url: string, headers: string | admin | `name` matches `[a-z0-9-]{2,32}`; `url` starts with `https://` (remote only), ≤ 2 000 chars; `headers` is a JSON object of string → string, ≤ 4 000 chars (`{}` allowed). Upserts `mcp_server` (host from the URL, added_by = caller's nickname, updated_at = now) and `mcp_server_secret` |
+| `remove_mcp_server` | name: string | admin | deletes both rows; error if missing |
 | `request_sleep` | — | admin | posts a `system`-authored `sleep_event` with meta `{"phase":"night"}` and body `Sleep now requested by <nickname>` in `#ops`; this is the console's "Sleep now" button and wakes Sleep REMi exactly like the nightly schedule |
 
 Extension 1 (`report_incident`, `take`, `handoff`) is not in this contract yet; it comes as a `lane:contract` issue when the core demos.
@@ -98,7 +102,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
 | `channels` | string[] | public channel names, without `#` |
 | `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi), `incident` (wakes on `incident` messages, any severity, in a channel the agent is a member of) |
-| `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, or `registry:*` |
+| `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
 | `look` | `{headgear: string, tint: string}` | optional. headgear ∈ `HEADGEAR` = none, nightcap, headset, hardhat, bow; tint = `#rrggbb`. Missing → `{headgear: "none", tint: <derived from name>}`. Read by the UI avatar; the runtime ignores it |
@@ -132,8 +136,11 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /propose_tool <name>                 followed by a ```python fenced block (the tool's code); docs = the block's leading docstring
 /propose_agent <reason>              followed by a ```yaml fenced block (the Agentfile)
 /think <question>                    one extra call with thinking on (temperature 0.6, the agent's own adapters); returns the conclusion, capped at 4 000 chars
+/mcp <server>/<tool> [<json object>]   a tool on a remote MCP server (streamable HTTP, `mcp_server_secret`); args default to {}. Needs mcp:<server>/<tool> or mcp:<server>/* in the Agentfile. Output = the result's text content joined, capped at 4 000 chars; isError → exit 1; 60 s timeout
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
+
+**MCP tools.** The prompt's tool list shows each allowed MCP tool as `/mcp <server>/<tool>`, then the first line of its MCP description and its argument names, from the server's `tools/list` (cached up to 5 min). No registry tool may be named `mcp`.
 
 **Sandbox (`/sh`, registry tools).** Each REMi has **one long-lived container** (`remi-<agent name>`, image `remi-sandbox` from `backend/sandbox/Dockerfile`). Files in `/workspace` and installed `/tools/bin` tools **persist between runs** and node restarts (`--restart unless-stopped`). The container is removed, and so reset, when the agent is stopped. `/propose_tool` dry runs use a **fresh, throwaway** container, never the REMi's own.
 
@@ -186,7 +193,7 @@ Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = of
 
 ## 11. Mocks and fixtures
 
-- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` is private, so `/sql` refuses it.
+- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` and `mcp_server_secret` are private, so `/sql` refuses them.
 - `python -m remi.mocks.vllm --port 8999`: OpenAI-compatible `/v1/chat/completions`, `/v1/models`, `/v1/load_lora_adapter`, `/v1/unload_lora_adapter`. Replies come from a script you `POST /mock/script` (a JSON list of strings, consumed in order), else `"ok"`. `GET /mock/requests` returns every request received.
 - `fixtures/agentfiles/*.yaml` (valid examples incl. Sleep REMi), `fixtures/agentfiles/invalid/*.yaml`, `fixtures/dataset.jsonl` (60 valid examples), `fixtures/train_spec.json`.
 

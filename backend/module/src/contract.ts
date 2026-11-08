@@ -28,7 +28,7 @@ export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event', 'incid
 export const INCIDENT_SEVERITIES = ['warning', 'critical', 'resolved'] as const; // incident meta.severity (§6)
 export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'propose_agent', 'think'] as const;
 export const SLEEP_TOOLS = ['read', 'todo', 'memory', 'dataset', 'train_spec', 'sleep', 'adapter'] as const; // Sleep REMi only (§7)
-export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS] as const; // no registry tool may take these names
+export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS, 'mcp'] as const; // no registry tool may take these names
 export const DEFAULT_CHANNELS = ['general', 'ops'] as const;
 export const HEADGEAR = ['none', 'nightcap', 'headset', 'hardhat', 'bow'] as const; // Agentfile look.headgear (§5)
 export const DEFAULT_SETTINGS: Record<string, string> = {
@@ -219,6 +219,16 @@ export const setting = table({ name: 'setting', ...pub }, { key: t.string().prim
 // The one private table (§3): subscribers must not read one-time admin claim codes.
 export const admin_code = table({ name: 'admin_code', public: false }, { code: t.string().primaryKey() });
 
+// MCP servers agents may call (§3, #72). The URL and headers (API keys) live in the private table only.
+export const mcp_server = table(
+  { name: 'mcp_server', ...pub },
+  { name: t.string().primaryKey(), host: t.string(), added_by: t.string(), updated_at: t.timestamp() },
+);
+export const mcp_server_secret = table(
+  { name: 'mcp_server_secret', public: false },
+  { name: t.string().primaryKey(), url: t.string(), headers: t.string() },
+);
+
 const db = schema({
   user,
   node,
@@ -236,6 +246,8 @@ const db = schema({
   config_history,
   setting,
   admin_code,
+  mcp_server,
+  mcp_server_secret,
 });
 
 export default db;
