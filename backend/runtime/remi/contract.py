@@ -44,7 +44,7 @@ HEARTBEAT_INTERVAL_S = 10.0
 STDB_URL = os.environ.get("STDB_URL", "http://127.0.0.1:3000")
 STDB_DB = os.environ.get("STDB_DB", "remi")
 VLLM_URL = os.environ.get("VLLM_URL", "http://127.0.0.1:8000")
-BASE_MODEL = os.environ.get("BASE_MODEL", "nvidia/NVIDIA-Nemotron-3-Nano-4B")
+BASE_MODEL = os.environ.get("BASE_MODEL", "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16")
 REMI_STORE = Path(os.environ.get("REMI_STORE", REPO_ROOT / "backend/runtime/store"))
 
 

@@ -133,7 +133,7 @@ Sleep REMi's extra commands are in master-plan §8; their exact grammar is a `la
 
 ## 9. Runtime ↔ vLLM
 
-- OpenAI-compatible server at `VLLM_URL` (default `http://127.0.0.1:8000`). Base model id `BASE_MODEL` = `nvidia/NVIDIA-Nemotron-3-Nano-4B` (exact HF id confirmed by `lane:gpu`), BF16, thinking off.
+- OpenAI-compatible server at `VLLM_URL` (default `http://127.0.0.1:8000`). Base model id `BASE_MODEL` = `nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16` (the id the pilot serves), BF16, thinking off.
 - Chat: `POST /v1/chat/completions` with `model` = the base model id or a LoRA name.
 - LoRA names: a single adapter at weight 1.0 is `<name>@<version>`; any other mix is `mix-<hash>`, where hash = first 12 hex chars of sha256 of the mix as canonical JSON (weight-0 entries dropped, adapters sorted by name, then version; `{"name","version","weight"}` with weight rounded to 2 decimals). Implemented once in `remi.contract.model_name()`.
 - Load/unload: `POST /v1/load_lora_adapter {"lora_name", "lora_path"}`, `POST /v1/unload_lora_adapter {"lora_name"}` (needs `VLLM_ALLOW_RUNTIME_LORA_UPDATING=True`).
