@@ -47,6 +47,7 @@ import ProposeToolReducer from "./propose_tool_reducer";
 import RegisterAdapterReducer from "./register_adapter_reducer";
 import RegisterDatasetReducer from "./register_dataset_reducer";
 import RegisterNodeReducer from "./register_node_reducer";
+import RequestSleepReducer from "./request_sleep_reducer";
 import ReviewToolReducer from "./review_tool_reducer";
 import RollbackAgentReducer from "./rollback_agent_reducer";
 import RunEndReducer from "./run_end_reducer";
@@ -292,6 +293,7 @@ const reducersSchema = __reducers(
   __reducerSchema("register_adapter", RegisterAdapterReducer),
   __reducerSchema("register_dataset", RegisterDatasetReducer),
   __reducerSchema("register_node", RegisterNodeReducer),
+  __reducerSchema("request_sleep", RequestSleepReducer),
   __reducerSchema("review_tool", ReviewToolReducer),
   __reducerSchema("rollback_agent", RollbackAgentReducer),
   __reducerSchema("run_end", RunEndReducer),

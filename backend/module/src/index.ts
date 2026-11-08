@@ -6,6 +6,7 @@ export * from './reducers/chat';
 export * from './reducers/work';
 export * from './reducers/agents';
 export * from './reducers/adapters';
+export * from './reducers/sleep';
 
 export const init = db.init(ctx => {
   for (const name of DEFAULT_CHANNELS) {
