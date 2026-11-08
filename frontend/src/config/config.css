@@ -1,0 +1,119 @@
+.config {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+  display: grid;
+  align-content: start;
+  gap: var(--space-6);
+  max-width: 900px;
+}
+.config h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+.setting {
+  display: grid;
+  gap: 4px;
+  margin-bottom: var(--space-4);
+}
+.setting label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.setting-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.setting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: 4px;
+}
+.setting-row input {
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--ramp-400);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  min-width: 0;
+  width: min(280px, 100%);
+}
+.setting-row input[readonly] {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+.setting-row input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.setting-state {
+  font-size: var(--text-xs);
+  color: var(--status-idle);
+}
+.nodes-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.nodes {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.nodes th,
+.nodes td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.nodes th {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-weight: 600;
+}
+.nodes tr:last-child td {
+  border-bottom: 0;
+}
+.node-base {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.node-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+.node-health i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.node-health small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.h-up {
+  color: var(--status-idle);
+}
+.h-asleep {
+  color: var(--status-asleep);
+}
+.h-down {
+  color: var(--danger);
+}
+@media (max-width: 639px) {
+  .config {
+    padding: var(--space-4) var(--space-3);
+  }
+}
