@@ -149,8 +149,15 @@ class MockDB:
             raise SenderError("bad or duplicate channel name")
         if kind == "thread" and not self.one("channel", id=parent_id):
             raise SenderError("no such parent")
-        self.insert("channel", {"name": name, "kind": kind, "parent_id": parent_id if kind == "thread" else 0,
-                                "created_by": ident(caller), "ts": now()})
+        c = self.insert("channel", {"name": name, "kind": kind, "parent_id": parent_id if kind == "thread" else 0,
+                                    "created_by": ident(caller), "ts": now()})
+        if kind == "public":  # agents with channels ["*"] join every new public channel (#92)
+            for a in self.tables["agent"]:
+                try:
+                    if "*" in C.load_agentfile(a["agentfile"]).channels:
+                        self.insert("member", {"channel_id": c["id"], "member_kind": "agent", "member_id": str(a["id"])})
+                except C.ContractError:
+                    pass
 
     def join(self, caller, channel_id, member_kind, member_id):
         self.check(member_kind, C.MEMBER_KINDS, "member_kind")
@@ -202,8 +209,8 @@ class MockDB:
         a = self.insert("agent", {"name": af.name, "agentfile": agentfile, "status": "idle", "node_id": node_id,
                                   "owner": ident(caller), "protected": False})
         self.insert("config_history", {"agent_id": a["id"], "agentfile": agentfile, "changed_by": caller, "ts": now()})
-        for ch in af.channels:
-            c = self.one("channel", name=ch, kind="public")
+        publics = [c for c in self.tables["channel"] if c["kind"] == "public"]
+        for c in publics if "*" in af.channels else [self.one("channel", name=ch, kind="public") for ch in af.channels]:
             if c and not self.one("member", channel_id=c["id"], member_kind="agent", member_id=str(a["id"])):
                 self.insert("member", {"channel_id": c["id"], "member_kind": "agent", "member_id": str(a["id"])})
         return a

@@ -105,6 +105,22 @@ describe('create_agent', () => {
     w.create('oncall', '[general, capacity]');
     expect(w.channelsOf(w.agent('oncall').id)).toEqual(['capacity', 'general']);
   });
+  it('with channels ["*"] joins every public channel, and new public channels later, but not DMs or threads', () => {
+    const w = setup();
+    w.create('all', '["*"]');
+    w.create('one');
+    const a = w.agent('all');
+    expect(w.channelsOf(a.id)).toEqual(['general', 'ops']);
+    w.call('bob', mod.create_channel, { name: 'later', kind: 'public', parent_id: 0n });
+    w.call('bob', mod.create_channel, { name: 'dm-a-b', kind: 'dm', parent_id: 0n });
+    w.call('bob', mod.create_channel, { name: 'side', kind: 'thread', parent_id: 1n });
+    expect(w.channelsOf(a.id)).toEqual(['general', 'later', 'ops']);
+    expect(w.channelsOf(w.agent('one').id)).toEqual(['general']);
+    w.call('bob', mod.update_agentfile, { agent_id: a.id, agentfile: AF('all', '[ops]') });
+    expect(w.channelsOf(a.id)).toEqual(['ops']);
+    w.call('bob', mod.update_agentfile, { agent_id: a.id, agentfile: AF('all', '["*"]') });
+    expect(w.channelsOf(a.id)).toEqual(['general', 'later', 'ops']);
+  });
   it('rejects bad YAML, duplicate names, unknown nodes and callers without a nickname', () => {
     const w = setup();
     w.create('oncall');

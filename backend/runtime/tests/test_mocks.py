@@ -71,6 +71,21 @@ def test_stdb_happy_path(db):
     assert call(base, "run_start", [1, 1, 1])[0] == 400  # one running run per agent+channel
 
 
+def test_stdb_all_channels(db):
+    _, base = db
+    post(f"{base}/mock/seed", {"user": [{"identity": [ADMIN], "nickname": "ryan", "is_admin": True}],
+                               "node": [{"id": 1, "identity": [NODE], "name": "pc", "gpu": "x",
+                                         "base_model": C.BASE_MODEL, "status": "up"}]})
+    af = ("name: everywhere\npurpose: test\nchannels: ['*']\ntriggers: [every_message]\ntools: [say]\n"
+          "budget: {turns: 5, minutes: 5}\nadapters: []\n")
+    assert C.load_agentfile(af).channels == ("*",)
+    assert call(base, "create_agent", [af, 1], ADMIN)[0] == 200
+    assert call(base, "create_channel", ["later", "public", 0], ADMIN)[0] == 200
+    assert call(base, "create_channel", ["dm-a-b", "dm", 0], ADMIN)[0] == 200
+    names = {c["id"]: c["name"] for c in rows(base, "channel")}
+    assert sorted(names[m["channel_id"]] for m in rows(base, "member")) == ["general", "later", "ops"]
+
+
 def test_stdb_rejections(db):
     _, base = db
     assert post(f"{base}/v1/database/remi/call/set_nickname", ["x"])[0] == 401

@@ -1,5 +1,6 @@
 // Chat reducers: CONTRACT.md §4 set_nickname, create_channel, join, leave, post_message.
 import { SenderError, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
+import { joinAllChannelAgents } from '../agentOps';
 import db, { AUTHOR_KINDS, CHANNEL_KINDS, MEMBER_KINDS, MESSAGE_KINDS } from '../contract';
 
 type Ctx = ReducerCtx<InferSchema<typeof db>>;
@@ -73,7 +74,8 @@ export const create_channel = db.reducer(
       if ([...ctx.db.channel.iter()].some(c => c.kind === kind && c.name === name))
         throw new SenderError(`${kind} channel ${name} already exists`);
     }
-    ctx.db.channel.insert({ id: 0n, name, kind, parent_id, created_by: ctx.sender, ts: ctx.timestamp });
+    const ch = ctx.db.channel.insert({ id: 0n, name, kind, parent_id, created_by: ctx.sender, ts: ctx.timestamp });
+    if (kind === 'public') joinAllChannelAgents(ctx, ch.id);
   },
 );
 

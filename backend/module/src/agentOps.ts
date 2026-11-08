@@ -3,7 +3,7 @@
 import { SenderError, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import type { Identity } from 'spacetimedb';
 import db from './contract';
-import type { Agentfile } from './agentfile';
+import { parseAgentfile, type Agentfile } from './agentfile';
 
 export type Ctx = ReducerCtx<InferSchema<typeof db>>;
 
@@ -17,14 +17,16 @@ export function logHistory(ctx: Ctx, agentId: bigint, agentfile: string) {
 }
 
 // Public-channel memberships follow the Agentfile `channels` list; missing channels are created.
-// Thread and DM memberships are left alone.
+// `*` = every public channel (create_channel adds new ones). Thread and DM memberships are left alone.
 export function syncChannels(ctx: Ctx, agentId: bigint, af: Agentfile) {
   const memberId = agentId.toString();
   const publicByName = new Map(
     [...ctx.db.channel.iter()].filter(c => c.kind === 'public').map(c => [c.name, c] as const),
   );
-  const wanted = new Set<bigint>();
+  const all = af.channels.includes('*');
+  const wanted = new Set<bigint>(all ? [...publicByName.values()].map(c => c.id) : []);
   for (const name of af.channels) {
+    if (name === '*') continue;
     const ch =
       publicByName.get(name) ??
       ctx.db.channel.insert({ id: 0n, name, kind: 'public', parent_id: 0n, created_by: ctx.sender, ts: ctx.timestamp });
@@ -36,6 +38,19 @@ export function syncChannels(ctx: Ctx, agentId: bigint, af: Agentfile) {
   }
   const have = new Set(current.map(m => m.channel_id));
   for (const id of wanted) if (!have.has(id)) ctx.db.member.insert({ id: 0n, channel_id: id, member_kind: 'agent', member_id: memberId });
+}
+
+// A new public channel gets every agent whose Agentfile lists `*`.
+export function joinAllChannelAgents(ctx: Ctx, channelId: bigint) {
+  for (const a of ctx.db.agent.iter()) {
+    let all = false;
+    try {
+      all = parseAgentfile(a.agentfile).channels.includes('*');
+    } catch {
+      // a bad stored Agentfile joins nothing
+    }
+    if (all) ctx.db.member.insert({ id: 0n, channel_id: channelId, member_kind: 'agent', member_id: a.id.toString() });
+  }
 }
 
 // A new agent exactly as create_agent makes it: idle, unprotected, history row, channel memberships.
