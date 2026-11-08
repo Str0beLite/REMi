@@ -21,11 +21,15 @@ export function AgentsPanel() {
   const createAgent = useReducer(reducers.createAgent);
   const updateAgentfile = useReducer(reducers.updateAgentfile);
   const stopAgent = useReducer(reducers.stopAgent);
+  const startAgent = useReducer(reducers.startAgent);
+  const moveAgent = useReducer(reducers.moveAgent);
+  const [migrations] = useTable(tables.migration);
+  const [moveTo, setMoveTo] = useState('');
   const rollbackAgent = useReducer(reducers.rollbackAgent);
   // #/agents/new (the Get started checklist) opens straight into a new Agentfile
   const [selected, setSelected] = useState<bigint | 'new' | undefined>(() => (location.hash === '#/agents/new' ? 'new' : undefined));
   const [actionError, setActionError] = useState('');
-  // Stop has no Resume in the UI, so it takes a second click to confirm.
+  // Stop ends a run mid-way, so it takes a second click to confirm; Start puts the agent back.
   const [confirmStop, setConfirmStop] = useState<bigint>();
 
   const me = users.find(u => identity && u.identity.isEqual(identity));
@@ -43,6 +47,12 @@ export function AgentsPanel() {
       setActionError(err instanceof Error ? err.message : String(err));
     }
   }
+
+  const canManage = !!agent && (isAdmin || (!agent.protected && !!identity && agent.owner.isEqual(identity)));
+  const here = agent && nodes.find(n => n.id === agent.nodeId);
+  // LoRAs only work on the base they were trained on, so only nodes on the same base are offered.
+  const targets = agent ? nodes.filter(n => n.id !== agent.nodeId && n.status === 'up' && n.baseModel === here?.baseModel) : [];
+  const moving = agent && agent.status === 'moving' ? [...migrations].filter(m => m.agentId === agent.id).sort((a, b) => (a.id > b.id ? -1 : 1))[0] : undefined;
 
   const readOnlyReason = !agent
     ? undefined
@@ -110,8 +120,13 @@ export function AgentsPanel() {
                   {agent.protected && ' · protected'}
                 </p>
               </div>
-              {isAdmin &&
-                (confirmStop === agent.id && agent.status !== 'stopped' ? (
+              {canManage && agent.status === 'stopped' && (
+                <button type="button" className="agent-stop agent-start" onClick={() => act(() => startAgent({ agentId: agent.id }))}>
+                  Start
+                </button>
+              )}
+              {canManage && agent.status !== 'stopped' &&
+                (confirmStop === agent.id ? (
                   <span className="agent-stop-confirm" role="group" aria-label={`Stop ${agent.name}?`}>
                     <button
                       type="button"
@@ -129,11 +144,41 @@ export function AgentsPanel() {
                     </button>
                   </span>
                 ) : (
-                  <button type="button" className="agent-stop" disabled={agent.status === 'stopped'} onClick={() => setConfirmStop(agent.id)}>
-                    {agent.status === 'stopped' ? 'Stopped' : 'Stop…'}
+                  <button type="button" className="agent-stop" onClick={() => setConfirmStop(agent.id)}>
+                    Stop…
                   </button>
                 ))}
             </header>
+            {moving ? (
+              <p className="agent-move" role="status">
+                Moving to {nodeName(moving.toNode)}: {moving.state === 'uploading' ? 'sending its LoRAs…' : 'the new node is taking them…'}
+              </p>
+            ) : (
+              canManage &&
+              agent.status !== 'thinking' && (
+                <form
+                  className="agent-move"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    if (moveTo) act(() => moveAgent({ agentId: agent.id, nodeId: BigInt(moveTo), byAgent: 0n }).then(() => setMoveTo('')));
+                  }}
+                >
+                  <label htmlFor="agent-move-to">Move to</label>
+                  <select id="agent-move-to" name="move-to" value={moveTo} onChange={e => setMoveTo(e.target.value)} disabled={targets.length === 0}>
+                    <option value="">{targets.length ? 'Pick a node…' : 'No other node on this base'}</option>
+                    {targets.map(n => (
+                      <option key={String(n.id)} value={String(n.id)}>
+                        {n.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" disabled={!moveTo}>
+                    Move
+                  </button>
+                  <small>Its Agentfile, LoRAs and memories go; its sandbox files stay on {nodeName(agent.nodeId)}.</small>
+                </form>
+              )
+            )}
             {actionError && (
               <p className="form-error" role="alert">
                 {actionError}

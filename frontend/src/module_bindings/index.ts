@@ -85,6 +85,7 @@ import AdapterRow from "./adapter_table";
 import AdapterCopyRow from "./adapter_copy_table";
 import AgentRow from "./agent_table";
 import AgentProposalRow from "./agent_proposal_table";
+import BlobChunkRow from "./blob_chunk_table";
 import ChannelRow from "./channel_table";
 import ConfigHistoryRow from "./config_history_table";
 import DatasetRow from "./dataset_table";
@@ -160,6 +161,20 @@ const tablesSchema = __schema({
       { name: 'agent_proposal_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, AgentProposalRow),
+  blobChunk: __table({
+    name: 'blob_chunk',
+    indexes: [
+      { accessor: 'blob', name: 'blob_chunk_blob_idx_btree', algorithm: 'btree', columns: [
+        'blob',
+      ] },
+      { accessor: 'id', name: 'blob_chunk_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'blob_chunk_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, BlobChunkRow),
   channel: __table({
     name: 'channel',
     indexes: [
@@ -417,6 +432,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "adapter_copy": Omit<typeof tablesSchema.schemaType.tables["adapterCopy"], "accessorName"> & { readonly accessorName: "adapter_copy" };
     /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
     readonly "agent_proposal": Omit<typeof tablesSchema.schemaType.tables["agentProposal"], "accessorName"> & { readonly accessorName: "agent_proposal" };
+    /** @deprecated Use `blobChunk` instead. This alias will be removed in the next major version. */
+    readonly "blob_chunk": Omit<typeof tablesSchema.schemaType.tables["blobChunk"], "accessorName"> & { readonly accessorName: "blob_chunk" };
     /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
     readonly "config_history": Omit<typeof tablesSchema.schemaType.tables["configHistory"], "accessorName"> & { readonly accessorName: "config_history" };
     /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */
@@ -443,6 +460,7 @@ const REMOTE_MODULE = {
 const tableAccessorAliases = {
   "adapter_copy": "adapterCopy",
   "agent_proposal": "agentProposal",
+  "blob_chunk": "blobChunk",
   "config_history": "configHistory",
   "file_transfer": "fileTransfer",
   "mcp_server": "mcpServer",
@@ -470,6 +488,8 @@ export type DbView = __DbViewBase & {
   readonly "adapter_copy": __DbViewBase["adapterCopy"];
   /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
   readonly "agent_proposal": __DbViewBase["agentProposal"];
+  /** @deprecated Use `blobChunk` instead. This alias will be removed in the next major version. */
+  readonly "blob_chunk": __DbViewBase["blobChunk"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __DbViewBase["configHistory"];
   /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */
@@ -484,6 +504,8 @@ export type Tables = __TablesBase & {
   readonly "adapter_copy": __TablesBase["adapterCopy"];
   /** @deprecated Use `agentProposal` instead. This alias will be removed in the next major version. */
   readonly "agent_proposal": __TablesBase["agentProposal"];
+  /** @deprecated Use `blobChunk` instead. This alias will be removed in the next major version. */
+  readonly "blob_chunk": __TablesBase["blobChunk"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __TablesBase["configHistory"];
   /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */

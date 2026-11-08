@@ -1,10 +1,10 @@
 // Types and fallback look for RemiAvatar (kept out of the component file for React fast refresh).
 
-export type AgentStatus = 'idle' | 'thinking' | 'asleep' | 'stopped';
+export type AgentStatus = 'idle' | 'thinking' | 'asleep' | 'stopped' | 'moving';
 export type Headgear = 'none' | 'nightcap' | 'headset' | 'hardhat' | 'bow';
 
 export const HEADGEAR: readonly Headgear[] = ['none', 'nightcap', 'headset', 'hardhat', 'bow'];
-export const AGENT_STATUSES: readonly AgentStatus[] = ['idle', 'thinking', 'asleep', 'stopped'];
+export const AGENT_STATUSES: readonly AgentStatus[] = ['idle', 'thinking', 'asleep', 'stopped', 'moving'];
 export const TINTS = ['#6d74c9', '#3e9c8f', '#e2a93b', '#d9668e', '#8e82b0', '#5b8db8'];
 
 // Fallback look until the Agentfile carries `look` (#46): protected agents (Sleep REMi) get the nightcap.

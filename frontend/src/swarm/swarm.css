@@ -36,7 +36,8 @@
 .node-up {
   color: var(--status-idle);
 }
-.status-thinking {
+.status-thinking,
+.status-moving {
   color: var(--status-thinking);
 }
 .status-asleep,

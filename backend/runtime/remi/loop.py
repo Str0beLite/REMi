@@ -36,6 +36,9 @@ BUILTIN_DOCS = {
     "propose_tool": "/propose_tool <name> then a ```python block: propose a new tool for admin review",
     "propose_agent": "/propose_agent <reason> then a ```yaml Agentfile block: propose a new agent for admin review",
     "think": "/think <question>: think a hard question through step by step (slower); you get the conclusion back",
+    "send": "/send <path> @<agent> [-- <note>]: send a file from your sandbox to another REMi (any node); it lands in their /shared",
+    "migrate": "/migrate <agent> <node>: move a REMi (or yourself) to another node; LoRAs and memories go, the sandbox stays",
+    "agents": "/agents [<node>]: list REMis and where they run; /agents stop <agent> or /agents start <agent>",
 }
 
 
@@ -154,7 +157,7 @@ class Loop:
             return True
 
         for _ in range(af.budget_turns):
-            if self._status(ctx.agent["id"]) == "stopped":
+            if self._status(ctx.agent["id"]) in ("stopped", "moving"):  # moving: /migrate or the console moved it
                 return "stopped"
             if self.clock() - t0 >= af.budget_minutes * 60:
                 break

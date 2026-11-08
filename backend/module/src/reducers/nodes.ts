@@ -1,6 +1,6 @@
 // Moving REMis between nodes (#76), sending files between agents (#77) and starting/stopping REMis (#79):
 // CONTRACT.md §4 move_agent, put_blob_chunk, migration_ready, finish_migration, fail_migration, send_file,
-// file_delivered, file_failed, start_agent, control_agent. Bytes travel base64 in the private blob_chunk table.
+// file_delivered, file_failed, start_agent, control_agent. Bytes travel base64 in blob_chunk.
 import { SenderError, t } from 'spacetimedb/server';
 import db from '../contract';
 import { parseAgentfile } from '../agentfile';

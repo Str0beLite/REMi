@@ -13,9 +13,10 @@ import importlib
 from remi import contract as C
 from remi.grammar import Command
 from remi.stdb import StdbError
-from remi.tools import builtin, mcp, proposals  # proposals: registers the /propose_agent grammar
+from remi.tools import builtin, mcp, nodes, proposals  # proposals: registers the /propose_agent grammar
 
-BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note, "think": builtin.think}
+BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note, "think": builtin.think,
+            "send": nodes.send, "migrate": nodes.migrate, "agents": nodes.agents}
 SLEEP_TOOLS = C.SLEEP_TOOLS
 
 

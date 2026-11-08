@@ -249,7 +249,7 @@ export const adapter_copy = table(
   { id: t.u64().primaryKey().autoInc(), key: t.string().index(), node_id: t.u64() },
 );
 export const blob_chunk = table(
-  { name: 'blob_chunk', public: false },
+  { name: 'blob_chunk', ...pub },
   { id: t.u64().primaryKey().autoInc(), blob: t.string().index(), seq: t.u32(), data: t.string() },
 );
 export const file_transfer = table(

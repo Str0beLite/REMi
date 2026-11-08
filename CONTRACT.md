@@ -27,7 +27,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 
 ## 3. Tables
 
-All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code`, `mcp_server_secret` and `blob_chunk`, which are private (`public: false`) so subscribers can't read claim codes, MCP keys or file contents. Only the database owner reads private tables (HTTP SQL with the owner's token).
+All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code` and `mcp_server_secret`, which are private (`public: false`) so subscribers can't read claim codes or MCP keys. Only the database owner reads private tables (HTTP SQL with the owner's token).
 
 | Table | Columns (name: type) | Notes |
 |---|---|---|
@@ -50,7 +50,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `mcp_server` | name: string **pk**, host: string, added_by: string, updated_at: Timestamp | a remote MCP server agents may use (#72). `host` = the URL's host, for display; `added_by` = the admin's nickname |
 | `migration` | id: u64 **pk autoInc**, agent_id: u64 **index**, from_node: u64, to_node: u64, state: string, note: string, ts: Timestamp | moving an agent to another node (#76). state ∈ `MIGRATION_STATES` = uploading, ready, done, failed |
 | `adapter_copy` | id: u64 **pk autoInc**, key: string **index**, node_id: u64 | a node holding a verified copy of adapter `key`'s files, besides the node that trained it (`adapter.node_id`) |
-| `blob_chunk` | id: u64 **pk autoInc**, blob: string **index**, seq: u32, data: string | **private**. File transport between nodes: `data` is base64, ≤ 262 144 chars. Blob names: `mig:<migration id>:<name>@<v>` (a tarred adapter dir) and `file:<nonce>:<name>` (a file being sent; the sender picks a random nonce) |
+| `blob_chunk` | id: u64 **pk autoInc**, blob: string **index**, seq: u32, data: string | public, like messages: every node has its own identity and only the owner reads private tables, so a private table couldn't reach a second node. The console never subscribes to it. File transport between nodes: `data` is base64, ≤ 262 144 chars. Blob names: `mig:<migration id>:<name>@<v>` (a tarred adapter dir) and `file:<nonce>:<name>` (a file being sent; the sender picks a random nonce) |
 | `file_transfer` | id: u64 **pk autoInc**, blob: string, name: string, size: u64, sha256: string, chunks: u32, from_agent: u64, to_agent: u64, channel_id: u64, note: string, state: string, ts: Timestamp | a file one agent sent another, on any node (#77). state ∈ `TRANSFER_STATES` = sent, delivered, failed; content in `blob_chunk` under `blob` until delivered |
 | `mcp_server_secret` | name: string **pk**, url: string, headers: string (JSON object) | **private**. The server's URL and request headers (API keys); the node reads it with the owner's token (`remi up` gives the node that token) |
 
@@ -184,7 +184,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 - Call a reducer: `POST {STDB_URL}/v1/database/{STDB_DB}/call/{reducer}` with a JSON **array** of the args in §4 order. 200 = committed; any other status = rejected, body is the reason.
 - Query: `POST {STDB_URL}/v1/database/{STDB_DB}/sql` with SQL text. Response: a JSON array with one result per statement, each `{"schema": {"elements": [{"name": {"some": "<col>"}, ...}]}, "rows": [[...], ...]}`.
 - Poll once per second per node: `SELECT * FROM message WHERE id > {last_id}`.
-- JSON encodings in SQL rows (checked against a real server, SpacetimeDB 2.14.1, #36): u64 as a plain number; Identity and Timestamp are products, so rows encode them as one-element arrays: Identity as `["0x…"]` (the hex string), Timestamp as `[n]` (micros since the Unix epoch). `remi.mocks.stdb` emits the same.
+- JSON encodings in SQL rows (checked against a real server, SpacetimeDB 2.14.1, #36): u64 as a plain number; Identity and Timestamp are products, so rows encode them as one-element arrays: Identity as `["0x…"]` (the hex string), Timestamp as `[n]` (micros since the Unix epoch). `remi.mocks.stdb` emits the same. Column names come back as the server stores them: a `sha256` column in `contract.ts` reads as `sha_256` in SQL rows (checked on 2.14.1, #81), so read both.
 
 ### Moving an agent (#76)
 
@@ -192,7 +192,6 @@ Agents are the brain (Agentfile, LoRAs) plus their memories. Memories, todos and
 
 - The from_node sees a `migration` {uploading} for one of its agents. It drops that agent's worker (finishing the current turn), tars each adapter in the agent's Agentfile (`adapters/<name>/<v>/`) that the to_node doesn't hold, uploads each as blob `mig:<id>:<name>@<v>` (base64 chunks, seq from 0), then calls `migration_ready`.
 - The to_node sees {ready}. For each blob it reads `SELECT * FROM blob_chunk WHERE blob = '<blob>'`, joins the chunks in seq order, untars into its store, and checks `adapter_model.safetensors` against `adapter.sha256`. Then it calls `finish_migration`. Any error → `fail_migration(id, reason)`; nothing else changes.
-- Reading `blob_chunk` needs the owner's token, like `mcp_server_secret`.
 - `/migrate` calls `move_agent(agent, node, by_agent = the caller)` from the caller's node. When an agent moves itself, the loop ends that run as soon as it is `moving`.
 
 ### Sending a file (#77)
@@ -225,7 +224,7 @@ Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = of
 
 ## 11. Mocks and fixtures
 
-- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code`, `mcp_server_secret` and `blob_chunk` are private, so `/sql` refuses them.
+- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` and `mcp_server_secret` are private, so `/sql` refuses them.
 - `python -m remi.mocks.vllm --port 8999`: OpenAI-compatible `/v1/chat/completions`, `/v1/models`, `/v1/load_lora_adapter`, `/v1/unload_lora_adapter`. Replies come from a script you `POST /mock/script` (a JSON list of strings, consumed in order), else `"ok"`. `GET /mock/requests` returns every request received.
 - `fixtures/agentfiles/*.yaml` (valid examples incl. Sleep REMi), `fixtures/agentfiles/invalid/*.yaml`, `fixtures/dataset.jsonl` (60 valid examples), `fixtures/train_spec.json`.
 

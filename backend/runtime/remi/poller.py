@@ -81,7 +81,7 @@ class Poller:
         """One tick: read new messages, update pending triggers, start what can start, save the cursor."""
         msgs = sorted(self.db.sql(f"SELECT * FROM message WHERE id > {self.read_to}"), key=lambda m: m["id"])
         agents = {a["id"]: a for a in self.db.sql("SELECT * FROM agent")
-                  if a["node_id"] == self.node_id and a["status"] != "stopped"}
+                  if a["node_id"] == self.node_id and a["status"] not in ("stopped", "moving")}
         if msgs:
             kinds = {c["id"]: c["kind"] for c in self.db.sql("SELECT * FROM channel")}
             members = {(m["channel_id"], m["member_id"]) for m in self.db.sql("SELECT * FROM member")

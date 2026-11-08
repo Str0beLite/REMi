@@ -15,7 +15,7 @@ export type Agentfile = {
 };
 
 export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event'] as const;
-export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'registry:*'] as const;
+export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'send', 'migrate', 'agents', 'propose_tool', 'registry:*'] as const;
 
 const validate = new Ajv2020({ allErrors: true }).compile<Agentfile>(JSON.parse(schemaText));
 

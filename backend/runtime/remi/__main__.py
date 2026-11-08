@@ -20,6 +20,7 @@ from remi.sleep import cycle
 from remi.sleep import tools as sleep_tools
 from remi.sleep.scheduler import Scheduler
 from remi.tools import registry
+from remi.transfer import Transfers
 
 
 def waker(loop: Loop):
@@ -60,12 +61,17 @@ def main() -> None:
     if intake.serve(node.db, C.INCIDENT_PORT):
         print(f"incident intake on 127.0.0.1:{C.INCIDENT_PORT}", flush=True)
     scheduler = Scheduler(node)
+    transfers = Transfers(node.db, node_id, store)
     next_beat = time.monotonic() + beat_s
     try:
         while True:
             poller.poll()
             sync_tools(node)
             scheduler.tick()
+            try:
+                transfers.tick()  # moving agents and delivering sent files (#76, #77)
+            except Exception as e:  # SpacetimeDB hiccup: keep the node up, try next poll
+                print(f"transfers: {e}", flush=True)
             if time.monotonic() >= next_beat:
                 node.heartbeat()
                 next_beat = time.monotonic() + beat_s
