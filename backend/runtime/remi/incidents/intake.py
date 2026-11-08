@@ -111,10 +111,15 @@ def serve(db: Stdb, port: int = C.INCIDENT_PORT) -> ThreadingHTTPServer | None:
     """Start the intake in a daemon thread (port 0 = off). Returns the server, or None when off."""
     if not port:
         return None
+    desk = Intake(db)
     try:
-        server = make_server(Intake(db), port)
+        server = make_server(desk, port)
     except OSError as e:  # port taken: run without the intake rather than not at all
         print(f"incident intake off: can't listen on 127.0.0.1:{port}: {e}", flush=True)
         return None
+    try:
+        desk.channel_id()  # #incidents exists from the start, so an incident bot can be created in it
+    except Exception as e:  # noqa: BLE001 - it's created on the first alert instead
+        print(f"couldn't create #incidents yet: {e}", flush=True)
     threading.Thread(target=server.serve_forever, daemon=True, name="incident-intake").start()
     return server

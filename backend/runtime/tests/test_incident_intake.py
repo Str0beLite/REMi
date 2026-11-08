@@ -149,6 +149,7 @@ def test_python_m_remi_serves_the_intake(tmp_path):
                     break
             except OSError:
                 time.sleep(0.1)
+        assert any(c["name"] == "incidents" for c in s.db.tables["channel"])  # made at start, before any alert
         assert post(url, GPU_HOT) == (202, {"posted": True})
         assert proc.poll() is None  # still polling
     finally:
