@@ -75,7 +75,7 @@ def test_stdb_rejections(db):
     _, base = db
     assert post(f"{base}/v1/database/remi/call/set_nickname", ["x"])[0] == 401
     assert call(base, "nope", [])[1] == "unknown reducer"
-    assert call(base, "register_node", ["pc", "gpu", "m"])[1] == "admin only"
+    assert call(base, "register_node", ["pc", "gpu", "m"])[1] == "admin only, or a valid join code"
     call(base, "set_nickname", ["eve"], "0xeve")
     assert call(base, "post_message", [1, "user", "0xeve", "tool_call", "x", "{}"], "0xeve")[0] == 400
     assert call(base, "post_message", [1, "user", "0xeve", "chat", "x", "not json"], "0xeve")[0] == 400
@@ -103,3 +103,19 @@ def test_request_sleep(db):
     assert call(base, "request_sleep", [], ADMIN)[0] == 200
     [m] = rows(base, "message")
     assert (m["kind"], json.loads(m["meta"]), m["channel_id"]) == ("sleep_event", {"phase": "night"}, 2)
+
+
+def test_join_code_admits_a_non_admin_node(db):
+    _, base = db
+    post(f"{base}/mock/seed", {"user": [{"identity": [ADMIN], "nickname": "ryan", "is_admin": True}]})
+    code = "join-" + "x" * 16
+    assert call(base, "set_node_join_code", [code], NODE)[0] == 400  # admin only
+    assert call(base, "set_node_join_code", ["short"], ADMIN)[0] == 400
+    assert call(base, "set_node_join_code", [code], ADMIN)[0] == 200
+    assert {r["key"]: r["value"] for r in rows(base, "setting")}["node_joining"] == "on"
+    assert call(base, "register_node", ["laptop", "3060", C.BASE_MODEL, "wrong-" + "x" * 16])[0] == 400
+    assert call(base, "register_node", ["laptop", "3060", C.BASE_MODEL, code])[0] == 200
+    assert rows(base, "node")[0]["name"] == "laptop"
+    assert post(f"{base}/v1/database/remi/sql", "SELECT * FROM node_join_code", ADMIN, raw=True)[0] == 400  # private
+    assert call(base, "set_node_join_code", [""], ADMIN)[0] == 200  # joining off: the code stops working
+    assert call(base, "register_node", ["other", "gpu", C.BASE_MODEL, code], "0xother")[0] == 400

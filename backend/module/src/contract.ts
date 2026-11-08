@@ -218,8 +218,9 @@ export const config_history = table(
 
 export const setting = table({ name: 'setting', ...pub }, { key: t.string().primaryKey(), value: t.string() });
 
-// The one private table (§3): subscribers must not read one-time admin claim codes.
+// Private tables (§3): subscribers must not read one-time admin claim codes or the machine join code.
 export const admin_code = table({ name: 'admin_code', public: false }, { code: t.string().primaryKey() });
+export const node_join_code = table({ name: 'node_join_code', public: false }, { code: t.string().primaryKey() });
 
 // MCP servers agents may call (§3, #72). The URL and headers (API keys) live in the private table only.
 export const mcp_server = table(
@@ -287,6 +288,7 @@ const db = schema({
   config_history,
   setting,
   admin_code,
+  node_join_code,
   mcp_server,
   mcp_server_secret,
   migration,

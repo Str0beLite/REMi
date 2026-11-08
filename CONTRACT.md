@@ -27,7 +27,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 
 ## 3. Tables
 
-All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code` and `mcp_server_secret`, which are private (`public: false`) so subscribers can't read claim codes or MCP keys. Only the database owner reads private tables (HTTP SQL with the owner's token).
+All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code`, `node_join_code` and `mcp_server_secret`, which are private (`public: false`) so subscribers can't read claim codes, join codes or MCP keys. Only the database owner reads private tables (HTTP SQL with the owner's token).
 
 | Table | Columns (name: type) | Notes |
 |---|---|---|
@@ -45,8 +45,9 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `dataset` | name: string **pk**, node_id: u64, n_examples: u32, sha256: string, description: string, created_by: string, ts | name `[a-z0-9-]{1,48}`; created_by is an agent id or identity hex |
 | `adapter` | id: u64 **pk autoInc**, key: string **unique**, name: string, version: u32, node_id: u64, base: string, description: string, sha256: string, size: u64, status: string, train_stats: string (JSON), parent_version: u32 (0 = none), dataset_names: string (comma-separated), ts | status ∈ `ADAPTER_STATUSES` = candidate, adopted, rejected |
 | `config_history` | id: u64 **pk autoInc**, agent_id: u64 **index**, agentfile: string, changed_by: string, ts | appended on every Agentfile change, including creation |
-| `setting` | key: string **pk**, value: string | defaults after `init`: `sleep_cron`=`0 3 * * *`, `max_train_minutes`=`30`, `last_sleep_ts`=`0` |
+| `setting` | key: string **pk**, value: string | defaults after `init`: `sleep_cron`=`0 3 * * *`, `max_train_minutes`=`30`, `last_sleep_ts`=`0`. Also `node_joining` (`on` or empty; kept in step by `set_node_join_code`) and `workspace_url` (the base URL other machines reach this workspace's SpacetimeDB at, e.g. `http://192.168.1.20:3000`; written by `scripts/remi up --lan`; empty = this machine only) (#84) |
 | `admin_code` | code: string **pk** | **private** (`public: false`). One-time admin claim codes: `add_admin_code` inserts, `claim_admin` consumes |
+| `node_join_code` | code: string **pk** | **private** (`public: false`), at most one row. The code a new machine passes to `register_node` (#84). Not consumed: it admits machines until `set_node_join_code` replaces or clears it |
 | `mcp_server` | name: string **pk**, host: string, added_by: string, updated_at: Timestamp | a remote MCP server agents may use (#72). `host` = the URL's host, for display; `added_by` = the admin's nickname |
 | `migration` | id: u64 **pk autoInc**, agent_id: u64 **index**, from_node: u64, to_node: u64, state: string, note: string, ts: Timestamp | moving an agent to another node (#76). state ∈ `MIGRATION_STATES` = uploading, ready, done, failed |
 | `adapter_copy` | id: u64 **pk autoInc**, key: string **index**, node_id: u64 | a node holding a verified copy of adapter `key`'s files, besides the node that trained it (`adapter.node_id`) |
@@ -62,7 +63,7 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 |---|---|---|---|
 | `init` | — | module publish | creates `#general`, `#ops`, default settings, and `user { identity: ctx.sender, nickname: "owner", is_admin: true }`. `ctx.sender` in `init` is the identity that published the database (checked on SpacetimeDB 2.14.1), so whoever publishes a workspace is its admin, and a node using that same token passes `register_node` |
 | `set_nickname` | nickname: string | anyone | upserts `user` (1–24 chars) |
-| `register_node` | name: string, gpu: string, base_model: string | admin | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model |
+| `register_node` | name: string, gpu: string, base_model: string, join_code: string | admin, or any caller whose `join_code` is non-empty and equals the `node_join_code` row (#84); admins pass `''` | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model. A join code admits a node; it never makes the caller admin |
 | `heartbeat` | node_id: u64, status: string, stats: string | that node | sets status + last_seen; `stats` must be a JSON object, stored in `node.stats` |
 | `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>` |
 | `join` / `leave` | channel_id: u64, member_kind: string, member_id: string | the member itself, its node, or admin | |
@@ -89,9 +90,10 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `run_start` | agent_id: u64, channel_id: u64, trigger_msg_id: u64 | its node | refuses if a run is already `running` for that agent+channel |
 | `run_turn` | run_id: u64 | its node | turns += 1 |
 | `run_end` | run_id: u64, state: string | its node | |
-| `set_setting` | key: string, value: string | admin | |
+| `set_setting` | key: string, value: string | admin, or any node for the key `last_sleep_ts` only (#84) | |
 | `add_admin_code` | code: string | admin | `code` must be 16–64 chars of `[A-Za-z0-9_-]`; inserts it into `admin_code` (duplicate → error). `scripts/remi up` calls it and prints a console link carrying the code |
 | `claim_admin` | code: string | any caller with a `user` row | code must exist in `admin_code`; deletes it (single use) and sets the caller's `user.is_admin = true` |
+| `set_node_join_code` | code: string | admin | `''` turns joining off: deletes the `node_join_code` row and sets `node_joining` to empty. Otherwise `code` must be 16–64 chars of `[A-Za-z0-9_-]`; it replaces any previous code (so a new code revokes the old one) and sets `node_joining` = `on` (#84) |
 | `set_mcp_server` | name: string, url: string, headers: string | admin | `name` matches `[a-z0-9-]{2,32}`; `url` starts with `https://` (remote only), ≤ 2 000 chars; `headers` is a JSON object of string → string, ≤ 4 000 chars (`{}` allowed). Upserts `mcp_server` (host from the URL, added_by = caller's nickname, updated_at = now) and `mcp_server_secret` |
 | `remove_mcp_server` | name: string | admin | deletes both rows; error if missing |
 | `move_agent` | agent_id: u64, node_id: u64, by_agent: u64 | by_agent 0: the agent's owner or an admin (a protected agent: admin only). by_agent ≠ 0 (`/migrate`): the node of `by_agent`, whose Agentfile lists `migrate`; it may move itself or any unprotected agent | refused if the agent is `moving`, or `thinking` unless it is `by_agent` (an agent moving itself mid-run), the target is its current node, the target isn't `up`, or the two nodes' `base_model` differ (LoRAs only work on their base). Sets status `moving`, inserts `migration` {from_node, to_node, state uploading}, posts a `system` message in `#ops` |
@@ -224,7 +226,7 @@ Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = of
 
 ## 11. Mocks and fixtures
 
-- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` and `mcp_server_secret` are private, so `/sql` refuses them.
+- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `set_node_join_code`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code`, `node_join_code` and `mcp_server_secret` are private, so `/sql` refuses them.
 - `python -m remi.mocks.vllm --port 8999`: OpenAI-compatible `/v1/chat/completions`, `/v1/models`, `/v1/load_lora_adapter`, `/v1/unload_lora_adapter`. Replies come from a script you `POST /mock/script` (a JSON list of strings, consumed in order), else `"ok"`. `GET /mock/requests` returns every request received.
 - `fixtures/agentfiles/*.yaml` (valid examples incl. Sleep REMi), `fixtures/agentfiles/invalid/*.yaml`, `fixtures/dataset.jsonl` (60 valid examples), `fixtures/train_spec.json`.
 

@@ -19,9 +19,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from remi import contract as C
 
 TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "agent_proposal", "memory",
-          "todo", "dataset", "adapter", "config_history", "setting", "admin_code",
+          "todo", "dataset", "adapter", "config_history", "setting", "admin_code", "node_join_code",
           "mcp_server", "mcp_server_secret", "migration", "adapter_copy", "blob_chunk", "file_transfer")
-PRIVATE = ("admin_code", "mcp_server_secret")  # §3: not readable through /sql
+PRIVATE = ("admin_code", "node_join_code", "mcp_server_secret")  # §3: not readable through /sql
 ADMIN_CODE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*>\s*(\d+))?\s*;?\s*$", re.I)
 PUBLIC_NAME = re.compile(r"^[a-z0-9-]{1,32}$")
@@ -68,7 +68,7 @@ class MockDB:
     # -- helpers -----------------------------------------------------------
     def insert(self, table: str, row: dict) -> dict:
         row = {k: _real_encoding(v) for k, v in row.items()}
-        if table not in ("user", "dataset", "setting", "admin_code"):
+        if table not in ("user", "dataset", "setting", "admin_code", "node_join_code"):
             row = {"id": self.next_id[table], **row}
             self.next_id[table] += 1
         self.tables[table].append(row)
@@ -112,8 +112,10 @@ class MockDB:
         else:
             self.insert("user", {"identity": ident(caller), "nickname": nickname, "is_admin": False})
 
-    def register_node(self, caller, name, gpu, base_model):
-        self.require_admin(caller)
+    def register_node(self, caller, name, gpu, base_model, join_code=""):
+        u = self.user(caller)
+        if not (u and u["is_admin"]) and not (join_code and self.one("node_join_code", code=join_code)):
+            raise SenderError("admin only, or a valid join code")
         if not base_model:
             raise SenderError("base_model required")
         n = self.one("node", name=name)
@@ -293,7 +295,14 @@ class MockDB:
         self.tables["admin_code"].remove(c)
         u["is_admin"] = True
 
-    REDUCERS = ("add_admin_code", "claim_admin", "request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
+    def set_node_join_code(self, caller, code):
+        self.require_admin(caller)
+        if code and (not isinstance(code, str) or not ADMIN_CODE.match(code)):
+            raise SenderError("code must be 16-64 chars of [A-Za-z0-9_-]")
+        self.tables["node_join_code"] = [{"code": code}] if code else []
+        self.tables["setting"] = [r for r in self.tables["setting"] if r["key"] != "node_joining"] + [{"key": "node_joining", "value": "on" if code else ""}]
+
+    REDUCERS = ("add_admin_code", "claim_admin", "set_node_join_code", "request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
                 "create_agent", "propose_agent", "review_agent", "set_agent_status", "run_start", "run_turn", "run_end", "add_memory")
 
     def call(self, caller: str, reducer: str, args: list) -> None:
