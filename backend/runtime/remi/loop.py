@@ -26,6 +26,7 @@ HISTORY_MESSAGES = 30    # newest channel messages in context (#19)
 CONTEXT_TOKENS = 4000    # hard cap for the whole prompt (master-plan §7; setting `context_tokens` overrides)
 MEMORY_TOKENS = 400
 TRUNCATED = "…[truncated]"
+STUCK_REPEATS = 2  # same command, same error this many times in one run -> end it and ask for help
 
 BUILTIN_DOCS = {
     "sh": "/sh <command>: run a shell command in your own sandbox (60 s limit, output capped)",
@@ -33,6 +34,7 @@ BUILTIN_DOCS = {
     "say": "/say <#channel|@agent|@nickname> <text>: post somewhere else, mention or DM",
     "note": "/note <text>: save a note to your memory for later runs",
     "propose_tool": "/propose_tool <name> then a ```python block: propose a new tool for admin review",
+    "think": "/think <question>: think a hard question through step by step (slower); you get the conclusion back",
 }
 
 
@@ -126,6 +128,17 @@ class Loop:
 
     def _turns(self, ctx: RunContext) -> str:
         af, t0 = ctx.agentfile, self.clock()
+        failed: dict[tuple[str, str], int] = {}  # (command line, error) -> times seen this run
+
+        def stuck(line: str, error: str) -> bool:
+            """Greedy decoding repeats itself: the same failure twice means it will keep failing, so stop and ask."""
+            failed[(line, error)] = failed.get((line, error), 0) + 1
+            if failed[(line, error)] < STUCK_REPEATS:
+                return False
+            self._help_request(ctx, f"I'm stuck: `{line[:200]}` failed {STUCK_REPEATS} times with: {error[:300]}",
+                               family="stuck")
+            return True
+
         for _ in range(af.budget_turns):
             if self._status(ctx.agent["id"]) == "stopped":
                 return "stopped"
@@ -140,6 +153,8 @@ class Loop:
                 out = parse(reply)
             except GrammarError as e:
                 self._post(ctx, "tool_result", f"error: {e}", command="?", exit_code=2, ms=0)
+                if stuck(reply.strip().splitlines()[0] if reply.strip() else "", str(e)):
+                    return "done"
                 continue
             if isinstance(out, Chat):
                 if out.text:
@@ -153,6 +168,8 @@ class Loop:
                 code, output = 1, f"error: {e}"
             self._post(ctx, "tool_result", cap(output), command=out.name, exit_code=code,
                        ms=int((self.clock() - t) * 1000))
+            if code != 0 and stuck(command_line(out), output):
+                return "done"
         self._help_request(ctx)
         return "budget"
 
@@ -164,14 +181,13 @@ class Loop:
     def _status(self, agent_id: int) -> str:
         return next(a["status"] for a in self.db.sql("SELECT * FROM agent") if a["id"] == agent_id)
 
-    def _help_request(self, ctx: RunContext) -> None:
+    def _help_request(self, ctx: RunContext, why: str = "", family: str = "budget") -> None:
         owner = identity_hex(ctx.agent["owner"])
         nick = next((u["nickname"] for u in self.db.sql("SELECT * FROM user")
                      if identity_hex(u["identity"]) == owner), owner)
         af = ctx.agentfile
-        body = (f"@{nick} I ran out of budget ({af.budget_turns} turns / {af.budget_minutes} min) "
-                "before finishing. Can you take a look?")
-        self._post(ctx, "help_request", body, family="budget", owner=owner)
+        why = why or f"I ran out of budget ({af.budget_turns} turns / {af.budget_minutes} min) before finishing."
+        self._post(ctx, "help_request", f"@{nick} {why} Can you take a look?", family=family, owner=owner)
 
     def context(self, ctx: RunContext) -> list[dict]:
         """System prompt (purpose, tools, newest notes) + the channel's newest messages, under a token cap."""

@@ -15,7 +15,7 @@ from remi.grammar import Command
 from remi.stdb import StdbError
 from remi.tools import builtin
 
-BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note}
+BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note, "think": builtin.think}
 SLEEP_TOOLS = C.SLEEP_TOOLS
 
 
@@ -45,7 +45,8 @@ def _registry():
 def dispatch(cmd: Command, ctx) -> tuple[int, str]:
     """Run one command for the agent in ctx. Returns (exit_code, output); errors come back as output."""
     if not allowed(cmd.name, ctx.agentfile.tools):
-        return 126, f"error: /{cmd.name} is not in your Agentfile tools"
+        mine = ", ".join("/" + t.removeprefix("registry:") for t in ctx.agentfile.tools if t != "registry:*")
+        return 126, f"error: /{cmd.name} is not one of your tools. Your tools: {mine or 'none'}"
     try:
         if cmd.name in BUILTINS:
             return BUILTINS[cmd.name](cmd, ctx)

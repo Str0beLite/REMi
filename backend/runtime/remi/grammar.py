@@ -82,7 +82,7 @@ def _plain(name: str, args: str, rest: list[str]) -> Command:
 
 
 PARSERS: dict[str, Parser] = {
-    "sh": _needs_args, "fetch": _needs_args, "note": _needs_args, "say": _say, "propose_tool": _propose_tool,
+    "sh": _needs_args, "fetch": _needs_args, "note": _needs_args, "think": _needs_args, "say": _say, "propose_tool": _propose_tool,
 }
 
 

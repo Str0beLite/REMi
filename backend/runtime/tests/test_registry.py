@@ -188,7 +188,7 @@ def test_registry_allowlist(stdb, boxes, tools, ok):
     code, out = dispatch(Command("word_count", "x"), user)
     assert (code == 0) is ok
     if not ok:
-        assert (code, out) == (126, "error: /word_count is not in your Agentfile tools")
+        assert code == 126 and out.startswith("error: /word_count is not one of your tools. Your tools: ")
 
 
 def test_propose_needs_propose_tool_in_allowlist(stdb, boxes):

@@ -119,6 +119,7 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /say <#channel|@agent|@nickname> <text>
 /note <text>
 /propose_tool <name>                 followed by a ```python fenced block (the tool's code); docs = the block's leading docstring
+/think <question>                    one extra call with thinking on (temperature 0.6, the agent's own adapters); returns the conclusion, capped at 4 000 chars
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
 

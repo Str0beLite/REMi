@@ -69,3 +69,22 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 
 **14. The whole nightly loop is minutes on the 5070 Ti.**
 - Evidence: `/sleep` on 60 examples (30 steps, loss 1.85 → 0.001) took 2.1 min asleep, most of it the vLLM restart. Then `/adapter eval` on 10 held-out examples: 10/10 against base 0/10, STRONG GO (McNemar p = 0.002).
+
+## Agents in the loop (first live chats, 2026-11-08)
+
+**15. Agent turns run at temperature 0; `/think` runs at 0.6.**
+- Rule: tool-calling turns are greedy. Thinking (`/think`) samples at 0.6 / top_p 0.95, the usual reasoning-mode settings.
+- Why: the model's default is temperature 1.0, which invented commands that don't exist (`/toh`, `/toad`, `/toaom`) and gave three different answers to one question. At temperature 0 those were gone.
+- Evidence: same homelab prompt, 3 samples each. Default: "98% of 25G", "/var/backups /var/backups …", "is full". Temperature 0: the same answer every time.
+
+**16. The base 4B is fragile at "check before you answer"; an adapter fixes it.**
+- Evidence: at temperature 0, "@homelab-remi, is /var/backups running out of space?" (with a comma) got a made-up answer, while the same question without the comma got `/sh df -h /var/backups`. 3 of 4 questions used `/sh` without the comma. A worked example in the prompt changed nothing. The `sre` adapter answered `/sh …` every time (see 4b).
+- Rule: don't rely on the purpose prompt alone for behaviour that matters; train it.
+
+**17. A stuck greedy model repeats itself, so stop after the same failure twice.**
+- Evidence: Sleep REMi sent `/adapter adopt homelab-remi@sre0 …` about 30 times with the same error, until its 40-turn budget ran out.
+- Rule: the loop ends a run when one command fails twice with the same error, and posts a help request (`family: stuck`).
+
+**18. Errors should show the right form and the real names; a small model copies them.**
+- Evidence (the chat mistakes): `/read @general`, `base=homelab-remi-base`, a made-up dataset `srerank-one`, two commands on one line, `homelab-remi@sre0`.
+- Rule: every usage error ends with "right form: …" and lists what exists (channels, agents, datasets, specs, adapters). An unknown command lists the agent's own tools. Whether this fixes the mistakes is checked live after the change.

@@ -114,6 +114,7 @@ def test_full_run_note_then_done(stdb, vllm, db):
                            {"role": "user", "content": "[note exit 0]\nnoted"}]
     assert chats(vllm)[0]["model"] == C.BASE_MODEL
     assert chats(vllm)[0]["chat_template_kwargs"] == {"enable_thinking": False}
+    assert chats(vllm)[0]["temperature"] == 0  # greedy: tool calls must not be sampled
 
 
 def test_context_purpose_notes_tools_history(stdb, vllm, db):
@@ -208,6 +209,24 @@ def test_malformed_command_is_fed_back(stdb, vllm, db):
     assert Loop(db, tools).run(agent, post(stdb, "@helper ls")) == "done"
     assert posted(stdb, agent)[0] == ("tool_result", "error: /sh needs an argument")
     assert [c.args for c in tools.calls] == ["ls"]
+
+
+def test_same_failure_twice_ends_the_run_with_a_help_request(stdb, vllm, db):
+    agent = add_agent(stdb, turns=40)
+    fails = lambda cmd, ctx: (2, "error: expected <name>@<version>, got 'homelab-remi@sre0'")
+    script(vllm, "/sh adopt", "/sh adopt", "/sh adopt", "never asked")
+    assert Loop(db, fails).run(agent, post(stdb, "@helper go")) == "done"
+    help_msg = [m for m in stdb.db.tables["message"] if m["kind"] == "help_request"][0]
+    assert "I'm stuck: `/sh adopt` failed 2 times" in help_msg["body"] and json.loads(help_msg["meta"])["family"] == "stuck"
+    assert len(chats(vllm)) == 2  # it didn't burn the other 38 turns
+
+
+def test_different_failures_are_not_stuck(stdb, vllm, db):
+    agent = add_agent(stdb)
+    script(vllm, "/sh a", "/sh b", "/sh", "/sh", "gave up")  # two different tool errors, then the same grammar error twice
+    assert Loop(db, lambda cmd, ctx: (1, f"no {cmd.args}")).run(agent, post(stdb, "@helper go")) == "done"
+    assert len(chats(vllm)) == 4 and "stuck" in [json.loads(m["meta"]).get("family") for m in stdb.db.tables["message"]
+                                                 if m["kind"] == "help_request"]
 
 
 def test_tool_exception_and_long_output(stdb, vllm, db):

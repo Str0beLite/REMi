@@ -71,7 +71,7 @@ def do(ctx, text):
 
 def test_commands_need_the_agentfile_tool(ctx):
     ctx.agentfile = C.load_agentfile((C.REPO_ROOT / "fixtures/agentfiles/sleep-remi.yaml").read_text()
-                                     .replace("tools: [say, note, read,", "tools: [say, note,"))
+                                     .replace("tools: [say, note, think, read,", "tools: [say, note, think,"))
     assert do(ctx, "/read #general")[0] == 126
 
 
@@ -79,7 +79,7 @@ def test_read_is_newest_first_with_names(ctx):
     code, out = do(ctx, "/read #general --n 2")
     assert code == 0 and out.splitlines() == ["#5 sleep-remi [chat]: msg 5", "#3 ryan [chat]: msg 3"]
     assert do(ctx, "/read #general --since 4")[1] == "#5 sleep-remi [chat]: msg 5"
-    assert do(ctx, "/read #nope")[1] == "error: no channel #nope"
+    assert do(ctx, "/read #nope")[1].startswith("error: no channel #nope; channels: #general, #ops\nright form: /read")
 
 
 def test_todo_and_memory(ctx):
@@ -106,16 +106,23 @@ def test_dataset_new_add_show(ctx, tmp_path):
 
 
 def test_train_spec_and_sleep_window(ctx, tmp_path, monkeypatch):
-    bad = do(ctx, "/train_spec sre-v5 base=x datasets=a rank=99 lr=2e-4 epochs=2 targets=attn+mlp out=sre desc=\"x\"")
-    assert bad[0] == 2 and "rank" in bad[1]
+    (tmp_path / "datasets").mkdir()
+    (tmp_path / "datasets/homelab-fixes.jsonl").write_text((json.dumps(ROW) + "\n") * 60)
+    good = f'base={C.BASE_MODEL} datasets=homelab-fixes rank=16 lr=2e-4 epochs=2 targets=attn+mlp out=sre desc="x"'
+    # each mistake from the real chat log gets an error that shows the fix, with real values
+    base = do(ctx, "/train_spec sre-v5 " + good.replace(f"base={C.BASE_MODEL}", "base=homelab-remi-base"))
+    assert base[0] == 2 and f"base={C.BASE_MODEL}" in base[1] and "right form: /train_spec" in base[1]
+    data = do(ctx, "/train_spec sre-v5 " + good.replace("datasets=homelab-fixes", "datasets=srerank-one"))
+    assert "no dataset srerank-one; datasets: homelab-fixes" in data[1]
+    two = do(ctx, "/train_spec sre-v5 " + good + " /sleep homelab-remi")
+    assert "one command per turn: send /sleep as your next command" in two[1]
+    assert "rank" in do(ctx, "/train_spec sre-v5 " + good.replace("rank=16", "rank=99"))[1]
     ok = do(ctx, f"/train_spec sre-v5 base={C.BASE_MODEL} datasets=homelab-fixes rank=16 lr=2e-4 epochs=2 "
                  'targets=attn+mlp out=sre desc="Verified homelab fixes"')
     assert ok == (0, "spec sre-v5 saved; /sleep sre-v5 to train it")
     spec = json.loads((tmp_path / "specs/sre-v5.json").read_text())
     assert spec["rank"] == 16 and spec["lr"] == 2e-4 and spec["datasets"] == ["homelab-fixes"]
     # /sleep inside the 6 h window: refused by the cycle's guardrail, nothing happens
-    (tmp_path / "datasets").mkdir()
-    (tmp_path / "datasets/homelab-fixes.jsonl").write_text((json.dumps(ROW) + "\n") * 60)
     ctx.db.t["setting"][0]["value"] = str(int(__import__("time").time()) - 3600)
 
     class Node:
@@ -124,6 +131,14 @@ def test_train_spec_and_sleep_window(ctx, tmp_path, monkeypatch):
     monkeypatch.setattr(tools.cycle.launch, "ready", lambda *a: False)
     code, out = do(ctx, "/sleep sre-v5")
     assert code == 2 and "refused" in out and "one sleep per 6 h" in out and ctx.db.calls == []
+
+
+def test_errors_name_what_exists(ctx):
+    ctx.db.t["adapter"] = [{"key": "sre@1"}]
+    out = do(ctx, "/adapter adopt homelab-remi@sre0 --agents homelab --weight 0.9")[1]
+    assert "got 'homelab-remi@sre0'; adapters: sre@1" in out and "right form: /adapter" in out
+    assert "channels: #general, #ops" in do(ctx, "/read @general")[1]
+    assert "agents: sleep-remi, homelab" in do(ctx, "/memory edit nobody 3 x")[1]
 
 
 def test_adopt_never_reaches_sleep_remi_and_reject(ctx):

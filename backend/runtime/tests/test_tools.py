@@ -14,7 +14,7 @@ from remi.stdb import Stdb
 from remi.tools import allowed, builtin, dispatch
 
 NODE, RYAN = "0xnode", "0xryan"
-ALL = ("sh", "fetch", "say", "note", "propose_tool", "registry:*")
+ALL = ("sh", "fetch", "say", "note", "propose_tool", "think", "registry:*")
 
 
 @dataclass
@@ -74,7 +74,7 @@ def test_disallowed_command_does_not_run(stdb, ctx):
     agent, af = make_agent(stdb, "limited", ("sh",))
     limited = Ctx(ctx.db, agent, af)
     code, out = dispatch(Command("note", "secret"), limited)
-    assert (code, out) == (126, "error: /note is not in your Agentfile tools")
+    assert (code, out) == (126, "error: /note is not one of your tools. Your tools: /sh")
     assert stdb.db.tables["memory"] == []
     assert dispatch(Command("word_count"), limited)[0] == 126
 
@@ -215,3 +215,23 @@ def test_unknown_names_go_to_registry(ctx, monkeypatch):
     assert dispatch(Command("word_count", "a b c"), ctx) == (0, "3")
     assert dispatch(parse('/propose_tool adder\n```python\n"""Add."""\nprint(1)\n```'), ctx) == (0, "proposed adder@1")
     assert seen == [("run", "word_count", "a b c"), ("propose", "adder", "Add.")]
+
+
+def test_think_uses_thinking_the_agents_adapters_and_returns_the_conclusion(ctx, monkeypatch):
+    from remi import llm
+    from remi.mocks.vllm import make_server
+    vllm = make_server(0)
+    threading.Thread(target=vllm.serve_forever, daemon=True).start()
+    monkeypatch.setenv("VLLM_URL", f"http://127.0.0.1:{vllm.server_address[1]}")
+    seen = []
+    monkeypatch.setattr(llm, "model_for", lambda adapters: seen.append(adapters) or C.BASE_MODEL)
+    vllm.state.script.append("<think>disk is 3 of 4 GB, so 75%</think>\nIt's 75% full.")
+    code, out = dispatch(parse("/think how full is a 4 GB disk with 3 GB used?"), ctx)
+    body = [r["body"] for r in vllm.state.requests if r["path"] == "/v1/chat/completions"][-1]
+    assert (code, out) == (0, "It's 75% full.")
+    assert body["chat_template_kwargs"] == {"enable_thinking": True} and body["temperature"] == llm.THINK_TEMPERATURE
+    assert body["messages"][-1]["content"] == "how full is a 4 GB disk with 3 GB used?" and seen == [ctx.agentfile.adapters]
+    vllm.state.script.append("<think>and then and then")  # ran out of tokens mid-thought
+    code, out = dispatch(parse("/think a long one"), ctx)
+    assert code == 1 and "ran out of room" in out
+    vllm.shutdown()

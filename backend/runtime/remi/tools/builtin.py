@@ -149,3 +149,14 @@ def say(cmd, ctx) -> tuple[int, str]:
 def note(cmd, ctx) -> tuple[int, str]:
     ctx.db.call("add_memory", ctx.agent["id"], cmd.args)
     return 0, "noted"
+
+
+def think(cmd, ctx) -> tuple[int, str]:
+    """One extra call with thinking on, as the agent itself (its purpose and adapters), returning only the conclusion."""
+    from remi import llm
+    messages = [{"role": "system", "content": ctx.agentfile.purpose.strip()}, {"role": "user", "content": cmd.args}]
+    out = llm.think(messages, llm.model_for(ctx.agentfile.adapters))
+    _, closed, answer = out.rpartition("</think>")
+    if not closed and "<think>" in out:
+        return 1, cap("error: the thinking ran out of room before a conclusion. Last part: " + out[-1500:])
+    return 0, cap(answer.strip() or out.strip())

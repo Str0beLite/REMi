@@ -87,17 +87,25 @@ def _sha256(path: Path) -> str:
 
 def _channel_id(db, name: str) -> int:
     name = name.removeprefix("#")
-    ch = next((c for c in db.sql("SELECT * FROM channel") if c["name"] == name), None)
+    channels = db.sql("SELECT * FROM channel")
+    ch = next((c for c in channels if c["name"] == name), None)
     if ch is None:
-        raise Usage(f"no channel #{name}")
+        raise Usage(f"no channel #{name}; channels: " + ", ".join(f"#{c['name']}" for c in channels if c.get("kind") != "dm"))
     return ch["id"]
 
 
 def _agent(db, name: str) -> dict:
-    a = next((a for a in db.sql("SELECT * FROM agent") if a["name"] == name), None)
+    agents = db.sql("SELECT * FROM agent")
+    a = next((a for a in agents if a["name"] == name), None)
     if a is None:
-        raise Usage(f"no agent {name}")
+        raise Usage(f"no agent {name}; agents: " + ", ".join(a["name"] for a in agents))
     return a
+
+
+def _names(folder: str, suffix: str) -> str:
+    """What exists in the store, for error messages: the model copies a real name better than it guesses one."""
+    found = sorted(p.name.removesuffix(suffix) for p in (_store() / folder).glob(f"*{suffix}"))
+    return ", ".join(found) or "none yet"
 
 
 def _post_ops(ctx, kind: str, body: str, meta: dict) -> None:
@@ -170,7 +178,7 @@ def dataset(ctx, args: str, block: str | None) -> str:
     if sub == "add" and len(words) == 1:
         name = words[0]
         if not path(name).exists():
-            raise Usage(f"no dataset {name}; /dataset new it first")
+            raise Usage(f"no dataset {name} (datasets: {_names('datasets', '.jsonl')}); /dataset new it first")
         lines = [ln for ln in (block or "").splitlines() if ln.strip()]
         if not lines:
             raise Usage("the ```jsonl block is empty")
@@ -187,7 +195,7 @@ def dataset(ctx, args: str, block: str | None) -> str:
     if sub == "show":
         words, o = _opts(words, n=SHOW_DEFAULT)
         if len(words) != 1 or not path(words[0]).exists():
-            raise Usage("/dataset show <name> [--n <count>] (an existing dataset)")
+            raise Usage(f"/dataset show <name> [--n <count>]; datasets: {_names('datasets', '.jsonl')}")
         lines = [ln for ln in path(words[0]).read_text(encoding="utf-8").splitlines() if ln.strip()]
         return f"{words[0]}: {len(lines)} examples\n" + "\n".join(lines[:o["n"]])
     raise Usage(DOCS["dataset"])
@@ -202,6 +210,8 @@ def train_spec(ctx, args: str) -> str:
     for p in pairs:
         k, eq, v = p.partition("=")
         if not eq:
+            if p.startswith("/"):
+                raise Usage(f"one command per turn: send {p} as your next command, after this one works")
             raise Usage(f"expected key=value, got {p!r}")
         spec[k] = v
     try:
@@ -212,6 +222,10 @@ def train_spec(ctx, args: str) -> str:
         raise Usage(f"bad number: {e}") from None
     if "datasets" in spec:
         spec["datasets"] = [d for d in spec["datasets"].split(",") if d]
+    if spec.get("base") != C.BASE_MODEL:
+        raise Usage(f"base must be this node's model: base={C.BASE_MODEL}")
+    if missing := [d for d in spec.get("datasets", []) if not (_store() / "datasets" / f"{d}.jsonl").exists()]:
+        raise Usage(f"no dataset {', '.join(missing)}; datasets: {_names('datasets', '.jsonl')}")
     try:
         C.validate_train_spec(spec)
     except ContractError as e:
@@ -225,7 +239,7 @@ def train_spec(ctx, args: str) -> str:
 def sleep(ctx, args: str) -> str:
     path = _store() / "specs" / f"{args.strip()}.json"
     if not args.strip() or not path.exists():
-        raise Usage("/sleep <spec-name> (save one with /train_spec first)")
+        raise Usage(f"/sleep <spec-name>; saved specs: {_names('specs', '.json')} (save one with /train_spec first)")
     if _node is None:
         raise Usage("this runtime wasn't started with the sleep cycle attached")
     if getattr(_vllm, "proc", True) is None and cycle.launch.ready():
@@ -238,10 +252,11 @@ def sleep(ctx, args: str) -> str:
     return f"trained {out.parent.name}@{out.name}; it's a candidate. /adapter eval it before adopting."
 
 
-def _key(text: str) -> tuple[str, int]:
+def _key(text: str, db=None) -> tuple[str, int]:
     m = KEY.match(text)
     if not m:
-        raise Usage(f"expected <name>@<version>, got {text!r}")
+        known = ", ".join(a["key"] for a in db.sql("SELECT * FROM adapter")) if db else ""
+        raise Usage(f"expected <name>@<version> like sre@1, got {text!r}" + (f"; adapters: {known}" if known else ""))
     return m[1], int(m[2])
 
 
@@ -249,12 +264,12 @@ def adapter(ctx, args: str) -> str:
     sub, _, rest = args.partition(" ")
     words = rest.split()
     if sub == "eval" and len(words) == 2:
-        return _eval(ctx, *_key(words[0]), words[1])
+        return _eval(ctx, *_key(words[0], ctx.db), words[1])
     if sub == "adopt":
         m = re.match(r"^(\S+)\s+--agents\s+(\S+)\s+--weight\s+([0-9.]+)$", rest.strip())
         if not m:
             raise Usage("/adapter adopt <name>@<v> --agents <a,b> --weight <w>")
-        name, version = _key(m[1])
+        name, version = _key(m[1], ctx.db)
         weight, agents = float(m[3]), [_agent(ctx.db, a) for a in m[2].split(",") if a]
         key = f"{name}@{version}"
         ctx.db.call("set_adapter_status", key, "adopted")
@@ -264,7 +279,7 @@ def adapter(ctx, args: str) -> str:
                       {"key": key, "event": "attached", "agent_id": a["id"], "weight": weight})
         return f"{key} adopted and attached to {', '.join(a['name'] for a in agents)} at weight {weight:g}"
     if sub == "reject" and len(words) >= 2:
-        key = "@".join(map(str, _key(words[0])))
+        key = "@".join(map(str, _key(words[0], ctx.db)))
         ctx.db.call("set_adapter_status", key, "rejected")
         _post_ops(ctx, "adapter_event", f"{key} rejected: {' '.join(words[1:])}", {"key": key, "event": "rejected"})
         return f"{key} rejected"
@@ -278,7 +293,7 @@ def _eval(ctx, name: str, version: int, data: str) -> str:
     from remi.trainer.stats import paired, verdict
     path = _store() / "datasets" / f"{data}.jsonl"
     if not path.exists():
-        raise Usage(f"no dataset {data}")
+        raise Usage(f"no dataset {data}; datasets: {_names('datasets', '.jsonl')}")
     rows = [json.loads(ln)["messages"] for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()][:EVAL_MAX]
     rows = [m[:max(i for i, x in enumerate(m) if x["role"] == "assistant") + 1] for m in rows]
     candidate = model_for([AdapterRef(name, version, 1.0)])
@@ -302,4 +317,4 @@ def run(cmd: Command, ctx) -> tuple[int, str]:
         return 0, {"read": read, "todo": todo, "memory": memory, "train_spec": train_spec, "sleep": sleep,
                    "adapter": adapter}[cmd.name](ctx, cmd.args)
     except Usage as e:
-        return 2, f"error: {e}"
+        return 2, f"error: {e}\nright form: {DOCS[cmd.name]}"
