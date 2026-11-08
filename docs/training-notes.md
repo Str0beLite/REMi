@@ -81,9 +81,9 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 - Evidence: at temperature 0, "@homelab-remi, is /var/backups running out of space?" (with a comma) got a made-up answer, while the same question without the comma got `/sh df -h /var/backups`. 3 of 4 questions used `/sh` without the comma. A worked example in the prompt changed nothing. The `sre` adapter answered `/sh …` every time (see 4b).
 - Rule: don't rely on the purpose prompt alone for behaviour that matters; train it.
 
-**17. A stuck greedy model repeats itself, so stop after the same failure twice.**
+**17. A stuck greedy model repeats itself, so stop a run that keeps doing the same thing.**
 - Evidence: Sleep REMi sent `/adapter adopt homelab-remi@sre0 …` about 30 times with the same error, until its 40-turn budget ran out.
-- Rule: the loop ends a run when one command fails twice with the same error, and posts a help request (`family: stuck`).
+- Rule: the loop ends a run when the same command gives the same result 10 times (`loop.STUCK_REPEATS`), and posts a help request (`family: stuck`). It was 2 at first; that also ended runs that were only re-reading something (`/dataset list` again after other work), so Ryan set 10 on 2026-11-08. The turn budget still caps everything.
 
 **18. Errors should show the right form and the real names; a small model copies them.**
 - Evidence (the chat mistakes): `/read @general`, `base=homelab-remi-base`, a made-up dataset `srerank-one`, two commands on one line, `homelab-remi@sre0`.
@@ -105,7 +105,7 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 - Rule: name the first command for each kind of request in the purpose. When a model picks the wrong tool, replay its context with 3–5 variants (seconds each) before you rebuild anything.
 
 **23. Loops can be made of successes: stop on the same command with the same result, not only the same error.**
-- Evidence: `/todo add` → "added", `/todo list` → "1: …", 20 times each, 40 turns in 20 s. Every call worked, so the failure-only stuck detector never fired. Counting (command, result) pairs ends the run after the second repeat.
+- Evidence: `/todo add` → "added", `/todo list` → "1: …", 20 times each, 40 turns in 20 s. Every call worked, so the failure-only stuck detector never fired. Counting (command, result) pairs catches it (now at the 10th repeat, see 17).
 
 **24. After training, vLLM can fail to come back on a hybrid Mamba model: pin `--max-num-seqs`.**
 - Evidence: `max_num_seqs (256) exceeds available Mamba cache blocks (252)`. The trainer leaves slightly less VRAM free (3.76 vs 3.84 GiB of KV), and Mamba needs one cache block per sequence. `--max-num-seqs 64` fixes it; a node never runs 64 sequences at once.

@@ -4,7 +4,7 @@ import threading
 import pytest
 
 from remi import contract as C
-from remi.loop import Loop, command_line
+from remi.loop import STUCK_REPEATS, Loop, command_line
 from remi.stdb import identity_hex
 from remi.grammar import Command
 from remi.mocks import stdb as mock_stdb
@@ -211,31 +211,43 @@ def test_malformed_command_is_fed_back(stdb, vllm, db):
     assert [c.args for c in tools.calls] == ["ls"]
 
 
-def test_same_failure_twice_ends_the_run_with_a_help_request(stdb, vllm, db):
+N = STUCK_REPEATS  # 10 (Ryan, 2026-11-08)
+
+
+def test_same_failure_n_times_ends_the_run_with_a_help_request(stdb, vllm, db):
     agent = add_agent(stdb, turns=40)
     fails = lambda cmd, ctx: (2, "error: expected <name>@<version>, got 'homelab-remi@sre0'")
-    script(vllm, "/sh adopt", "/sh adopt", "/sh adopt", "never asked")
+    script(vllm, *["/sh adopt"] * (N + 1), "never asked")
     assert Loop(db, fails).run(agent, post(stdb, "@helper go")) == "done"
     help_msg = [m for m in stdb.db.tables["message"] if m["kind"] == "help_request"][0]
-    assert "I'm stuck: `/sh adopt` failed 2 times" in help_msg["body"] and json.loads(help_msg["meta"])["family"] == "stuck"
-    assert len(chats(vllm)) == 2  # it didn't burn the other 38 turns
+    assert f"I'm stuck: `/sh adopt` failed {N} times" in help_msg["body"] and json.loads(help_msg["meta"])["family"] == "stuck"
+    assert len(chats(vllm)) == N  # it didn't burn the rest of its 40 turns
 
 
-def test_same_success_twice_is_a_loop(stdb, vllm, db):
+def test_same_success_n_times_is_a_loop(stdb, vllm, db):
     # Live Sleep REMi: /todo add, /todo list, /todo add, ... until its 40 turns were gone.
     agent = add_agent(stdb, turns=40)
-    script(vllm, "/sh add", "/sh list", "/sh add", "never asked")
+    script(vllm, *["/sh add", "/sh list"] * N, "never asked")
     assert Loop(db, lambda cmd, ctx: (0, f"ok {cmd.args}")).run(agent, post(stdb, "@helper go")) == "done"
     help_msg = [m for m in stdb.db.tables["message"] if m["kind"] == "help_request"][0]
-    assert "`/sh add` gave the same result 2 times: ok add" in help_msg["body"] and len(chats(vllm)) == 3
+    assert f"`/sh add` gave the same result {N} times: ok add" in help_msg["body"] and len(chats(vllm)) == 2 * N - 1
 
 
-def test_different_failures_are_not_stuck(stdb, vllm, db):
-    agent = add_agent(stdb)
-    script(vllm, "/sh a", "/sh b", "/sh", "/sh", "gave up")  # two different tool errors, then the same grammar error twice
+def test_reading_the_same_thing_again_is_fine(stdb, vllm, db):
+    # Live Sleep REMi: /dataset list, /todo add, /todo list, /dataset list was ended as "stuck" when the limit was 2.
+    agent = add_agent(stdb, turns=40)
+    script(vllm, "/sh list", "/sh add", "/sh list", "/sh list", "all done")
+    assert Loop(db, lambda cmd, ctx: (0, f"ok {cmd.args}")).run(agent, post(stdb, "@helper go")) == "done"
+    assert not [m for m in stdb.db.tables["message"] if m["kind"] == "help_request"]
+    assert [m["body"] for m in stdb.db.tables["message"] if m["kind"] == "chat"][-1] == "all done"
+
+
+def test_different_failures_are_counted_apart(stdb, vllm, db):
+    agent = add_agent(stdb, turns=40)
+    script(vllm, "/sh a", "/sh b", *["/sh"] * N, "gave up")  # two different tool errors, then the same grammar error N times
     assert Loop(db, lambda cmd, ctx: (1, f"no {cmd.args}")).run(agent, post(stdb, "@helper go")) == "done"
-    assert len(chats(vllm)) == 4 and "stuck" in [json.loads(m["meta"]).get("family") for m in stdb.db.tables["message"]
-                                                 if m["kind"] == "help_request"]
+    assert len(chats(vllm)) == 2 + N and "stuck" in [json.loads(m["meta"]).get("family") for m in stdb.db.tables["message"]
+                                                     if m["kind"] == "help_request"]
 
 
 def test_tool_exception_and_long_output(stdb, vllm, db):

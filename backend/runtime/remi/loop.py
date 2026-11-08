@@ -26,7 +26,9 @@ HISTORY_MESSAGES = 30    # newest channel messages in context (#19)
 CONTEXT_TOKENS = 4000    # hard cap for the whole prompt (master-plan §7; setting `context_tokens` overrides)
 MEMORY_TOKENS = 400
 TRUNCATED = "…[truncated]"
-STUCK_REPEATS = 2  # same command, same result (error or not) this many times in one run -> end it and ask for help
+# Same command, same result this many times in one run -> end it and ask for help (Ryan, 2026-11-08: lower limits
+# ended runs that were just re-reading something, like /dataset list again after other work).
+STUCK_REPEATS = 10
 
 BUILTIN_DOCS = {
     "sh": "/sh <command>: run a shell command in your own sandbox (60 s limit, output capped)",
@@ -147,8 +149,8 @@ class Loop:
         seen: dict[tuple[str, str], int] = {}  # (command line, result) -> times seen this run
 
         def stuck(line: str, result: str, failed: bool = True) -> bool:
-            """Greedy decoding repeats itself: the same command with the same result twice (a failure, or a loop like
-            /todo add, /todo list, /todo add) means it will keep going round, so stop and ask."""
+            """Greedy decoding repeats itself: the same command with the same result STUCK_REPEATS times (a failure, or a
+            loop like /todo add, /todo list, /todo add) means it will keep going round, so stop and ask."""
             seen[(line, result)] = seen.get((line, result), 0) + 1
             if seen[(line, result)] < STUCK_REPEATS:
                 return False
