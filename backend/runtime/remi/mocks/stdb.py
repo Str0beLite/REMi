@@ -93,14 +93,18 @@ class MockDB:
         else:
             self.insert("user", {"identity": ident(caller), "nickname": nickname, "is_admin": False})
 
-    def register_node(self, caller, name, gpu):
+    def register_node(self, caller, name, gpu, base_model):
         self.require_admin(caller)
+        if not base_model:
+            raise SenderError("base_model required")
         n = self.one("node", name=name)
         if n:
             if n["identity"] != ident(caller):
                 raise SenderError("node name taken")
+            n.update(gpu=gpu, base_model=base_model)
             return
-        self.insert("node", {"identity": ident(caller), "name": name, "gpu": gpu, "status": "up", "last_seen": now()})
+        self.insert("node", {"identity": ident(caller), "name": name, "gpu": gpu, "base_model": base_model,
+                             "status": "up", "last_seen": now()})
 
     def heartbeat(self, caller, node_id, status):
         n = self.one("node", id=node_id)

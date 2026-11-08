@@ -30,7 +30,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | Table | Columns (name: type) | Notes |
 |---|---|---|
 | `user` | identity: Identity **pk**, nickname: string, is_admin: bool | |
-| `node` | id: u64 **pk autoInc**, identity: Identity **unique**, name: string **unique**, gpu: string, status: string, last_seen: Timestamp | status ∈ `NODE_STATUSES` = up, asleep, down |
+| `node` | id: u64 **pk autoInc**, identity: Identity **unique**, name: string **unique**, gpu: string, base_model: string, status: string, last_seen: Timestamp | status ∈ `NODE_STATUSES` = up, asleep, down. `base_model` = the HF id this node serves (§9) |
 | `channel` | id: u64 **pk autoInc**, name: string, kind: string, parent_id: u64 (0 = none), created_by: Identity, ts | kind ∈ `CHANNEL_KINDS` = public, thread, dm. Public names unique, lowercase `[a-z0-9-]{1,32}`. `#general` and `#ops` exist after `init`. |
 | `member` | id: u64 **pk autoInc**, channel_id: u64 **index**, member_kind: string, member_id: string | member_kind ∈ user, agent. member_id = identity hex for users, agent id as decimal string for agents |
 | `message` | id: u64 **pk autoInc**, channel_id: u64 **index**, author_kind: string, author_id: string, kind: string, body: string, meta: string (JSON), ts | author_kind ∈ user, agent, system. kind ∈ `MESSAGE_KINDS` (§6). body ≤ 16 000 chars |
@@ -52,7 +52,7 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 |---|---|---|---|
 | `init` | — | module publish | creates `#general`, `#ops`, default settings |
 | `set_nickname` | nickname: string | anyone | upserts `user` (1–24 chars) |
-| `register_node` | name: string, gpu: string | admin (until §12 admin bootstrap is decided) | adds `node` with identity = caller, status up; re-registering the same name from the same identity is a no-op |
+| `register_node` | name: string, gpu: string, base_model: string | admin (until §12 admin bootstrap is decided) | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model |
 | `heartbeat` | node_id: u64, status: string | that node | sets status + last_seen |
 | `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>` |
 | `join` / `leave` | channel_id: u64, member_kind: string, member_id: string | the member itself, its node, or admin | |
@@ -69,9 +69,9 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `todo_add` | agent_id: u64, text: string | its node | |
 | `todo_done` | todo_id: u64 | its node | |
 | `register_dataset` | name: string, node_id: u64, n_examples: u32, sha256: string, description: string, created_by: string | that node | upsert by name |
-| `register_adapter` | name: string, version: u32, node_id: u64, base: string, description: string, sha256: string, size: u64, train_stats: string, parent_version: u32, dataset_names: string | that node | status always `candidate` |
+| `register_adapter` | name: string, version: u32, node_id: u64, base: string, description: string, sha256: string, size: u64, train_stats: string, parent_version: u32, dataset_names: string | that node | status always `candidate`; `base` must equal that node's `base_model` |
 | `set_adapter_status` | key: string, status: string | admin, or the node of a protected agent (Sleep REMi) | |
-| `attach_adapter` | agent_id: u64, name: string, version: u32, weight: f32 | admin, or the node of a protected agent; **never onto a protected agent unless caller is admin** | rewrites the Agentfile `adapters` list (weight 0 removes it), writes `config_history`; adapter must be `adopted` |
+| `attach_adapter` | agent_id: u64, name: string, version: u32, weight: f32 | admin, or the node of a protected agent; **never onto a protected agent unless caller is admin** | rewrites the Agentfile `adapters` list (weight 0 removes it), writes `config_history`; adapter must be `adopted`, and `adapter.base` must equal the `base_model` of the agent's node (LoRAs don't transfer between bases) |
 | `run_start` | agent_id: u64, channel_id: u64, trigger_msg_id: u64 | its node | refuses if a run is already `running` for that agent+channel |
 | `run_turn` | run_id: u64 | its node | turns += 1 |
 | `run_end` | run_id: u64, state: string | its node | |
@@ -133,6 +133,7 @@ Sleep REMi's extra commands are in master-plan §8; their exact grammar is a `la
 
 ## 9. Runtime ↔ vLLM
 
+- **One base model per node.** Each node serves exactly one base model, recorded in `node.base_model`; different nodes may run different bases (e.g. the PC on Nano 4B, a Brev box on a bigger model). An agent only ever uses adapters trained on its node's base: `attach_adapter` enforces it, and the runtime also filters before calling `model_name()`.
 - OpenAI-compatible server at `VLLM_URL` (default `http://127.0.0.1:8000`). Base model id `BASE_MODEL` = `nvidia/NVIDIA-Nemotron-3-Nano-4B` (exact HF id confirmed by `lane:gpu`), BF16, thinking off.
 - Chat: `POST /v1/chat/completions` with `model` = the base model id or a LoRA name.
 - LoRA names: a single adapter at weight 1.0 is `<name>@<version>`; any other mix is `mix-<hash>`, where hash = first 12 hex chars of sha256 of the mix as canonical JSON (weight-0 entries dropped, adapters sorted by name, then version; `{"name","version","weight"}` with weight rounded to 2 decimals). Implemented once in `remi.contract.model_name()`.
