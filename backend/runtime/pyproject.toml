@@ -8,6 +8,15 @@ dependencies = [
   "jsonschema>=4.23.0",
 ]
 
+[project.optional-dependencies]
+# lane:gpu serving + trainer, WSL2/Linux only (vLLM has no Windows build). Pinned to the stack proven
+# on the 5070 Ti. Install in WSL: UV_PROJECT_ENVIRONMENT=~/.venvs/remi-gpu uv sync --extra gpu
+gpu = [
+  "vllm==0.33.0; sys_platform == 'linux'",
+  "peft==0.21.2; sys_platform == 'linux'",
+  "transformers==5.20.2; sys_platform == 'linux'",
+]
+
 [dependency-groups]
 dev = ["pytest>=8.3.0"]
 
