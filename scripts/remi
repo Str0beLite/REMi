@@ -46,21 +46,21 @@ make_env() {
   say "wrote .env for this machine"
 }
 
-ask_token() {
-  grep -q '^STDB_TOKEN=.\+' .env && return
-  local cli=~/.config/spacetime/cli.toml t=""
-  [ -t 0 ] || die "set STDB_TOKEN in .env: spacetimedb_token from $cli of an admin of the database"
-  if [ -f "$cli" ] && grep -q '^spacetimedb_token' "$cli"; then
-    local yn; read -rp "Use this machine's spacetime CLI login as the node's identity (it must be a database admin)? [Y/n] " yn
-    [[ "$yn" =~ ^[Nn] ]] || t=$(sed -n 's/^spacetimedb_token *= *"\(.*\)"/\1/p' "$cli")
-  fi
-  if [ -z "$t" ]; then
-    say "paste the admin's spacetimedb_token (the line in $cli on the machine that published the module)"
-    read -rsp "SpacetimeDB admin token: " t; echo
-  fi
-  [ -n "$t" ] || die "no token given"
-  [ "$(tr -cd . <<<"$t" | wc -c)" = 2 ] || die "that isn't a single token (expected one JWT: xxx.yyy.zzz)"
+local_db() { grep -q '^COMPOSE_PROFILES=.*local' .env; }  # this machine runs the workspace's SpacetimeDB
+
+need_token() {  # a local workspace gets its token from the publish step in `up`
+  local_db || grep -q '^STDB_TOKEN=.\+' .env     || die "set STDB_TOKEN in .env: an admin's spacetimedb_token for $(sed -n 's/^STDB_URL=//p' .env) (docs/node-setup.md)"
+}
+
+publish() {  # publish/update the module, save the owner's token, print a one-time admin link
+  local code out t
+  code=$(head -c 18 /dev/urandom | base64 | tr '+/' '-_')  # 24 chars, add_admin_code's [A-Za-z0-9_-]{16,64}
+  say "publishing the module to this machine's SpacetimeDB"
+  out=$($D compose run --build --rm -T -e REMI_ADMIN_CODE="$code" publish) || die "module publish failed (output above)"
+  t=$(sed -n 's/^STDB_TOKEN=//p' <<<"$out")
+  [ -n "$t" ] || die "publish gave no token"
   sed -i "s|^STDB_TOKEN=.*|STDB_TOKEN=$t|" .env
+  LINK="http://localhost:8080/?claim=$code"
 }
 
 install() {
@@ -82,7 +82,7 @@ install() {
   fi
   say "GPU in containers: $(head -1 /tmp/remi-gpu.txt)"
   make_env
-  ask_token
+  need_token
 }
 
 doctor() {  # check only, changes nothing
@@ -94,7 +94,7 @@ doctor() {  # check only, changes nothing
   $D info >/dev/null 2>&1 && ok "docker running" || fail "docker (scripts/remi install)"
   $D compose version >/dev/null 2>&1 && ok "docker compose v2" || fail "docker compose v2 (scripts/remi install)"
   gpu_ok && ok "GPU in containers: $(head -1 /tmp/remi-gpu.txt)" || fail "GPU in containers (scripts/remi install)"
-  [ -f .env ] && grep -q '^STDB_TOKEN=.\+' .env && ok ".env with STDB_TOKEN" || fail ".env / STDB_TOKEN (scripts/remi install)"
+  [ -f .env ] && { local_db || grep -q '^STDB_TOKEN=.\+' .env; } && ok ".env" || fail ".env / STDB_TOKEN (scripts/remi install)"
   return $bad
 }
 
@@ -103,8 +103,10 @@ case "${1:-}" in
   up)      install && $D compose build \
              && say "downloading the model (once, ~8 GB; cached in the hf-cache volume)" \
              && $D compose run --rm --no-deps --entrypoint hf node download "$(sed -n 's/^BASE_MODEL=//p' .env | grep . || echo nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)" >/dev/null \
+             && { ! local_db || publish; } \
              && $D compose up -d \
-             && say "starting. vLLM takes 1-4 minutes to warm up: scripts/remi status" ;;
+             && say "starting. vLLM takes 1-4 minutes to warm up: scripts/remi status" \
+             && { [ -z "${LINK:-}" ] || say "open the console as admin (one use): $LINK"; } ;;
   down)    pick_docker; $D compose down ;;
   status)  pick_docker; $D compose ps
            $D compose exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \

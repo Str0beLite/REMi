@@ -1,5 +1,11 @@
-# The node image only needs these (backend/runtime/Dockerfile)
+# Build context = repo root. The node image needs contract + runtime; the console and module publisher also need
+# frontend and backend/module (docker-compose.yml).
 *
 !contract
 !backend/runtime/remi
+!backend/module
+!frontend
 **/__pycache__
+**/node_modules
+**/dist
+frontend/.env.local

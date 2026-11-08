@@ -1,4 +1,5 @@
-# A REMi node: `scripts/remi up`. Settings come from .env (copy .env.example).
+# A REMi workspace: `scripts/remi up`. Settings come from .env (copy .env.example).
+# COMPOSE_PROFILES=local (the default) runs this machine's own SpacetimeDB + console; empty = join a remote STDB_URL.
 name: remi  # stable volume names, whatever the checkout folder is called
 services:
   node:
@@ -15,6 +16,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       sandbox-image: { condition: service_completed_successfully }
+      spacetimedb: { condition: service_healthy, required: false }
 
   # Builds the per-REMi /sh sandbox image; the node starts one container per REMi from it.
   sandbox-image:
@@ -23,6 +25,59 @@ services:
     command: ["true"]
     restart: "no"
 
+  # This workspace's database. /app is the image user's own empty dir, so the volume is writable.
+  spacetimedb:
+    profiles: [local]
+    image: clockworklabs/spacetime:v2.14.1
+    restart: unless-stopped
+    command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir", "/app/data",
+              "--jwt-pub-key-path", "/app/id_ecdsa.pub", "--jwt-priv-key-path", "/app/id_ecdsa"]
+    ports: ["127.0.0.1:3000:3000"]
+    volumes: [stdb:/app]
+    healthcheck:
+      test: ["CMD", "spacetime", "server", "ping", "http://localhost:3000"]
+      interval: 2s
+      retries: 30
+
+  # One-shot, run by `scripts/remi up`: publishes backend/module (updates keep data), adds a one-time admin code,
+  # prints the publisher's token (the publisher is the owner admin, CONTRACT Â§4). Its identity lives in stdb-cli.
+  publish:
+    profiles: [publish]  # only via `compose run`, never started by `up`
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-bookworm-slim
+        COPY --from=clockworklabs/spacetime:v2.14.1 /opt/spacetime /opt/spacetime
+        RUN ln -s /opt/spacetime/spacetimedb-cli /usr/local/bin/spacetime
+        WORKDIR /repo/backend/module
+        COPY backend/module/package.json backend/module/package-lock.json ./
+        RUN npm ci --no-audit --no-fund
+        COPY contract /repo/contract
+        COPY backend/module ./
+    image: remi-publish
+    restart: "no"
+    environment: { STDB_DB: "${STDB_DB:-remi}" }  # scripts/remi passes REMI_ADMIN_CODE with -e
+    volumes: [stdb-cli:/root/.config/spacetime]
+    depends_on:
+      spacetimedb: { condition: service_healthy }
+    command:
+      - sh
+      - -ec
+      - |
+        spacetime publish "$$STDB_DB" --server http://spacetimedb:3000 --yes >&2
+        [ -z "$$REMI_ADMIN_CODE" ] || spacetime call "$$STDB_DB" add_admin_code "$$REMI_ADMIN_CODE" --server http://spacetimedb:3000 >&2
+        sed -n 's/^spacetimedb_token *= *"\(.*\)"/STDB_TOKEN=\1/p' /root/.config/spacetime/cli.toml
+
+  # The console as static files, talking to the spacetimedb service through this machine's localhost:3000.
+  console:
+    profiles: [local]
+    build: { context: ., dockerfile: frontend/Dockerfile }
+    image: remi-console
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:80"]
+
 volumes:
   store:
   hf-cache:
+  stdb:
+  stdb-cli:
