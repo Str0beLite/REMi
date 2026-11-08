@@ -1,0 +1,8 @@
+name: heavy
+purpose: x
+channels: [general]
+triggers: [mention]
+tools: [sh]
+budget: {turns: 5, minutes: 5}
+adapters:
+  - {name: sre, version: 1, weight: 5}

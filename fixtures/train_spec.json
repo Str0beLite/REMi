@@ -1,0 +1,1 @@
+{"name": "sre-v4", "base": "nvidia/NVIDIA-Nemotron-3-Nano-4B", "datasets": ["homelab-verified"], "rank": 16, "lr": 0.0002, "epochs": 2, "targets": "attn+mlp", "out": "sre", "desc": "Verified homelab fixes from today"}

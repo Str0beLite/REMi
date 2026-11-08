@@ -15,3 +15,7 @@ One line each: date, decision, why.
 - 2026-11-07: Incidents, a second node, the LoRA library and external channels are extensions, not core.
 - 2026-11-07: Claude copy of grilling uses AskUserQuestion for each round (installer patches it with --claude).
 - 2026-11-07: Parallel build runs as 3 lanes (web/core/gpu, ≤2 sessions each) over GitHub issues; a task is done when its PR merges; coordination skills live in kit/skills.
+- 2026-11-07: Contract enums are plain strings validated in reducers (not SpacetimeDB sum types) so the Python runtime reads/writes plain JSON.
+- 2026-11-07: Name+version tables (tool, adapter) use an extra unique `key` = "name@version" column; SpacetimeDB primary keys are single-column.
+- 2026-11-07: Agentfile and train spec are JSON Schemas in contract/, validated by both the module (ajv) and the runtime (jsonschema).
+- 2026-11-07: Stack pinned: spacetimedb 2.14.0 (module + frontend), Vite 7 + React 19, Python 3.12 + uv; module tests use spacetimedb's in-process test harness, so CI needs no spacetime CLI.

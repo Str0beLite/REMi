@@ -1,0 +1,10 @@
+name: homelab-remi
+purpose: |
+  You help users debug their home lab. Be brief. Use /sh to check before you answer.
+channels: [general, homelab]
+triggers: [mention, dm]
+tools: [sh, fetch, say, note, "registry:*"]
+budget: {turns: 12, minutes: 10}
+adapters:
+  - {name: sre, version: 3, weight: 1.0}
+  - {name: tone-brief, version: 1, weight: 0.3}

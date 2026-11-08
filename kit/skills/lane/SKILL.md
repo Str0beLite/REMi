@@ -50,8 +50,8 @@ git branch -r --list 'origin/lane/N-*'   # an earlier, blocked attempt?
 The issue body is the full spec: `## Goal`, `## Owns`, `## Uses (contract)`, `## Blocked by`, `## Done when`.
 
 - Touch only the paths under `## Owns`, plus tests next to them. Another lane owns everything else.
-- Never edit `CONTRACT.md`, `backend/module/src/contract.ts` or `backend/runtime/remi/contract.py` here. If the contract is wrong or missing something, see **6. Contract problems**.
-- Test against the mocks and fixtures in `backend/runtime/remi/mocks/` and `fixtures/` when the real piece isn't merged yet. Building against the contract + a mock is always preferred over waiting.
+- Never edit the contract files here: `CONTRACT.md`, `contract/`, `fixtures/`, `backend/module/src/contract.ts`, `backend/runtime/remi/contract.py`, `backend/runtime/remi/mocks/` (CONTRACT.md §1). If the contract is wrong or missing something, see **6. Contract problems**.
+- Test against the mocks (`backend/runtime/remi/mocks/`) and `fixtures/` when the real piece isn't merged yet. Building against the contract + a mock is always preferred over waiting.
 - Every `Done when` box needs evidence: a test, a command and its output, or a screenshot.
 
 ## 4. PR, then loop
