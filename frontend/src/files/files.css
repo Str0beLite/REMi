@@ -1,0 +1,120 @@
+/* An agent's sandbox files (#98) and console uploads */
+.files {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+  padding: var(--space-3);
+  border: 1px dashed transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.files-drag {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.files-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.files-head h3 {
+  margin: 0;
+  margin-right: auto;
+  font-size: var(--text-lg);
+}
+.files-hint,
+.files-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.files-status:empty {
+  display: none;
+}
+.files-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.files-path button[aria-current='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.files-cwd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+}
+.files-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.files-table th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  font-size: var(--text-xs);
+}
+.files-table td,
+.files-table th {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.files-num {
+  white-space: nowrap;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.files-entry {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--font-mono);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.files-entry:hover {
+  text-decoration: underline;
+}
+.files-entry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.files-open {
+  display: grid;
+  gap: var(--space-2);
+}
+.files-text {
+  margin: 0;
+  max-height: 480px;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* chat: a file picked or dropped, waiting for its REMi */
+.composer-attach {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.composer-attach code {
+  overflow-wrap: anywhere;
+}
+.chat-drag .composer {
+  border-color: var(--accent);
+  border-style: dashed;
+}

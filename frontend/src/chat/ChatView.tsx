@@ -8,6 +8,10 @@ import { MessageItem } from './MessageItem';
 import { ToolRun } from './ToolRun';
 import { TrainingCard } from './cards/SleepCard';
 import { authorOf, feedItems, hexOf, mentionMatches, mentionQuery, mentionsName, purposeOf, type MentionOption } from './model';
+import { useUpload } from '../files/useUpload';
+import { MAX_UPLOAD } from '../files/upload';
+import { sizeLabel } from '../files/fsResult';
+import '../files/files.css';
 
 type Props = {
   top?: ReactNode; // onboarding notices above the feed
@@ -69,6 +73,24 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
   const myRow = users.find(u => hexOf(u.identity) === me);
   const myName = myRow?.nickname;
 
+  // A file picked or dropped waits here for its REMi (#98); the first @mentioned one is the default.
+  const [attached, setAttached] = useState<File>();
+  const [attachTo, setAttachTo] = useState('');
+  const [dragging, setDragging] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
+  const { upload, status, clear } = useUpload();
+  const agentsByName = [...agents].sort((a, b) => a.name.localeCompare(b.name));
+  function attach(file: File | undefined) {
+    if (!file) return;
+    clear();
+    setAttached(file);
+    setAttachTo(String(agentsByName.find(a => mentionsName(draft, a.name))?.id ?? ''));
+  }
+  async function sendAttached() {
+    const to = agents.find(a => String(a.id) === attachTo);
+    if (attached && to && (await upload(attached, to.id, to.name, channel.id))) setAttached(undefined);
+  }
+
   async function send(e?: FormEvent) {
     e?.preventDefault();
     const body = draft.trim();
@@ -128,7 +150,23 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
   }
 
   return (
-    <section className="chat" aria-label={title}>
+    <section
+      className={`chat${dragging ? ' chat-drag' : ''}`}
+      aria-label={title}
+      onDragOver={e => {
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault();
+          setDragging(true);
+        }
+      }}
+      onDragLeave={e => !e.currentTarget.contains(e.relatedTarget as Node) && setDragging(false)}
+      onDrop={e => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setDragging(false);
+        attach(e.dataTransfer.files[0]);
+      }}
+    >
       {top}
       <div className="chat-feed-wrap">
       <ol
@@ -247,9 +285,51 @@ export function ChatView({ top, channel, title, messages, users, agents, me, con
           placeholder={`Message ${title}…`}
           autoComplete="off"
         />
+        <input
+          ref={picker}
+          type="file"
+          hidden
+          onChange={e => {
+            attach(e.target.files?.[0]);
+            e.target.value = ''; // picking the same file again still works
+          }}
+        />
+        <button type="button" className="composer-attach-btn" onClick={() => picker.current?.click()} disabled={!connected || agents.length === 0}>
+          Attach…
+        </button>
         <button type="submit" className="btn-primary" disabled={!connected || !draft.trim()}>
           Send
         </button>
+        {attached && (
+          <div className="composer-attach" role="group" aria-label="Upload a file to a REMi">
+            <span>
+              <code>{attached.name}</code> ({sizeLabel(attached.size)}) to
+            </span>
+            <label className="sr-only" htmlFor="attach-to">
+              REMi to send it to
+            </label>
+            <select id="attach-to" name="attach-to" value={attachTo} onChange={e => setAttachTo(e.target.value)}>
+              <option value="">Pick a REMi…</option>
+              {agentsByName.map(a => (
+                <option key={String(a.id)} value={String(a.id)}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => void sendAttached()} disabled={!attachTo || status.busy || attached.size > MAX_UPLOAD}>
+              Upload to /shared
+            </button>
+            <button type="button" onClick={() => setAttached(undefined)} disabled={status.busy}>
+              Cancel
+            </button>
+            {attached.size > MAX_UPLOAD && <span className="form-error">Over 50 MB, too big to upload.</span>}
+          </div>
+        )}
+        {status.text && (
+          <p className={status.error ? 'form-error' : 'composer-hint'} role="status">
+            {status.text}
+          </p>
+        )}
         <p className="composer-hint">
           {connected ? (
             <>

@@ -23,4 +23,5 @@ export default __t.row({
   note: __t.string(),
   state: __t.string(),
   ts: __t.timestamp(),
+  fromUser: __t.string().name("from_user"),
 });

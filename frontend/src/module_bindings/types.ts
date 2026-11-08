@@ -116,8 +116,21 @@ export const FileTransfer = __t.object("FileTransfer", {
   note: __t.string(),
   state: __t.string(),
   ts: __t.timestamp(),
+  fromUser: __t.string(),
 });
 export type FileTransfer = __Infer<typeof FileTransfer>;
+
+export const FsRequest = __t.object("FsRequest", {
+  id: __t.u64(),
+  agentId: __t.u64(),
+  requestedBy: __t.identity(),
+  op: __t.string(),
+  path: __t.string(),
+  state: __t.string(),
+  result: __t.string(),
+  ts: __t.timestamp(),
+});
+export type FsRequest = __Infer<typeof FsRequest>;
 
 export const McpServer = __t.object("McpServer", {
   name: __t.string(),

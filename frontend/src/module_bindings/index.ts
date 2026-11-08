@@ -46,6 +46,8 @@ import FailMigrationReducer from "./fail_migration_reducer";
 import FileDeliveredReducer from "./file_delivered_reducer";
 import FileFailedReducer from "./file_failed_reducer";
 import FinishMigrationReducer from "./finish_migration_reducer";
+import FsAnswerReducer from "./fs_answer_reducer";
+import FsAskReducer from "./fs_ask_reducer";
 import HeartbeatReducer from "./heartbeat_reducer";
 import JoinReducer from "./join_reducer";
 import LeaveReducer from "./leave_reducer";
@@ -93,6 +95,7 @@ import ChannelRow from "./channel_table";
 import ConfigHistoryRow from "./config_history_table";
 import DatasetRow from "./dataset_table";
 import FileTransferRow from "./file_transfer_table";
+import FsRequestRow from "./fs_request_table";
 import McpServerRow from "./mcp_server_table";
 import MemberRow from "./member_table";
 import MemoryRow from "./memory_table";
@@ -225,6 +228,20 @@ const tablesSchema = __schema({
       { name: 'file_transfer_id_key', constraint: 'unique', columns: ['id'] },
     ],
   }, FileTransferRow),
+  fsRequest: __table({
+    name: 'fs_request',
+    indexes: [
+      { accessor: 'agent_id', name: 'fs_request_agent_id_idx_btree', algorithm: 'btree', columns: [
+        'agentId',
+      ] },
+      { accessor: 'id', name: 'fs_request_id_idx_btree', algorithm: 'btree', columns: [
+        'id',
+      ] },
+    ],
+    constraints: [
+      { name: 'fs_request_id_key', constraint: 'unique', columns: ['id'] },
+    ],
+  }, FsRequestRow),
   mcpServer: __table({
     name: 'mcp_server',
     indexes: [
@@ -392,6 +409,8 @@ const reducersSchema = __reducers(
   __reducerSchema("file_delivered", FileDeliveredReducer),
   __reducerSchema("file_failed", FileFailedReducer),
   __reducerSchema("finish_migration", FinishMigrationReducer),
+  __reducerSchema("fs_answer", FsAnswerReducer),
+  __reducerSchema("fs_ask", FsAskReducer),
   __reducerSchema("heartbeat", HeartbeatReducer),
   __reducerSchema("join", JoinReducer),
   __reducerSchema("leave", LeaveReducer),
@@ -444,6 +463,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "config_history": Omit<typeof tablesSchema.schemaType.tables["configHistory"], "accessorName"> & { readonly accessorName: "config_history" };
     /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */
     readonly "file_transfer": Omit<typeof tablesSchema.schemaType.tables["fileTransfer"], "accessorName"> & { readonly accessorName: "file_transfer" };
+    /** @deprecated Use `fsRequest` instead. This alias will be removed in the next major version. */
+    readonly "fs_request": Omit<typeof tablesSchema.schemaType.tables["fsRequest"], "accessorName"> & { readonly accessorName: "fs_request" };
     /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
     readonly "mcp_server": Omit<typeof tablesSchema.schemaType.tables["mcpServer"], "accessorName"> & { readonly accessorName: "mcp_server" };
   };
@@ -469,6 +490,7 @@ const tableAccessorAliases = {
   "blob_chunk": "blobChunk",
   "config_history": "configHistory",
   "file_transfer": "fileTransfer",
+  "fs_request": "fsRequest",
   "mcp_server": "mcpServer",
 } as const;
 
@@ -500,6 +522,8 @@ export type DbView = __DbViewBase & {
   readonly "config_history": __DbViewBase["configHistory"];
   /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */
   readonly "file_transfer": __DbViewBase["fileTransfer"];
+  /** @deprecated Use `fsRequest` instead. This alias will be removed in the next major version. */
+  readonly "fs_request": __DbViewBase["fsRequest"];
   /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
   readonly "mcp_server": __DbViewBase["mcpServer"];
 };
@@ -516,6 +540,8 @@ export type Tables = __TablesBase & {
   readonly "config_history": __TablesBase["configHistory"];
   /** @deprecated Use `fileTransfer` instead. This alias will be removed in the next major version. */
   readonly "file_transfer": __TablesBase["fileTransfer"];
+  /** @deprecated Use `fsRequest` instead. This alias will be removed in the next major version. */
+  readonly "fs_request": __TablesBase["fsRequest"];
   /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
   readonly "mcp_server": __TablesBase["mcpServer"];
 };

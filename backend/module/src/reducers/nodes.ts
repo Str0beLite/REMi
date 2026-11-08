@@ -93,7 +93,7 @@ export const move_agent = db.reducer(
 );
 
 export const put_blob_chunk = db.reducer({ blob: t.string(), seq: t.u32(), data: t.string() }, (ctx, { blob, seq, data }) => {
-  if (!callerNode(ctx)) throw new SenderError('only a node can upload');
+  if (!callerNode(ctx) && !(callerUser(ctx) && blob.startsWith('file:'))) throw new SenderError('only a node, or a member uploading a file:, can upload');
   if (blob.length > 200 || !/^(mig|file):/.test(blob)) throw new SenderError('blob names start mig: or file: (at most 200 characters)');
   if (data.length > MAX_CHUNK) throw new SenderError(`chunks are at most ${MAX_CHUNK} characters`);
   if (blob.startsWith('mig:')) {
@@ -153,10 +153,17 @@ export const send_file = db.reducer(
     from_agent: t.u64(), to_agent: t.u64(), channel_id: t.u64(), note: t.string(),
   },
   (ctx, { blob, name, size: bytes, sha256, chunks, from_agent, to_agent, channel_id, note }) => {
-    const from = agentOrThrow(ctx, from_agent);
-    if (!isCallerNodeOf(ctx, from.node_id)) throw new SenderError(`only ${from.name}'s node can send for it`);
+    // from_agent 0: a person uploading from the console (#98); any workspace member may
+    let from_user = '';
+    if (from_agent === 0n) {
+      if (!callerUser(ctx)) throw new SenderError('only a workspace member can upload a file');
+      from_user = ctx.sender.toHexString();
+    } else {
+      const from = agentOrThrow(ctx, from_agent);
+      if (!isCallerNodeOf(ctx, from.node_id)) throw new SenderError(`only ${from.name}'s node can send for it`);
+    }
     const to = agentOrThrow(ctx, to_agent);
-    if (to.id === from.id) throw new SenderError("you can't send a file to yourself");
+    if (to.id === from_agent) throw new SenderError("you can't send a file to yourself");
     if (!blob.startsWith('file:')) throw new SenderError('file blobs start file:');
     if (!FILE_NAME.test(name)) throw new SenderError('file names are 1-128 characters of A-Z, a-z, 0-9, ., _ and -');
     if (bytes > BigInt(MAX_FILE)) throw new SenderError('files are at most 50 MB');
@@ -164,7 +171,7 @@ export const send_file = db.reducer(
     const seqs = new Set([...ctx.db.blob_chunk.blob.filter(blob)].map(c => c.seq));
     for (let i = 0; i < chunks; i++) if (!seqs.has(i)) throw new SenderError(`chunk ${i} of ${blob} is missing`);
     ctx.db.file_transfer.insert({
-      id: 0n, blob, name, size: bytes, sha256, chunks, from_agent, to_agent, channel_id, note: note.slice(0, 500), state: 'sent', ts: ctx.timestamp,
+      id: 0n, blob, name, size: bytes, sha256, chunks, from_agent, to_agent, channel_id, note: note.slice(0, 500), state: 'sent', ts: ctx.timestamp, from_user,
     });
   },
 );
@@ -180,19 +187,24 @@ function transferForRecipientNode(ctx: Ctx, id: bigint, allowAdmin: boolean) {
 }
 
 const nameOf = (ctx: Ctx, id: bigint) => ctx.db.agent.id.find(id)?.name ?? `agent ${id}`;
+type Transfer = { from_agent: bigint; from_user: string };
+const senderOf = (ctx: Ctx, f: Transfer) =>
+  f.from_agent !== 0n
+    ? nameOf(ctx, f.from_agent)
+    : ([...ctx.db.user.iter()].find(u => u.identity.toHexString() === f.from_user)?.nickname ?? 'former member');
 
 export const file_delivered = db.reducer({ id: t.u64() }, (ctx, { id }) => {
   const { f } = transferForRecipientNode(ctx, id, false);
   ctx.db.file_transfer.id.update({ ...f, state: 'delivered' });
   deleteBlobs(ctx, f.blob);
-  post(ctx, f.channel_id, `@${nameOf(ctx, f.to_agent)} ${nameOf(ctx, f.from_agent)} sent you /shared/${f.name} (${size(f.size)})${f.note ? ` — ${f.note}` : ''}`);
+  post(ctx, f.channel_id, `@${nameOf(ctx, f.to_agent)} ${senderOf(ctx, f)} sent you /shared/${f.name} (${size(f.size)})${f.note ? ` — ${f.note}` : ''}`);
 });
 
 export const file_failed = db.reducer({ id: t.u64(), note: t.string() }, (ctx, { id, note }) => {
   const { f } = transferForRecipientNode(ctx, id, true);
   ctx.db.file_transfer.id.update({ ...f, state: 'failed', note: note.slice(0, 500) });
   deleteBlobs(ctx, f.blob);
-  post(ctx, f.channel_id, `@${nameOf(ctx, f.from_agent)} sending ${f.name} to ${nameOf(ctx, f.to_agent)} failed: ${note.slice(0, 500)}`);
+  post(ctx, f.channel_id, `@${senderOf(ctx, f)} sending ${f.name} to ${nameOf(ctx, f.to_agent)} failed: ${note.slice(0, 500)}`);
 });
 
 // -- starting and stopping ---------------------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { AgentEditor } from './AgentEditor';
 import { confirmLeave } from '../unsaved';
 import { TEMPLATES } from './agentfile';
+import { FilesView } from '../files/FilesView';
 import './agents.css';
 
 const when = (t: { microsSinceUnixEpoch: bigint }) =>
@@ -205,6 +206,13 @@ export function AgentsPanel() {
               mcpServers={mcpServers}
               readOnlyReason={readOnlyReason}
               onSubmit={text => updateAgentfile({ agentId: agent.id, agentfile: text })}
+            />
+            <FilesView
+              key={`files-${agent.id}`}
+              agent={agent}
+              nodeName={nodeName(agent.nodeId)}
+              me={identity}
+              canBrowse={isAdmin || (!!identity && agent.owner.isEqual(identity))}
             />
             <h3 className="history-title">History</h3>
             <ol className="history">

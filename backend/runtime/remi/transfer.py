@@ -175,7 +175,8 @@ class Transfers:
 
     def _deliver(self, f: dict, to: dict) -> None:
         data = download(self.db, f["blob"])
-        if len(data) != f["size"] or sha256(data) != sha_of(f):
+        # a console upload over plain http has no WebCrypto and sends sha256 '' (#98): size only then
+        if len(data) != f["size"] or (sha_of(f) and sha256(data) != sha_of(f)):
             raise TransferError(f"{f['name']} arrived damaged (size or sha256 differs)")
         write_to_sandbox(self.sandbox_for(to["name"]), f["name"], data)
         self.db.call("file_delivered", f["id"])
