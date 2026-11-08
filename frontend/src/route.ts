@@ -1,5 +1,5 @@
 // The view and channel live in the URL hash (#/chat/12, #/agents/12), so reload, back/forward and links keep your place.
-export const PANEL_IDS = ['chat', 'agents', 'tools', 'adapters', 'sleep', 'config'] as const;
+export const PANEL_IDS = ['chat', 'agents', 'files', 'tools', 'adapters', 'sleep', 'config'] as const;
 export type PanelId = (typeof PANEL_IDS)[number];
 export type Route = { panel: PanelId; channelId?: bigint };
 

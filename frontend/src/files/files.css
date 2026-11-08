@@ -118,3 +118,14 @@
   border-color: var(--accent);
   border-style: dashed;
 }
+
+/* Files panel: pick a REMi, then its browser */
+.files-panel {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+.files-pick {
+  flex-wrap: wrap;
+  justify-self: start;
+}

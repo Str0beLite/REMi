@@ -13,7 +13,7 @@ import { NicknamePrompt } from './chat/NicknamePrompt';
 import { loadLastSeen, saveLastSeen } from './chat/lastSeen';
 import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
 import { STDB_DB } from './stdb';
-import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
+import { AdaptersPanel, AgentsPanel, ConfigPanel, FilesPanel, SleepPanel, ToolsPanel } from './panels';
 import { readRoute, writeRoute, type PanelId, type Route } from './route';
 import { confirmLeave } from './unsaved';
 import { readClaim, useAdminClaim } from './admin/claim';
@@ -24,12 +24,13 @@ import './chat/chat.css';
 const PANELS: { id: PanelId; label: string }[] = [
   { id: 'chat', label: 'Chat' },
   { id: 'agents', label: 'Agents' },
+  { id: 'files', label: 'Files' },
   { id: 'tools', label: 'Tools' },
   { id: 'adapters', label: 'Adapters' },
   { id: 'sleep', label: 'Sleep' },
   { id: 'config', label: 'Settings' },
 ];
-const OTHER_PANELS = { agents: AgentsPanel, tools: ToolsPanel, adapters: AdaptersPanel, sleep: SleepPanel, config: ConfigPanel };
+const OTHER_PANELS = { agents: AgentsPanel, files: FilesPanel, tools: ToolsPanel, adapters: AdaptersPanel, sleep: SleepPanel, config: ConfigPanel };
 
 // The tab title carries the view and the unread count, since REMi sits in a background tab all day.
 function DocTitle({ text }: { text: string }) {
