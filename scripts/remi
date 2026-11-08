@@ -8,6 +8,7 @@ SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 say() { printf '\033[1mremi:\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mremi:\033[0m %s\n' "$*" >&2; exit 1; }
 
+MIN_VRAM_MB=12288  # below this the node runs without vLLM (REMI_SERVE=0): the 4B BF16 weights alone are ~9 GB
 D="docker"  # becomes "sudo docker" when we just joined the docker group (it applies from the next login)
 pick_docker() { docker info >/dev/null 2>&1 || { $SUDO docker info >/dev/null 2>&1 && D="$SUDO docker"; }; }
 desktop() { $D info --format '{{.OperatingSystem}}' 2>/dev/null | grep -q "Docker Desktop"; }
@@ -44,8 +45,16 @@ make_env() {
   sed -i "s/^REMI_NODE_NAME=.*/REMI_NODE_NAME=$(hostname -s | tr 'A-Z_' 'a-z-')/" .env
   local gpu; gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
   [ -n "$gpu" ] && sed -i "s/^REMI_GPU=.*/REMI_GPU=$gpu/" .env
+  # The 4B BF16 model needs ~9 GB for weights alone (vLLM takes 85% of the card). A smaller GPU still joins the
+  # cluster as a node, it just serves no model: no REMis run on it (e.g. a 6 GB laptop 3060).
+  local mb; mb=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -dc 0-9)
+  if [ -n "$mb" ] && [ "$mb" -lt "$MIN_VRAM_MB" ]; then
+    echo "REMI_SERVE=0" >>.env
+    say "this GPU has $((mb / 1024)) GB; the model needs 12 GB+, so this machine joins without a model (no REMis run here)"
+  fi
   say "wrote .env for this machine"
 }
+serves() { ! grep -q '^REMI_SERVE=0' .env; }
 
 keep_wsl_up() {  # WSL stops a distro 15 s after its last shell closes, taking Docker and the node with it
   grep -qi microsoft /proc/version || return 0
@@ -163,8 +172,8 @@ doctor() {  # check only, changes nothing
 
 start() {  # build, fetch the model, publish this machine's workspace, start
   $D compose build \
-             && say "downloading the model (once, ~8 GB; cached in the hf-cache volume)" \
-             && $D compose run --rm --no-deps --entrypoint hf node download "$(sed -n 's/^BASE_MODEL=//p' .env | grep . || echo nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)" >/dev/null \
+             && { ! serves || { say "downloading the model (once, ~8 GB; cached in the hf-cache volume)" \
+             && $D compose run --rm --no-deps --entrypoint hf node download "$(sed -n 's/^BASE_MODEL=//p' .env | grep . || echo nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)" >/dev/null; }; } \
              && { ! local_db || { network && publish; }; } \
              && $D compose up -d \
              && say "starting. vLLM takes 1-4 minutes to warm up: scripts/remi status" \
@@ -176,6 +185,7 @@ case "${1:-}" in
   up)      install && start ;;
   down)    pick_docker; $D compose down ;;
   status)  pick_docker; $D compose ps
+           serves || { echo "vllm: off (REMI_SERVE=0: this GPU is too small for the model; no REMis run here)"; exit 0; }
            $D compose exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
              || echo "node: not running"
            $D compose exec -T node sh -c 'tail -1 /store/vllm.log 2>/dev/null | cut -c1-160' 2>/dev/null ;;  # what vLLM is doing now

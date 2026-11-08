@@ -11,7 +11,7 @@ The node is one container: the official vLLM image plus the runtime and trainer 
 | Windows 10/11 | WSL2 (`wsl --install` in PowerShell, then reboot) and the NVIDIA driver installed on Windows |
 | Linux (apt or dnf) | The NVIDIA driver |
 
-GPU: 16 GB VRAM or more (vLLM takes 85% of it). Run the commands from a WSL2 / Linux shell with sudo.
+GPU: 16 GB VRAM or more (vLLM takes 85% of it). On a GPU under 12 GB (e.g. a 6 GB laptop 3060), `remi up` writes `REMI_SERVE=0` to `.env` and skips the model download: the machine still joins a cluster and shows up as a node, but it serves no model, so don't put REMis on it. Run the commands from a WSL2 / Linux shell with sudo.
 
 `scripts/remi up` installs everything else it finds missing: Docker Engine (get.docker.com) and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). It writes `.env` with this machine's name and GPU. Docker Desktop also works if it's already there; it isn't needed.
 
