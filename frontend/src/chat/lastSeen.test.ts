@@ -1,5 +1,11 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { loadLastSeen, saveLastSeen } from './lastSeen';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// stdb.ts reads `location` when it loads (the console's own host), and tests run without a browser
+vi.hoisted(() => {
+  (globalThis as { location?: unknown }).location ??= { protocol: 'http:', hostname: 'localhost' };
+});
+
+const { loadLastSeen, saveLastSeen } = await import('./lastSeen');
 
 describe('lastSeen', () => {
   beforeEach(() => {
