@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { tables } from './module_bindings';
 import { AppShell } from './shell/AppShell';
@@ -10,9 +10,9 @@ import { NicknamePrompt } from './chat/NicknamePrompt';
 import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
 import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
+import { readRoute, writeRoute, type PanelId, type Route } from './route';
 import './chat/chat.css';
 
-type PanelId = 'chat' | 'agents' | 'tools' | 'adapters' | 'sleep' | 'config';
 const PANELS: { id: PanelId; label: string }[] = [
   { id: 'chat', label: 'Chat' },
   { id: 'agents', label: 'Agents' },
@@ -32,8 +32,16 @@ export default function App() {
   const [agents] = useTable(tables.agent);
   const [nodes] = useTable(tables.node);
 
-  const [activeId, setActiveId] = useState<bigint>();
-  const [panel, setPanel] = useState<PanelId>('chat');
+  const [route, setRoute] = useState(() => readRoute(location.hash));
+  useEffect(() => {
+    const onHash = () => setRoute(readRoute(location.hash));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const go = (r: Route) => {
+    location.hash = writeRoute(r); // pushes history; the hashchange listener updates state
+  };
+  const { panel, channelId: activeId } = route;
   const [lastSeen, setLastSeen] = useState<Record<string, bigint>>({});
 
   const me = identity ? hexOf(identity) : '';
@@ -42,6 +50,19 @@ export default function App() {
   const sortedMessages = useMemo(() => [...messages].sort((a, b) => (a.id < b.id ? -1 : 1)), [messages]);
   const publics = useMemo(() => channels.filter(c => c.kind === 'public').sort((a, b) => a.name.localeCompare(b.name)), [channels]);
   const dms = useMemo(() => channels.filter(c => c.kind === 'dm' && isMember(c, members, me)), [channels, members, me]);
+
+  // Mark the channel we leave and the one we enter as read, however we moved (click, back/forward, link).
+  const shownId = channels.some(c => c.id === activeId) ? activeId : (publics.find(c => c.name === 'general') ?? publics[0])?.id;
+  const latest = useRef(sortedMessages);
+  latest.current = sortedMessages;
+  const prevShown = useRef<bigint>(undefined);
+  useEffect(() => {
+    const newest = (id: bigint) => latest.current.filter(m => m.channelId === id).at(-1)?.id ?? 0n;
+    const prev = prevShown.current;
+    prevShown.current = shownId;
+    if (shownId === undefined) return;
+    setLastSeen(s => ({ ...s, ...(prev !== undefined ? { [String(prev)]: newest(prev) } : {}), [String(shownId)]: newest(shownId) }));
+  }, [shownId]);
 
   if (!identity || !usersReady) {
     return (
@@ -54,13 +75,9 @@ export default function App() {
 
   const general = publics.find(c => c.name === 'general') ?? publics[0];
   const active = channels.find(c => c.id === activeId) ?? general;
-  const newestId = (id: bigint) => sortedMessages.filter(m => m.channelId === id).at(-1)?.id ?? 0n;
 
   function open(id: bigint) {
-    // Mark the channel we leave and the one we enter as read up to their newest message.
-    setLastSeen(s => ({ ...s, ...(active ? { [String(active.id)]: newestId(active.id) } : {}), [String(id)]: newestId(id) }));
-    setActiveId(id);
-    setPanel('chat');
+    go({ panel: 'chat', channelId: id });
   }
 
   const unread = (id: bigint) => (active && id === active.id ? 0 : unreadIn(id, sortedMessages, lastSeen[String(id)] ?? 0n));
@@ -114,7 +131,7 @@ export default function App() {
         )}
         <nav className="panel-tabs" aria-label="Panels">
           {PANELS.map(p => (
-            <button key={p.id} type="button" aria-pressed={panel === p.id} onClick={() => setPanel(p.id)}>
+            <button key={p.id} type="button" aria-pressed={panel === p.id} onClick={() => go({ panel: p.id, channelId: active?.id })}>
               {p.label}
             </button>
           ))}
