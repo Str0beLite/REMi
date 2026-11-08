@@ -310,7 +310,10 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         <p className="composer-hint">
           {connected ? (
             <>
-              <kbd>Enter</kbd> sends · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line · <code>@name</code> wakes a REMi
+              <span className="composer-keys">
+                <kbd>Enter</kbd> sends · <kbd>Shift</kbd>+<kbd>Enter</kbd> new line ·{' '}
+              </span>
+              <code>@name</code> wakes a REMi
             </>
           ) : (
             'Reconnecting…'

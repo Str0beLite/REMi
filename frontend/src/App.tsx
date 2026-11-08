@@ -175,7 +175,7 @@ export default function App() {
   return (
     <>
       <DocTitle text={`${totalUnread ? `(${totalUnread}) ` : ''}${view ? `${view} · ` : ''}REMi`} />
-      <AppShell rail={rail} main={main} swarm={swarm} title="REMi" />
+      <AppShell rail={rail} main={main} swarm={swarm} title={view || 'REMi'} />
     </>
   );
 }

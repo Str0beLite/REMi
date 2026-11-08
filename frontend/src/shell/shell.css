@@ -53,6 +53,11 @@
     background: var(--bg);
   }
   .shell-bar-title {
+    display: none; /* the main header still shows the view here; the bar names it only on phones */
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 600;
   }
   .shell-toggle-swarm {
@@ -93,6 +98,7 @@
     grid-template-areas: 'bar' 'main';
   }
   .shell-bar-title {
+    display: block;
     margin-right: auto;
   }
   .shell-toggle-rail {

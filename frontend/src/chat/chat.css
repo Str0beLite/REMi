@@ -536,6 +536,14 @@ kbd {
   .main-head {
     flex-wrap: wrap;
   }
+  /* the top bar already names the view on phones; keep the h1 for screen readers only */
+  .main-head h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
   .panel-tabs {
     flex-basis: 100%;
   }
@@ -552,4 +560,11 @@ kbd {
 .msg-tag-mention {
   color: var(--ink);
   border-color: var(--pink);
+}
+
+/* keyboard shortcuts mean nothing on a touch screen */
+@media (hover: none) and (pointer: coarse) {
+  .composer-keys {
+    display: none;
+  }
 }
