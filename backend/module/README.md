@@ -7,10 +7,33 @@ npm ci
 npm run typecheck && npm test     # what CI runs; tests use spacetimedb's in-process test harness, no server needed
 ```
 
-Local server + publish (needs the `spacetime` CLI):
+Reducers live one file per area in `src/reducers/` (`chat`, `work`, `agents`, `adapters`), each re-exported from `src/index.ts`.
+
+## Publish and regenerate bindings
+
+Needs the `spacetime` CLI ([install](https://spacetimedb.com/install); tested with 2.14.1). One command typechecks, tests, publishes and regenerates `frontend/src/module_bindings/`:
 
 ```bash
-spacetime start                                   # local server on :3000
-spacetime publish --project-path . remi           # publish to the local server
-spacetime publish --server maincloud --project-path . remi   # shared dev DB, from main only
+spacetime start                              # local server on :3000, in its own terminal
+scripts/publish-module.sh                    # publish `remi` to local + regenerate bindings
+scripts/publish-module.sh local --reset      # same, dropping all local data first
+scripts/publish-module.sh maincloud          # shared dev DB: run from an up-to-date main only
+```
+
+Commit the regenerated `frontend/src/module_bindings/` whenever a reducer or table changes.
+
+Check it worked:
+
+```bash
+spacetime sql remi "SELECT * FROM channel" --server local    # general and ops exist after init
+spacetime logs remi --server local -n 20                     # reducer errors show here
+```
+
+Maincloud needs `spacetime login` once (it opens a browser). The database token for the runtime goes in the team's `.env` as `STDB_TOKEN`, never in git.
+
+The local server has no admin bootstrap yet (CONTRACT.md §12). To make your own identity admin while developing:
+
+```bash
+spacetime call remi set_nickname '"you"' --server local
+spacetime sql remi "UPDATE user SET is_admin = true WHERE nickname = 'you'" --server local
 ```
