@@ -13,7 +13,7 @@ import importlib
 from remi import contract as C
 from remi.grammar import Command
 from remi.stdb import StdbError
-from remi.tools import builtin
+from remi.tools import builtin, proposals  # proposals: registers the /propose_agent grammar
 
 BUILTINS = {"sh": builtin.sh, "fetch": builtin.fetch, "say": builtin.say, "note": builtin.note, "think": builtin.think}
 SLEEP_TOOLS = C.SLEEP_TOOLS
@@ -33,7 +33,7 @@ _sleep = _optional("remi.sleep.tools")
 
 
 def allowed(name: str, tools: tuple[str, ...]) -> bool:
-    if name in BUILTINS or name == "propose_tool" or name in SLEEP_TOOLS:
+    if name in BUILTINS or name in ("propose_tool", "propose_agent") or name in SLEEP_TOOLS:
         return name in tools
     return "registry:*" in tools or f"registry:{name}" in tools
 
@@ -50,6 +50,8 @@ def dispatch(cmd: Command, ctx) -> tuple[int, str]:
     try:
         if cmd.name in BUILTINS:
             return BUILTINS[cmd.name](cmd, ctx)
+        if cmd.name == "propose_agent":
+            return proposals.propose(cmd, ctx)
         if cmd.name in SLEEP_TOOLS:
             if _sleep is None:
                 return 127, f"error: /{cmd.name}: Sleep REMi's commands aren't available yet"

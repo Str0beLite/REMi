@@ -8,7 +8,7 @@ from remi import contract as C
 from remi.grammar import Command, GrammarError, parse
 from remi.mocks import stdb as mock
 from remi.stdb import Stdb
-from remi.tools import proposals
+from remi.tools import dispatch, proposals
 
 NODE, ADMIN = "0xnode", "0xadmin"
 
@@ -22,20 +22,6 @@ def turn(text=None, reason="we need someone to watch the backups") -> str:
     return f"/propose_agent {reason}\n```yaml\n{text or agentfile()}```\nthanks"
 
 
-# The runtime mock has no agent_proposal table or propose_agent yet (contract-owned, #53), so the tests add
-# them here, following #53's spec.
-def _propose_agent(self, caller, text, author_agent, reason):
-    author = self.require_agent_node(caller, author_agent)
-    af = C.load_agentfile(text)
-    if self.one("agent", name=af.name) or any(
-            C.load_agentfile(p["agentfile"]).name == af.name and p["status"] == "pending"
-            for p in self.tables["agent_proposal"]):
-        raise mock.SenderError(f"{af.name} is taken")
-    self.insert("agent_proposal", {"agentfile": text, "node_id": author["node_id"], "author_agent": author_agent,
-                                   "reason": reason, "status": "pending", "reviewer": None, "review_note": "",
-                                   "agent_id": 0, "ts": mock.now()})
-
-
 @dataclass
 class Ctx:
     db: Stdb
@@ -46,11 +32,7 @@ class Ctx:
 
 
 @pytest.fixture
-def stdb(monkeypatch):
-    monkeypatch.setattr(mock, "TABLES", (*mock.TABLES, "agent_proposal"))
-    monkeypatch.setattr(C, "MESSAGE_KINDS", (*C.MESSAGE_KINDS, "agent_card"))
-    monkeypatch.setattr(mock.MockDB, "propose_agent", _propose_agent, raising=False)
-    monkeypatch.setattr(mock.MockDB, "REDUCERS", (*mock.MockDB.REDUCERS, "propose_agent"))
+def stdb():
     s = mock.make_server(0)
     threading.Thread(target=s.serve_forever, daemon=True).start()
     s.db.insert("user", {"identity": mock.ident(ADMIN), "nickname": "ryan", "is_admin": True})
@@ -116,3 +98,20 @@ def test_reducer_refusal_is_raised_for_dispatch_to_report(stdb, ctx):
     proposals.propose(parse(turn()), ctx)
     with pytest.raises(Exception, match="backup-watch is taken"):
         proposals.propose(parse(turn()), ctx)
+
+
+def test_dispatch_runs_it_for_agents_that_list_it(stdb):
+    text = agentfile("helper", tools=("sh", "say", "propose_agent"))
+    agent = stdb.db.insert("agent", {"name": "helper", "agentfile": text, "status": "thinking", "node_id": 1,
+                                     "owner": mock.ident(ADMIN), "protected": False})
+    c = Ctx(Stdb(f"http://127.0.0.1:{stdb.server_address[1]}", "remi", NODE), agent, C.load_agentfile(text))
+    assert dispatch(parse(turn()), c)[0] == 0
+    code, out = dispatch(parse(turn(agentfile("other"))), Ctx(c.db, agent, C.load_agentfile(agentfile("plain"))))
+    assert code == 126 and "not one of your tools" in out
+
+
+def test_taken_name_comes_back_as_an_error_through_dispatch(stdb, ctx):
+    ctx = Ctx(ctx.db, ctx.agent, C.load_agentfile(agentfile("helper", tools=("sh", "fetch", "say", "propose_agent"))))
+    dispatch(parse(turn()), ctx)
+    code, out = dispatch(parse(turn()), ctx)
+    assert code == 1 and out.startswith("error:")

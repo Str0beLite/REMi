@@ -34,6 +34,7 @@ BUILTIN_DOCS = {
     "say": "/say <#channel|@agent|@nickname> <text>: post somewhere else, mention or DM",
     "note": "/note <text>: save a note to your memory for later runs",
     "propose_tool": "/propose_tool <name> then a ```python block: propose a new tool for admin review",
+    "propose_agent": "/propose_agent <reason> then a ```yaml Agentfile block: propose a new agent for admin review",
     "think": "/think <question>: think a hard question through step by step (slower); you get the conclusion back",
 }
 
