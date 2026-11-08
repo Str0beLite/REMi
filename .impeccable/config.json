@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/design/remi-character-studio.html"
+        ],
+        "createdAt": "2026-11-08T06:12:07.032Z",
+        "reason": "Claude: .tbl wraps a table whose cells carry 10px/14px padding"
+      }
+    ]
+  }
+}

@@ -30,3 +30,4 @@ One line each: date, decision, why.
 - 2026-11-07: An agent's Nemotron version is an Agentfile `base` field from a fixed `BASE_MODELS` list (BF16 nemotron_h only); it must equal its node's base, so adapter.base = agent base = node base.
 - 2026-11-07: Adapters attach only on the node that trained them (files are local); agents with adapters can't move. Relaxed with the LoRA library (extension 3).
 - 2026-11-07: New PCs join with an admin-set `node_join_code` passed to `register_node`; this settles the node half of the admin-bootstrap question.
+- 2026-11-08: Mascot direction is "Lavender & plum" (the ChatGPT spec palette, light + dark), on an SVG rig whose actions map to agent statuses and message kinds; mockups in docs/design/remi-character-studio.html.

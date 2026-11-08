@@ -1,0 +1,613 @@
+<title>REMi Character Studio</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a working studio. Stage + action list side by side, then direction cards, the cast, and the handoff notes. */
+:root {
+  --bg: #F5F3F7; --surface: #FFFFFF; --ink: #26202E; --muted: #625A6D; --rule: #E2DCE7; --accent: #6B4A9B;
+  --f-display: "Bricolage Grotesque", ui-rounded, "Segoe UI", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141218; --surface: #1C1921; --ink: #EEE9F3; --muted: #ABA1B7; --rule: #2E2936; --accent: #C3A6EE; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #141218; --surface: #1C1921; --ink: #EEE9F3; --muted: #ABA1B7; --rule: #2E2936; --accent: #C3A6EE; color-scheme: dark }
+
+/* Character directions: each sets the rig's paint and its own stage. */
+.d-lav  { --stage:#F0EBF5; --stage-ink:#352B41; --stage-muted:#62586D; --fur:#D3C8E6; --line:#55445E; --inner:#E8B8BF; --shirt:#8E82B0; --paper:#FDFBF8; --pop:#A3487A; --ok:#2C7656; --grain:rgba(85,68,94,.07) }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .d-lav {
+  --stage:#221E2A; --stage-ink:#EDE6F3; --stage-muted:#B6ACC1; --fur:#BBAAD2; --line:#2C2236; --inner:#DBA8B6; --shirt:#8170A8; --paper:#EFE8F2; --pop:#EBA6CB; --ok:#86D6AB; --grain:rgba(237,230,243,.05) } }
+:root[data-theme="dark"] .d-lav { --stage:#221E2A; --stage-ink:#EDE6F3; --stage-muted:#B6ACC1; --fur:#BBAAD2; --line:#2C2236; --inner:#DBA8B6; --shirt:#8170A8; --paper:#EFE8F2; --pop:#EBA6CB; --ok:#86D6AB; --grain:rgba(237,230,243,.05) }
+.d-night { --stage:#121733; --stage-ink:#EDE6D7; --stage-muted:#A9AFCB; --fur:#ECE4D3; --line:#1A1F3D; --inner:#F09F8A; --shirt:#5563B5; --paper:#F8F2E4; --pop:#F5C766; --ok:#8FD9A8; --grain:rgba(236,228,211,.07) }
+.d-riso  { --stage:#F7F4EF; --stage-ink:#1D3A94; --stage-muted:#44559A; --fur:#FFD6E6; --line:#2350B8; --inner:#FF5FA8; --shirt:#7B4FB8; --paper:#FFFFFF; --pop:#F0308C; --ok:#0B7350; --grain:rgba(35,80,184,.11) }
+
+* { box-sizing: border-box }
+html { -webkit-text-size-adjust: 100% }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 72px }
+::selection { background: color-mix(in srgb, var(--accent) 30%, transparent) }
+:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: 6px }
+.wrap { max-width: 1140px; margin: 0 auto }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.02em }
+h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); font-weight: 800; line-height: 1.02 }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; line-height: 1.1 }
+h3 { font-size: 1.25rem; font-weight: 700 }
+p { margin: 0 }
+code, .mono { font-family: var(--f-mono); font-size: .86em }
+.lede { color: var(--muted); max-width: 64ch; font-size: 1.08rem }
+header.top { padding-block: 48px 28px; display: grid; gap: 14px }
+section { margin-top: 64px; display: grid; gap: 18px }
+section > p { color: var(--muted); max-width: 66ch }
+
+button { font: inherit; color: inherit; cursor: pointer }
+.btn { border: 1px solid var(--rule); background: var(--surface); border-radius: 999px; padding: 8px 16px; font-weight: 700 }
+.btn:hover { border-color: var(--accent) }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink) }
+
+/* Studio */
+.studio { margin-top: 8px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start }
+.stage { border-radius: 22px; color: var(--stage-ink); background-color: var(--stage);
+  background-image: radial-gradient(var(--grain) 1px, transparent 1.3px); background-size: 7px 7px; overflow: hidden }
+.stage-col { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px) }
+.stage-top { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 14px 14px 0 }
+.tag { font: 600 .74rem/1 var(--f-mono); letter-spacing: .04em; color: var(--stage-muted); border: 1px solid color-mix(in srgb, var(--stage-ink) 22%, transparent); padding: 6px 10px; border-radius: 999px }
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--stage-ink) 10%, transparent) }
+.seg button { border: 0; background: transparent; padding: 6px 12px; border-radius: 999px; font-weight: 700; font-size: .86rem; color: var(--stage-ink) }
+.seg button[aria-pressed="true"] { background: var(--stage-ink); color: var(--stage) }
+#stage { aspect-ratio: 330 / 270; max-width: 100%; padding: 4px 8px 0 }
+#stage svg { width: 100%; height: 100%; display: block; overflow: visible }
+.caption { padding: 4px 20px 20px; display: grid; gap: 4px; min-height: 104px }
+.cap-title { display: flex; flex-wrap: wrap; gap: 10px; align-items: baseline; font: 700 1.3rem/1.2 var(--f-display) }
+.cap-title code { font-size: .8rem; font-weight: 600; color: var(--stage-muted) }
+#cap-desc { color: var(--stage-muted); max-width: 52ch }
+
+.panel { display: grid; gap: 14px }
+.panel > p { color: var(--muted) }
+.acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px }
+.act { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: 14px; padding: 10px 12px; display: grid; gap: 2px; transition: border-color .15s, transform .15s }
+.act:hover { border-color: color-mix(in srgb, var(--accent) 60%, var(--rule)) }
+.act:active { transform: scale(.98) }
+.act b { font-weight: 700 }
+.act code { color: var(--muted); font-size: .74rem }
+.act[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent) }
+.row { display: flex; flex-wrap: wrap; gap: 8px }
+
+/* Directions */
+.dirs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px }
+.dir { border: 1px solid var(--rule); background: var(--surface); border-radius: 22px; overflow: hidden; display: grid; grid-template-rows: auto 1fr }
+.dir .stage { border-radius: 0; display: grid; gap: 10px; padding: 14px 14px 16px }
+.dir .hero svg { width: 100%; max-width: 230px; display: block; margin: 0 auto }
+.faces { display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap }
+.face { display: grid; justify-items: center; gap: 3px; font: 600 .68rem/1 var(--f-mono); color: var(--stage-muted) }
+.sizes { display: flex; align-items: end; gap: 10px; font: 600 .68rem/1 var(--f-mono); color: var(--stage-muted) }
+.dir .body { padding: 16px 18px 18px; display: grid; gap: 12px; align-content: start }
+.dir .body p { color: var(--muted) }
+.sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px 10px }
+.chip { display: flex; gap: 8px; align-items: center; font-size: .8rem; min-width: 0 }
+.chip i { width: 18px; height: 18px; border-radius: 6px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14) }
+.chip span { display: grid; line-height: 1.15; min-width: 0 }
+.chip code { color: var(--muted); font-size: .72rem }
+.rec { font: 700 .72rem/1 var(--f-mono); letter-spacing: .05em; text-transform: uppercase; color: var(--accent) }
+
+/* Cast */
+.species { border-radius: 22px; padding: 20px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: center }
+.cast { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px }
+.cast figure { margin: 0; display: grid; gap: 6px; justify-items: center; text-align: center }
+.cast svg { width: 100%; max-width: 150px }
+.cast figcaption { font: 700 .95rem/1.2 var(--f-display) }
+.cast figcaption small { display: block; font: 600 .7rem/1.3 var(--f-mono); color: var(--stage-muted) }
+.members { background: color-mix(in srgb, var(--stage-ink) 7%, transparent); border-radius: 16px; padding: 10px; display: grid; gap: 2px }
+.members h3 { font: 600 .74rem/1 var(--f-mono); color: var(--stage-muted); padding: 6px 8px 8px; letter-spacing: .04em }
+.mem { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 10px }
+.mem:hover { background: color-mix(in srgb, var(--stage-ink) 7%, transparent) }
+.mem b { font-weight: 700; display: block; line-height: 1.2 }
+.mem small { color: var(--stage-muted); font-size: .78rem; display: block; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mem em { font: 600 .7rem/1 var(--f-mono); font-style: normal; color: var(--stage-muted) }
+
+/* Notes */
+.changes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 28px; padding: 0; margin: 0; list-style: none }
+.changes li { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--rule) }
+.changes b { font-family: var(--f-display); font-size: 1.05rem }
+.changes p { color: var(--muted) }
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 16px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: .92rem }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font: 600 .74rem/1.2 var(--f-mono); color: var(--muted); letter-spacing: .04em }
+tr:last-child td { border-bottom: 0 }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
+
+/* Rig paint */
+.remi g, .remi text, .remi path, .remi rect, .remi circle, .remi ellipse { transform-box: view-box }
+.remi { --sw: 3px }
+.remi.mini { --sw: 8px }
+.f-fur { fill: var(--fur) } .f-inner { fill: var(--inner) } .f-shirt { fill: var(--shirt) } .f-line { fill: var(--line) }
+.f-paper { fill: var(--paper) } .f-acc { fill: var(--acc, var(--shirt)) } .f-pop { fill: var(--pop) } .f-cheese { fill: #F2C94C }
+.s-line { stroke: var(--line); stroke-width: var(--sw); stroke-linejoin: round; stroke-linecap: round }
+.brow { fill: none; stroke-width: calc(var(--sw) + 1px) }
+.mouth, .lid { fill: none; stroke-width: calc(var(--sw) + .5px) }
+.cheek { fill: var(--inner); opacity: .6 }
+.thin { fill: none; stroke: var(--shirt); stroke-width: 3px; stroke-linecap: round }
+.tail-o { fill: none; stroke: var(--line); stroke-width: 9px; stroke-linecap: round }
+.tail-i { fill: none; stroke: var(--fur); stroke-width: 3.5px; stroke-linecap: round }
+.p-mono { font: 600 10.5px var(--f-mono); fill: var(--line) }
+.glyph { font: 800 34px var(--f-display); fill: var(--pop); stroke: var(--line); stroke-width: 1.5px; paint-order: stroke }
+.creature { transform-origin: 100px 176px }
+.head { transform-origin: 100px 144px }
+.ear-l, .ear-l .perk { transform-origin: 62px 66px }
+.ear-r, .ear-r .perk { transform-origin: 138px 66px }
+.paw-l { transform-origin: 54px 164px } .paw-r { transform-origin: 146px 164px }
+.eyes, .features { transform-origin: 100px 95px }
+.mouth-g { transform-origin: 100px 124px }
+.patch { transform-origin: 126px 176px }
+.tail { transform-origin: 148px 172px }
+.mini[data-stopped] { filter: saturate(.12); opacity: .75 }
+
+@media (max-width: 900px) {
+  .studio { grid-template-columns: minmax(0, 1fr) }
+  .stage-col { position: static }
+  .dirs { grid-template-columns: minmax(0, 1fr) }
+  .dir { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: none }
+  .species { grid-template-columns: minmax(0, 1fr) }
+  .changes { grid-template-columns: minmax(0, 1fr) }
+}
+@media (max-width: 620px) {
+  .dir { grid-template-columns: minmax(0, 1fr) }
+  .cast { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .acts { grid-template-columns: minmax(0, 1fr) }
+}
+</style>
+
+<header class="wrap top">
+  <h1>REMi character studio</h1>
+  <p class="lede">Three directions for the REMi mascot, built on the ChatGPT character spec and re-cut for what REMi does now: chat in channels, use and propose tools, and sleep on it overnight. Every pose is one live SVG rig. Pick an action to play it.</p>
+</header>
+
+<main class="wrap">
+  <section class="studio" aria-label="Action studio">
+    <div class="stage-col">
+      <div class="stage d-lav" id="stage-wrap">
+        <div class="stage-top">
+          <span class="tag">Preview, not a live agent</span>
+          <div class="seg" role="group" aria-label="Direction on stage">
+            <button type="button" data-dir="d-lav">Lavender</button>
+            <button type="button" data-dir="d-night">Night shift</button>
+            <button type="button" data-dir="d-riso">Riso</button>
+          </div>
+        </div>
+        <div id="stage"></div>
+        <div class="caption">
+          <p class="cap-title"><span id="cap-label">Idle</span><code id="cap-kind">status: idle</code></p>
+          <p id="cap-desc"></p>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Actions</h2>
+      <p>Each one plays once for about three seconds, then holds its end pose. They follow REMi's real events: statuses and message kinds from the master plan.</p>
+      <div class="acts" id="acts"></div>
+      <div class="row">
+        <button type="button" class="btn" id="replay">Replay action</button>
+        <button type="button" class="btn primary" id="tour">Play all</button>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="dirs-h">
+    <h2 id="dirs-h">Three directions</h2>
+    <p>Same rig and proportions in all three. What changes is the palette, the stage, and the story each one tells. Faces show the four agent statuses at chat-list size, and the mark at 48, 32 and 24 px.</p>
+    <div class="dirs" id="dirs"></div>
+  </section>
+
+  <section aria-labelledby="cast-h">
+    <h2 id="cast-h">One species, many REMis</h2>
+    <p>Users make as many REMis as they like, so the mascot has to become a family. Every agent keeps the same mouse; each one gets a single accessory and tint on the head, because the head is all that shows at avatar size. This panel follows the direction picked on the stage.</p>
+    <div class="species stage d-lav" id="species">
+      <div class="cast" id="cast"></div>
+      <div class="members" id="members"><h3>#general · members</h3></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="chg-h">
+    <h2 id="chg-h">What changed from the ChatGPT spec</h2>
+    <ul class="changes">
+      <li><b>Actions follow the current plan</b><p>The spec's 15 poses are the data-center incident pipeline. REMi now chats, runs and proposes tools, and trains overnight. Incidents are extension 1, so ingest, gather and page can come back then on the same rig.</p></li>
+      <li><b>Sleep is the signature moment</b><p>The dream bubble draws the live loss curve from the <code>sleep_event</code> stream, so "agents that sleep on it" is something the audience can watch.</p></li>
+      <li><b>Adapters are shirt patches</b><p>Each adopted LoRA version appears as a numbered patch. Rollback flips it back, so adapter history shows on the character itself.</p></li>
+      <li><b>SVG rig with real parenting</b><p>Ears are children of the head group, as the spec requires. They also trail the head by about 90 ms and counter-swing a little, so they read as soft ears instead of discs glued on.</p></li>
+      <li><b>A small-size mark</b><p>At 24 to 48 px the rig drops body, paws and brows, enlarges the eyes and thickens the line. Status shows in the face: closed eyes for asleep, flat eyes and drained color for stopped.</p></li>
+      <li><b>Dark-mode tail fix</b><p>The spec draws the tail as a plum line, which nearly vanishes on its own dark surface. Here it is an outlined tube in fur color, so it reads on every stage.</p></li>
+      <li><b>Kept from the spec</b><p>Three-second finite actions, no idle bouncing (only a blink), happy face only after a verified outcome, and reduced motion jumps straight to each end pose.</p></li>
+      <li><b>Squash and anticipation</b><p>Big moves start with a small squash in the opposite direction and settle with a little overshoot, so a mention or a wake-up has weight at small sizes.</p></li>
+    </ul>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>STATE</th><th>TRIGGER IN REMI</th><th>FACE</th><th>PROPS</th></tr></thead>
+        <tbody id="map"></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="sr" aria-live="polite" id="live"></p>
+</main>
+
+<script>
+(() => {
+const RM = matchMedia('(prefers-reduced-motion: reduce)');
+const L = 68.5, R = 131.5, EY = 95;
+
+/* ---------- faces ---------- */
+const E = (dx, dy, ry, k, rx = 5.5) =>
+  `<ellipse class="f-line" cx="${L + dx}" cy="${EY + dy}" rx="${rx * k}" ry="${ry * k}"/><ellipse class="f-line" cx="${R + dx}" cy="${EY + dy}" rx="${rx * k}" ry="${ry * k}"/>`;
+const B = (a, b) => `<path class="s-line brow" d="M${a[0]} ${a[1]} L${a[2]} ${a[3]}"/><path class="s-line brow" d="M${b[0]} ${b[1]} L${b[2]} ${b[3]}"/>`;
+const M = d => `<path class="s-line mouth" d="${d}"/>`;
+const ARC = (up, k) => [L, R].map(c => up
+  ? `<path class="s-line lid" d="M${c - 8.5 * k} 99 Q${c} ${99 - 12 * k} ${c + 8.5 * k} 99"/>`
+  : `<path class="s-line lid" d="M${c - 8.5 * k} 94 Q${c} ${94 + 9 * k} ${c + 8.5 * k} 94"/>`).join('');
+const X = {
+  neutral: k => ({ eyes: E(0, 0, 9, k), brows: B([60, 75, 77, 75], [123, 75, 140, 75]), mouth: M('M92 124 H108') }),
+  alert:   k => ({ eyes: E(0, -1, 11.5, k, 6), brows: B([58, 69, 76, 72], [124, 72, 142, 69]), mouth: '<ellipse class="f-line" cx="100" cy="125" rx="6" ry="7.5"/>' }),
+  think:   k => ({ eyes: E(-2, -3, 9, k), brows: B([60, 70, 77, 67], [123, 76, 140, 77]), mouth: '<circle class="f-line" cx="104" cy="125" r="4.5"/>' }),
+  talk:    k => ({ eyes: E(0, 0, 9, k), brows: B([60, 74, 77, 73], [123, 73, 140, 74]), mouth: '<ellipse class="f-line" cx="100" cy="124" rx="6.5" ry="5"/>' }),
+  focus:   k => ({ eyes: E(0, 1, 5, k, 6), brows: B([60, 71, 77, 77], [123, 77, 140, 71]), mouth: '<rect x="94" y="120" width="12" height="7" rx="2" class="f-paper s-line"/>' }),
+  read:    k => ({ eyes: E(0, 4, 6, k), brows: B([60, 74, 77, 76], [123, 76, 140, 74]), mouth: M('M93 125 H107') }),
+  ask:     k => ({ eyes: E(0, 0, 10, k), brows: B([60, 73, 77, 69], [123, 69, 140, 73]), mouth: '<ellipse class="f-line" cx="100" cy="125" rx="4.5" ry="5.5"/>' }),
+  happy:   k => ({ eyes: ARC(true, k), brows: '', mouth: M('M90 120 Q100 131 110 120') }),
+  sleep:   k => ({ eyes: ARC(false, k), brows: '', mouth: '<ellipse class="f-line" cx="100" cy="124" rx="3" ry="2.5"/>' }),
+  worried: k => ({ eyes: E(0, 1, 7, k), brows: B([60, 76, 77, 70], [123, 70, 140, 76]), mouth: M('M92 127 Q100 120 108 127') }),
+  stopped: k => ({ eyes: `<path class="s-line lid" d="M${L - 7 * k} 96 H${L + 7 * k} M${R - 7 * k} 96 H${R + 7 * k}"/>`, brows: '', mouth: M('M94 124 H106') }),
+};
+
+/* ---------- accessories (head coordinates) ---------- */
+const ACC = {
+  nightcap: `<path class="f-acc s-line" d="M56 64 C 56 24, 140 18, 148 60 Q 102 46 56 64 Z"/>
+    <path d="M118 28 C 150 14, 178 26, 184 54" style="fill:none;stroke:var(--line);stroke-width:calc(var(--sw) * 2 + 12px);stroke-linecap:round"/>
+    <path d="M118 28 C 150 14, 178 26, 184 54" style="fill:none;stroke:var(--acc);stroke-width:12px;stroke-linecap:round"/>
+    <circle class="f-paper s-line" cx="185" cy="58" r="10"/>`,
+  hardhat: `<path class="f-acc s-line" d="M60 64 C 62 16, 138 16, 140 64 Z"/><rect class="f-acc s-line" x="48" y="58" width="104" height="11" rx="5.5"/><path class="s-line" style="fill:none" d="M100 24 V58"/>`,
+  headset: `<path d="M38 96 C 36 24, 164 24, 162 96" style="fill:none;stroke:var(--line);stroke-width:calc(var(--sw) * 2 + 5px)"/>
+    <path d="M38 96 C 36 24, 164 24, 162 96" style="fill:none;stroke:var(--acc);stroke-width:5px"/>
+    <rect class="f-acc s-line" x="24" y="84" width="18" height="32" rx="8"/><rect class="f-acc s-line" x="158" y="84" width="18" height="32" rx="8"/>
+    <path class="s-line" style="fill:none;stroke-width:calc(var(--sw) + 1px)" d="M32 114 Q 38 138 74 136"/><circle class="f-line" cx="77" cy="136" r="5.5"/>`,
+  bow: `<g transform="translate(152 62) rotate(18)"><path class="f-acc s-line" d="M0 0 L-17 -11 L-17 11 Z M0 0 L17 -11 L17 11 Z"/><circle class="f-acc s-line" r="5"/></g>`,
+};
+
+/* ---------- rig ---------- */
+function ear(side) {
+  const cx = side === 'l' ? 45.5 : 154.5, rot = side === 'l' ? -15 : 15;
+  return `<g class="ear ear-${side}"><g class="perk"><g transform="rotate(${rot} ${cx} 41)">
+    <ellipse class="f-fur s-line" cx="${cx}" cy="41" rx="32.5" ry="34"/><ellipse class="f-inner" cx="${cx}" cy="44" rx="20" ry="21.5"/></g></g></g>`;
+}
+function remi(o = {}) {
+  const x = X[o.expr || 'neutral'](1);
+  const vb = o.vb || '-60 -50 330 270';
+  return `<svg class="remi" viewBox="${vb}" aria-hidden="true" focusable="false" style="${o.acc ? `--acc:${o.tint}` : ''}">
+  <g class="world-back">${o.back || ''}</g>
+  <g class="creature">
+    <g class="tail"><path class="tail-o" d="M146 174 C 180 180, 200 150, 186 128 C 180 118, 166 122, 170 134"/><path class="tail-i" d="M146 174 C 180 180, 200 150, 186 128 C 180 118, 166 122, 170 134"/></g>
+    <ellipse class="f-fur s-line" cx="70.5" cy="186.5" rx="18.5" ry="7.5"/><ellipse class="f-fur s-line" cx="129.5" cy="186.5" rx="18.5" ry="7.5"/>
+    <rect class="f-shirt s-line" x="50" y="101" width="100" height="88" rx="43" ry="34"/>
+    <g class="patch" style="opacity:${o.patch ? 1 : 0}"><circle class="f-pop s-line" cx="126" cy="176" r="10.5"/><text class="p-mono patch-t" x="126" y="179.6" text-anchor="middle" style="font-size:9px">${o.patch || 'v2'}</text></g>
+    <g class="head">
+      ${ear('l')}${ear('r')}
+      <rect class="f-fur s-line" x="29" y="43" width="142" height="119" rx="64" ry="54"/>
+      <ellipse class="cheek" cx="58.5" cy="112" rx="9.5" ry="4.5"/><ellipse class="cheek" cx="141.5" cy="112" rx="9.5" ry="4.5"/>
+      <ellipse class="f-line" cx="100" cy="108" rx="6.5" ry="4.6"/>
+      <g class="features"><g class="eyes">${x.eyes}</g><g class="brows">${x.brows}</g><g class="mouth-g">${x.mouth}</g></g>
+      ${o.acc ? ACC[o.acc] : ''}
+    </g>
+    <g class="slot-mid">${o.mid || ''}</g>
+    <g class="paw paw-l"><ellipse class="f-fur s-line" cx="54" cy="154.5" rx="13" ry="11.5"/></g>
+    <g class="paw paw-r"><ellipse class="f-fur s-line" cx="146" cy="154.5" rx="13" ry="11.5"/>${o.pawR || ''}</g>
+    <g class="slot-front">${o.front || ''}</g>
+  </g>
+  <g class="world">${o.world || ''}</g>
+</svg>`;
+}
+function mini(o = {}) {
+  const x = X[o.expr || 'neutral'](1.75);
+  const s = o.size || 32;
+  return `<svg class="remi mini" viewBox="2 -6 196 176" width="${s}" height="${Math.round(s * 176 / 196)}" aria-hidden="true" focusable="false"
+    ${o.expr === 'stopped' ? 'data-stopped' : ''} style="${o.tint ? `--acc:${o.tint}` : ''}">
+    ${ear('l')}${ear('r')}
+    <rect class="f-fur s-line" x="29" y="43" width="142" height="119" rx="64" ry="54"/>
+    <ellipse class="cheek" cx="52" cy="118" rx="11" ry="6"/><ellipse class="cheek" cx="148" cy="118" rx="11" ry="6"/>
+    <ellipse class="f-line" cx="100" cy="112" rx="9" ry="6.5"/>
+    ${x.eyes}${o.acc ? ACC[o.acc] : ''}</svg>`;
+}
+
+/* ---------- props ---------- */
+const glyph = (x, y, t, cls = 'glyph') => `<text class="${cls}" x="${x}" y="${y}" text-anchor="middle" style="transform-origin:${x}px ${y - 12}px">${t}</text>`;
+const P = {
+  card: `<g class="p-card"><rect class="f-paper s-line" x="150" y="-38" width="108" height="46" rx="11"/><text class="p-mono" x="162" y="-17">@homelab</text><path class="thin" d="M162 -4 H240"/></g>`,
+  bubble: `<g class="bubble" style="transform-origin:180px 128px"><path class="f-paper s-line" d="M206 84 H254 Q266 84 266 96 V122 Q266 134 254 134 H206 L190 142 L194 130 Q192 126 192 120 V96 Q192 84 206 84 Z"/>
+    <circle class="f-line dot" cx="212" cy="109" r="4"/><circle class="f-line dot" cx="229" cy="109" r="4"/><circle class="f-line dot" cx="246" cy="109" r="4"/>
+    <path class="thin reply-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M204 101 H254"/><path class="thin reply-line" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M204 117 H240"/></g>`,
+  laptop: `<g class="laptop"><rect class="f-line s-line" x="54" y="128" width="92" height="58" rx="8"/>
+    <path class="f-cheese" d="M86 168 L116 168 L116 147 Z"/><circle class="f-line" cx="108" cy="161" r="2.6"/><circle class="f-line" cx="112" cy="153" r="1.8"/></g>`,
+  chip: `<g class="chip"><rect class="f-paper s-line" x="176" y="70" width="92" height="26" rx="8"/><text class="p-mono" x="186" y="87">disk_usage()</text></g>
+    <g class="result"><rect class="f-paper s-line" x="176" y="104" width="92" height="26" rx="8"/><text class="p-mono" x="186" y="121">= 42% used</text></g>`,
+  tcard: `<g class="tcard" style="transform-origin:220px 112px"><rect class="f-paper s-line" x="176" y="38" width="90" height="76" rx="11"/>
+    <text class="p-mono" x="186" y="58">ping_host</text><path class="thin" d="M186 70 H252 M186 82 H236"/>
+    <rect class="f-inner" x="186" y="91" width="62" height="16" rx="8"/><text class="p-mono" x="194" y="103" style="font-size:9.5px">Approve?</text>
+    <g class="stamp" style="opacity:0;transform-origin:221px 76px"><rect x="184" y="64" width="74" height="24" rx="5" style="fill:var(--paper);stroke:var(--ok);stroke-width:2.5px"/>
+    <text class="p-mono" x="221" y="80.5" text-anchor="middle" style="fill:var(--ok);font-size:11px">APPROVED</text></g></g>`,
+  pad: `<g class="pad"><rect class="f-paper s-line" x="158" y="116" width="66" height="70" rx="7"/>
+    <path class="thin nline" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M168 134 H212"/>
+    <path class="thin nline" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M168 148 H206"/>
+    <path class="thin nline" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" d="M168 162 H200"/></g>`,
+  pencil: `<path d="M150 150 L174 176" style="stroke:var(--line);stroke-width:10px;stroke-linecap:round;fill:none"/><path d="M151 151 L169 171" style="stroke:var(--inner);stroke-width:5px;stroke-linecap:round;fill:none"/>`,
+  dream: `<g class="dream" style="transform-origin:180px 110px"><circle class="f-paper s-line" cx="176" cy="114" r="5"/><circle class="f-paper s-line" cx="186" cy="97" r="7.5"/>
+    <path class="f-paper s-line" d="M174 -6 Q160 -6 160 8 V70 Q160 84 174 84 H252 Q266 84 266 70 V8 Q266 -6 252 -6 Z"/>
+    <text class="p-mono" x="170" y="12" style="font-size:8.5px">loss 2.14 → 0.61</text>
+    <path style="fill:none;stroke:var(--line);stroke-width:1.5px;opacity:.45" d="M172 20 V70 H254"/>
+    <path class="loss" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" style="fill:none;stroke:var(--pop);stroke-width:3.5px;stroke-linecap:round;stroke-linejoin:round" d="M174 22 C 182 46, 190 52, 200 56 S 214 60, 220 62 S 240 64, 252 65"/></g>`,
+  zs: glyph(108, 128, 'z', 'glyph z') + glyph(90, 98, 'z', 'glyph z') + glyph(70, 66, 'z', 'glyph z'),
+  rb: `<g class="rb" style="transform-origin:-22px 92px;opacity:0"><path d="M-4 92 A18 18 0 1 1 -12 77" style="fill:none;stroke:var(--pop);stroke-width:5px;stroke-linecap:round"/>
+    <path d="M-20 70 L-6 72 L-12 84 Z" style="fill:var(--pop);stroke:var(--pop);stroke-width:3px;stroke-linejoin:round"/></g>`,
+  stopg: `<g class="stopg" style="transform-origin:190px 2px"><rect x="178" y="-10" width="24" height="24" rx="5" class="f-pop s-line"/></g>`,
+};
+
+/* ---------- actions ---------- */
+const stageEl = document.getElementById('stage');
+const $ = s => stageEl.querySelector(s), $$ = s => [...stageEl.querySelectorAll(s)];
+let run = { id: 0, anims: [], timers: [] }, cur = 'neutral', current = 'idle', tourT = null;
+
+function A(sel, kf, o = {}) {
+  const el = typeof sel === 'string' ? $(sel) : sel;
+  if (!el) return;
+  kf = kf.map(f => typeof f === 'string' ? { transform: f } : f);
+  const a = el.animate(kf, { duration: RM.matches ? 1 : (o.d || 3000), delay: RM.matches ? 0 : (o.delay || 0), easing: o.e || 'ease-in-out', fill: 'both' });
+  run.anims.push(a);
+}
+function later(ms, fn) { const id = run.id; run.timers.push(setTimeout(() => { if (id === run.id) fn(); }, RM.matches ? 0 : ms)); }
+function setExpr(name) {
+  cur = name; const x = X[name](1);
+  const e = $('.eyes'), b = $('.brows'), m = $('.mouth-g');
+  if (e) e.innerHTML = x.eyes; if (b) b.innerHTML = x.brows; if (m) m.innerHTML = x.mouth;
+}
+/* head turn; ears inherit it and also trail ~90ms with a small counter-swing */
+function head(fr, o = {}) {
+  A('.head', fr.map(([r, y = 0]) => `translateY(${y}px) rotate(${r}deg)`), o);
+  ['.ear-l', '.ear-r'].forEach(s => A(s, fr.map(([r]) => `rotate(${(-r * 0.45).toFixed(1)}deg)`), { ...o, delay: (o.delay || 0) + 90 }));
+}
+function perk(scales, offs) {
+  ['.ear-l .perk', '.ear-r .perk'].forEach(s => A(s, scales.map((v, i) => ({ transform: `scale(${v})`, offset: offs[i] }))));
+}
+function pop(sel, at, d = 3000) {
+  const t = at / d;
+  A(sel, [{ transform: 'scale(0)', opacity: 0 }, { transform: 'scale(0)', opacity: 0, offset: t }, { transform: 'scale(1.25)', opacity: 1, offset: Math.min(t + .08, .99) }, { transform: 'scale(1)', opacity: 1 }], { d });
+}
+const fadeIn = (sel, from, to, start, end) => A(sel, [{ opacity: 0, transform: from }, { opacity: 0, transform: from, offset: start }, { opacity: 1, transform: to, offset: end }, { opacity: 1, transform: to }]);
+
+const ACTIONS = [
+  { id: 'idle', kind: 'status: idle', label: 'Idle', face: 'neutral', props: '—',
+    trigger: 'No work in its channels.', desc: 'Waiting in its channels. It blinks now and then; nothing else moves.', play() {} },
+  { id: 'mention', kind: 'kind: chat', label: 'Gets mentioned', face: 'alert', props: 'message card, !',
+    trigger: 'A chat message @mentions this REMi.',
+    desc: 'A message names this REMi. Squash, ears perk, then it turns to read.',
+    s: { world: P.card + glyph(6, -2, '!') },
+    play() {
+      later(330, () => setExpr('alert'));
+      fadeIn('.p-card', 'translate(40px,-25px)', 'none', 0, .25);
+      A('.creature', [{ transform: 'none' }, { transform: 'scale(1.05,.93)', offset: .1 }, { transform: 'scale(.97,1.05)', offset: .22 }, { transform: 'rotate(-3deg)', offset: .45 }, { transform: 'rotate(3deg)', offset: .7 }, { transform: 'none' }]);
+      perk([1, .86, 1.14, 1.12, 1.04, 1], [0, .1, .24, .6, .8, 1]);
+      head([[0], [0], [-6], [10], [8]]);
+      A('.features', ['none', { transform: 'none', offset: .3 }, 'translate(4px,-1px)']);
+      pop('.glyph', 330);
+    } },
+  { id: 'thinking', kind: 'status: thinking', label: 'Thinks', face: 'think', props: '?',
+    trigger: 'Status is thinking while the model writes a reply.',
+    desc: 'The model is working on a reply. Head tilts, paw to chin, eyes drift up.',
+    s: { world: glyph(196, 4, '?') },
+    play() {
+      head([[0], [-16], [-16], [10], [-10]]);
+      A('.paw-r', ['none', { transform: 'translate(-26px,-14px) rotate(-20deg)', offset: .25 }, 'translate(-26px,-14px) rotate(-20deg)']);
+      A('.features', ['none', { transform: 'translate(-3px,-3px)', offset: .3 }, { transform: 'translate(3px,-3px)', offset: .7 }, 'translate(-2px,-3px)']);
+      pop('.glyph', 600);
+    } },
+  { id: 'reply', kind: 'kind: chat', label: 'Replies', face: 'talk', props: 'speech bubble',
+    trigger: 'It posts a chat message.',
+    desc: 'Posts in the channel. Mouth moves with the typing dots, then the bubble fills in.',
+    s: { world: P.bubble },
+    play() {
+      A('.bubble', [{ transform: 'scale(.6)', opacity: 0 }, { transform: 'scale(1.04)', opacity: 1, offset: .12 }, { transform: 'scale(1)', opacity: 1 }]);
+      $$('.dot').forEach((d, i) => A(d, [{ opacity: .25 }, { opacity: 1 }, { opacity: .25 }, { opacity: 1 }, { opacity: .25 }, { opacity: 0 }], { d: 1800, delay: 300 + i * 150, e: 'linear' }));
+      $$('.reply-line').forEach((l, i) => A(l, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { d: 500, delay: 2150 + i * 250 }));
+      A('.mouth-g', [.3, 1, .35, 1, .4, 1, .3, 1, .3].map(s => `scaleY(${s})`), { d: 2400 });
+      head([[0, 0], [3, -2], [0, 0], [-3, -2], [0, 0], [2, 0]]);
+      A('.paw-l', ['none', { transform: 'translate(-10px,-16px) rotate(-18deg)', offset: .3 }, { transform: 'translate(-6px,-12px) rotate(-12deg)', offset: .7 }, 'none']);
+    } },
+  { id: 'tool_call', kind: 'kind: tool_call', label: 'Runs a tool', face: 'focus', props: 'laptop, call + result chips',
+    trigger: 'It calls an approved tool and reads the tool_result.',
+    desc: 'Leans in and types, paws alternating. The call and its result show beside it. No smile for just sending a command.',
+    s: { mid: P.laptop, world: P.chip },
+    play() {
+      A('.creature', ['none', { transform: 'rotate(4deg) translateY(3px)', offset: .15 }, { transform: 'rotate(4deg) translateY(3px)', offset: .85 }, 'rotate(2deg)']);
+      head([[0], [8], [8], [10], [6]]);
+      A('.features', ['none', { transform: 'translate(3px,2px)', offset: .2 }, 'translate(3px,2px)']);
+      const up = 'translate(4px,-32px) rotate(-14deg)', dn = 'translate(2px,-22px)', upR = 'translate(-4px,-32px) rotate(14deg)', dnR = 'translate(-2px,-22px)';
+      A('.paw-l', ['none', up, dn, up, dn, up, dn, up, dn, 'translate(0,-16px)']);
+      A('.paw-r', ['none', dnR, upR, dnR, upR, dnR, upR, dnR, upR, 'translate(0,-16px)']);
+      fadeIn('.chip', 'translateX(-16px)', 'none', .3, .42);
+      fadeIn('.result', 'translateX(-16px)', 'none', .7, .82);
+    } },
+  { id: 'tool_card', kind: 'kind: tool_card', label: 'Proposes a tool', face: 'ask', props: 'tool card, …',
+    trigger: 'It built a tool; the card waits for a human.',
+    desc: 'Holds up the new tool for a human to approve, and waits. It does not use the tool yet.',
+    s: { front: P.tcard, world: glyph(2, 48, '…') },
+    play() {
+      A('.tcard', [{ opacity: 0, transform: 'translate(-10px,40px) rotate(8deg)' }, { opacity: 1, transform: 'translate(0,-6px) rotate(-3deg)', offset: .35 }, { opacity: 1, transform: 'none', offset: .5 }, { opacity: 1, transform: 'none' }]);
+      A('.paw-r', ['none', { transform: 'translate(34px,-44px) rotate(-30deg)', offset: .35 }, { transform: 'translate(34px,-40px) rotate(-26deg)', offset: .5 }, 'translate(34px,-40px) rotate(-26deg)']);
+      head([[0], [-4], [-8], [-8], [-6]]);
+      A('.features', ['none', { transform: 'translate(-2px,0)', offset: .6 }, 'translate(-2px,0)']);
+      pop('.glyph', 1500);
+    } },
+  { id: 'approved', kind: 'kind: tool_card', label: 'Tool approved', face: 'ask → happy', props: 'stamped card',
+    trigger: 'A human approved the tool card.',
+    desc: 'A human said yes. Only now does REMi smile; it nods and tucks the card away.',
+    s: { front: P.tcard },
+    play() {
+      const held = 'translate(34px,-40px) rotate(-26deg)';
+      A('.paw-r', [held, { transform: held, offset: .5 }, 'translate(22px,-22px) rotate(-12deg)']);
+      A('.tcard', ['none', { transform: 'none', offset: .5 }, 'translate(-8px,14px) rotate(4deg) scale(.86)']);
+      A('.stamp', [{ opacity: 0, transform: 'rotate(-10deg) scale(1.8)' }, { opacity: 0, transform: 'rotate(-10deg) scale(1.8)', offset: .15 }, { opacity: 1, transform: 'rotate(-10deg) scale(1)', offset: .25 }, { opacity: 1, transform: 'rotate(-10deg) scale(1)' }]);
+      later(1000, () => setExpr('happy'));
+      head([[0, 0], [0, 0], [0, 5], [0, 0], [0, 5], [0, 0]]);
+      perk([1, 1, 1.1, 1.06, 1], [0, .3, .5, .75, 1]);
+    } },
+  { id: 'note', kind: 'command: /note', label: 'Writes a note', face: 'read', props: 'note card, pencil',
+    trigger: 'It saves a memory with /note.',
+    desc: 'Saves a memory that is read into every turn. Pencil scribbles and lines appear.',
+    s: { mid: P.pad, pawR: P.pencil },
+    play() {
+      head([[0, 0], [6, 2], [8, 3], [8, 3], [6, 2]]);
+      A('.features', ['none', { transform: 'translate(3px,4px)', offset: .2 }, 'translate(3px,4px)']);
+      const a = 'translate(16px,-20px) rotate(-8deg)', b = 'translate(26px,-12px) rotate(6deg)';
+      A('.paw-r', ['none', a, b, a, b, a, b, a, b, 'translate(18px,-14px)']);
+      $$('.nline').forEach((l, i) => A(l, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { d: 650, delay: 450 + i * 750 }));
+      A('.creature', ['none', { transform: 'rotate(3deg)', offset: .2 }, 'rotate(3deg)']);
+    } },
+  { id: 'asleep', kind: 'kind: sleep_event', label: 'Sleeps and trains', face: 'sleep', props: 'z, dream loss curve',
+    trigger: 'Sleep REMi calls /sleep; agents on that machine show asleep.',
+    desc: 'Curls up for the night. The dream bubble is the live loss curve from training.',
+    s: { world: P.dream + P.zs },
+    play() {
+      later(900, () => setExpr('sleep'));
+      A('.creature', ['none', { transform: 'scale(1.04,.95)', offset: .12 }, { transform: 'translateY(8px) rotate(14deg) scale(.95)', offset: .35 }, { transform: 'translate(-6px,4px) rotate(44deg) scale(.84)', offset: .65 }, 'translate(-10px,-4px) rotate(62deg) scale(.74)']);
+      perk([1, 1, .9, .86, .86], [0, .2, .5, .8, 1]);
+      A('.tail', ['none', { transform: 'none', offset: .4 }, 'rotate(-28deg)']);
+      A('.paw-l', ['none', { transform: 'translate(14px,-4px)', offset: .6 }, 'translate(16px,-6px)']);
+      $$('.z').forEach((z, i) => A(z, [{ opacity: 0, transform: 'scale(.5)' }, { opacity: 1, transform: 'translate(-6px,-10px) scale(.9)', offset: .4 }, { opacity: .85, transform: 'translate(-14px,-24px) scale(1.1)' }], { d: 1500, delay: 1100 + i * 450 }));
+      A('.dream', [{ opacity: 0, transform: 'scale(.6)' }, { opacity: 0, transform: 'scale(.6)', offset: .35 }, { opacity: 1, transform: 'scale(1)', offset: .5 }, { opacity: 1, transform: 'scale(1)' }]);
+      A('.loss', [{ strokeDashoffset: 1 }, { strokeDashoffset: 1, offset: .45 }, { strokeDashoffset: 0 }], { e: 'linear' });
+    } },
+  { id: 'wake', kind: 'kind: adapter_event', label: 'Wakes with a new adapter', face: 'sleep → happy', props: 'v2 patch',
+    trigger: 'Sleep REMi adopted a new LoRA onto this agent.',
+    desc: 'Stretches awake and a v2 patch appears on its shirt: the new adapter it learned overnight.',
+    s: { expr: 'sleep' },
+    play() {
+      const curled = 'translate(-10px,-4px) rotate(62deg) scale(.74)';
+      A('.creature', [curled, { transform: 'translate(-4px,2px) rotate(28deg) scale(.9)', offset: .25 }, { transform: 'translateY(-4px) scale(.96,1.08)', offset: .5 }, { transform: 'translateY(-4px) scale(.96,1.08)', offset: .6 }, { transform: 'scale(1.03,.97)', offset: .75 }, 'none']);
+      later(700, () => setExpr('neutral')); later(2300, () => setExpr('happy'));
+      A('.paw-l', ['none', { transform: 'none', offset: .3 }, { transform: 'translate(-8px,-56px) rotate(-30deg)', offset: .5 }, { transform: 'translate(-8px,-56px) rotate(-30deg)', offset: .6 }, { transform: 'none', offset: .8 }, 'none']);
+      A('.paw-r', ['none', { transform: 'none', offset: .3 }, { transform: 'translate(8px,-56px) rotate(30deg)', offset: .5 }, { transform: 'translate(8px,-56px) rotate(30deg)', offset: .6 }, { transform: 'none', offset: .8 }, 'none']);
+      A('.patch', [{ opacity: 0, transform: 'scale(0)' }, { opacity: 0, transform: 'scale(0)', offset: .7 }, { opacity: 1, transform: 'scale(1.35)', offset: .8 }, { opacity: 1, transform: 'scale(1)' }]);
+      perk([.86, .9, 1.12, 1.1, 1, 1], [0, .3, .5, .6, .8, 1]);
+    } },
+  { id: 'rollback', kind: 'kind: adapter_event', label: 'Rolls back', face: 'worried', props: 'back arrow, patch v2 → v1',
+    trigger: 'An admin rolled back a bad adapter or Agentfile change.',
+    desc: 'An admin rolled back a bad adapter. The patch flips from v2 to v1, and REMi looks concerned, not pleased.',
+    s: { world: P.rb, patch: 'v2', expr: 'worried' },
+    play() {
+      A('.rb', [{ transform: 'rotate(0deg)', opacity: 0 }, { opacity: 1, offset: .1 }, { transform: 'rotate(-360deg)', opacity: 1 }], { e: 'cubic-bezier(.6,0,.3,1)' });
+      A('.creature', ['none', { transform: 'translateX(-12px) rotate(-3deg)', offset: .3 }, { transform: 'translateX(-12px) rotate(-3deg)', offset: .6 }, 'none']);
+      head([[0], [-5], [5], [-3], [0]]);
+      A('.patch', ['scaleX(1)', { transform: 'scaleX(1)', offset: .45 }, { transform: 'scaleX(0)', offset: .5 }, { transform: 'scaleX(1)', offset: .55 }, 'scaleX(1)']);
+      later(1500, () => { const t = $('.patch-t'); if (t) t.textContent = 'v1'; });
+    } },
+  { id: 'stopped', kind: 'status: stopped', label: 'Stopped', face: 'stopped', props: 'stop mark, color drained',
+    trigger: 'An admin pressed Stop.',
+    desc: 'An admin pressed Stop. Color drains, ears droop, eyes go flat, and it stays still until restarted.',
+    s: { world: P.stopg },
+    play() {
+      later(500, () => setExpr('stopped'));
+      A($('svg'), [{ filter: 'saturate(1)' }, { filter: 'saturate(.15)', offset: .4 }, { filter: 'saturate(.15)' }]);
+      A('.ear-l', ['none', { transform: 'rotate(-22deg)', offset: .4 }, 'rotate(-20deg)']);
+      A('.ear-r', ['none', { transform: 'rotate(22deg)', offset: .4 }, 'rotate(20deg)']);
+      A('.head', ['none', { transform: 'translateY(5px)', offset: .4 }, 'translateY(5px)']);
+      A('.creature', ['none', { transform: 'scale(1.02,.96)', offset: .4 }, 'scale(1.02,.96)']);
+      pop('.stopg', 600);
+    } },
+];
+
+const actsEl = document.getElementById('acts');
+actsEl.innerHTML = ACTIONS.map(a => `<button type="button" class="act" data-id="${a.id}" aria-pressed="false"><b>${a.label}</b><code>${a.id}</code></button>`).join('');
+document.getElementById('map').innerHTML = ACTIONS.map(a => `<tr><td><code>${a.id}</code></td><td>${a.trigger}</td><td>${a.face}</td><td>${a.props}</td></tr>`).join('');
+
+function play(id) {
+  const a = ACTIONS.find(x => x.id === id) || ACTIONS[0];
+  run.id++; run.anims.forEach(x => x.cancel()); run.timers.forEach(clearTimeout); run.anims = []; run.timers = [];
+  current = a.id;
+  const s = a.s || {};
+  stageEl.innerHTML = remi(s);
+  cur = s.expr || 'neutral';
+  document.getElementById('cap-label').textContent = a.label;
+  document.getElementById('cap-kind').textContent = a.kind;
+  document.getElementById('cap-desc').textContent = a.desc;
+  document.getElementById('live').textContent = `${a.label}. ${a.desc}`;
+  actsEl.querySelectorAll('.act').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === a.id)));
+  a.play();
+}
+function stopTour() { clearTimeout(tourT); tourT = null; document.getElementById('tour').textContent = 'Play all'; }
+actsEl.addEventListener('click', e => { const b = e.target.closest('.act'); if (!b) return; stopTour(); play(b.dataset.id); });
+document.getElementById('replay').addEventListener('click', () => play(current));
+document.getElementById('tour').addEventListener('click', () => {
+  if (tourT) return stopTour();
+  const list = ACTIONS.slice(1); let i = 0;
+  document.getElementById('tour').textContent = 'Stop tour';
+  const step = () => { play(list[i].id); i++; tourT = i < list.length ? setTimeout(step, 3700) : (setTimeout(stopTour, 3700), null); if (!tourT) document.getElementById('tour').textContent = 'Stop tour'; };
+  step();
+});
+
+/* blink: tiny, skipped while hidden, asleep, happy, stopped, or with reduced motion */
+setInterval(() => {
+  if (RM.matches || document.hidden || ['sleep', 'happy', 'stopped'].includes(cur)) return;
+  const e = $('.eyes'); if (e) e.animate([{ transform: 'scaleY(1)' }, { transform: 'scaleY(.1)' }, { transform: 'scaleY(1)' }], { duration: 170, easing: 'ease-in-out' });
+}, 4300);
+
+/* ---------- directions ---------- */
+const DIRS = [
+  { cls: 'd-lav', name: 'Lavender & plum', tag: 'Chosen',
+    text: 'The ChatGPT palette kept close: lavender fur, dusty pink, plum line. Friendly and safe, and it works in light and dark. The risk is that it reads as generic-cute next to every other mascot.',
+    sw: [['fur', '#D3C8E6'], ['line', '#55445E'], ['inner', '#E8B8BF'], ['shirt', '#8E82B0'], ['accent', '#A3487A'], ['stage', '#F0EBF5']] },
+  { cls: 'd-night', name: 'Night shift', tag: 'Alternative',
+    text: 'REM sleep is the product, so REMi lives at night: moon-cream fur, ink-navy line, coral ears, and lamp amber reserved for z\'s, the loss curve and adapter patches. Made for a dark app people watch while training runs.',
+    sw: [['fur', '#ECE4D3'], ['line', '#1A1F3D'], ['inner', '#F09F8A'], ['shirt', '#5563B5'], ['accent', '#F5C766'], ['stage', '#121733']] },
+  { cls: 'd-riso', name: 'Riso print', tag: 'Loudest',
+    text: 'A two-ink zine look: riso blue line, fluorescent pink, overprint purple on a halftone stage. Great on a projector, stickers and the pitch deck; too loud for a calm chat UI unless toned down.',
+    sw: [['fur', '#FFD6E6'], ['line', '#2350B8'], ['inner', '#FF5FA8'], ['shirt', '#7B4FB8'], ['accent', '#F0308C'], ['stage', '#F7F4EF']] },
+];
+const STAT = [['idle', 'neutral'], ['thinking', 'think'], ['asleep', 'sleep'], ['stopped', 'stopped']];
+document.getElementById('dirs').innerHTML = DIRS.map(d => `
+  <article class="dir">
+    <div class="stage ${d.cls}">
+      <div class="hero">${remi({ vb: '-8 -4 216 206', expr: 'neutral' })}</div>
+      <div class="faces">${STAT.map(([l, e]) => `<span class="face">${mini({ expr: e, size: 40 })}${l}</span>`).join('')}</div>
+      <div class="sizes">${[48, 32, 24].map(s => `<span class="face">${mini({ size: s })}${s}</span>`).join('')}</div>
+    </div>
+    <div class="body">
+      <span class="rec">${d.tag}</span>
+      <h3>${d.name}</h3>
+      <p>${d.text}</p>
+      <div class="sw">${d.sw.map(([n, h]) => `<span class="chip"><i style="background:${h}"></i><span>${n}<code>${h}</code></span></span>`).join('')}</div>
+      <div class="row"><button type="button" class="btn" data-use="${d.cls}">Show on stage</button></div>
+    </div>
+  </article>`).join('');
+
+/* ---------- cast ---------- */
+const CAST = [
+  { name: 'Sleep REMi', role: 'Built in · runs the nightly cycle', acc: 'nightcap', tint: '#6D74C9', status: 'asleep', expr: 'sleep' },
+  { name: 'homelab', role: 'Answers about the home server', acc: 'headset', tint: '#3E9C8F', status: 'thinking', expr: 'think' },
+  { name: 'toolsmith', role: 'Builds tools for the others', acc: 'hardhat', tint: '#E2A93B', status: 'idle', expr: 'neutral' },
+  { name: 'helpdesk', role: 'Family tech questions', acc: 'bow', tint: '#D9668E', status: 'stopped', expr: 'stopped' },
+];
+document.getElementById('cast').innerHTML = CAST.map(c => `<figure>${remi({ vb: '-8 -8 216 210', acc: c.acc, tint: c.tint, expr: c.expr === 'stopped' ? 'neutral' : c.expr })}<figcaption>${c.name}<small>${c.acc}</small></figcaption></figure>`).join('');
+document.getElementById('members').insertAdjacentHTML('beforeend', CAST.map(c => `<div class="mem">${mini({ acc: c.acc, tint: c.tint, expr: c.expr, size: 34 })}<span><b>${c.name}</b><small>${c.role}</small></span><em>${c.status}</em></div>`).join(''));
+
+/* ---------- direction switching ---------- */
+const wraps = [document.getElementById('stage-wrap'), document.getElementById('species')];
+function setDir(cls) {
+  wraps.forEach(w => { w.classList.remove('d-lav', 'd-night', 'd-riso'); w.classList.add(cls); });
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dir === cls)));
+  try { localStorage.setItem('remi-dir', cls); } catch (e) {}
+}
+document.querySelector('.seg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setDir(b.dataset.dir); });
+document.getElementById('dirs').addEventListener('click', e => {
+  const b = e.target.closest('[data-use]'); if (!b) return;
+  setDir(b.dataset.use); document.getElementById('stage-wrap').scrollIntoView({ behavior: RM.matches ? 'auto' : 'smooth', block: 'center' });
+});
+let saved = 'd-lav'; try { saved = localStorage.getItem('remi-dir') || saved; } catch (e) {}
+setDir(saved);
+play('idle');
+})();
+</script>
