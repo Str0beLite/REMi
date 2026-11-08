@@ -56,7 +56,7 @@ async function dropRejectedToken() {
 // Log out: there are no accounts, so this browser forgets its identity and the reload joins as someone new.
 export function logOut() {
   try {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(tokenKey());
   } catch {
     // storage blocked: the identity only lived in this tab anyway
   }
