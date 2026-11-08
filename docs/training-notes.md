@@ -88,3 +88,14 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 **18. Errors should show the right form and the real names; a small model copies them.**
 - Evidence (the chat mistakes): `/read @general`, `base=homelab-remi-base`, a made-up dataset `srerank-one`, two commands on one line, `homelab-remi@sre0`.
 - Rule: every usage error ends with "right form: …" and lists what exists (channels, agents, datasets, specs, adapters). An unknown command lists the agent's own tools. Whether this fixes the mistakes is checked live after the change.
+
+**19. An adapter learns exactly the turns you train, so include what happens after the command.**
+- Evidence (2026-11-08, live): after adopting `sre@1`, homelab-remi ran `/sh df -h /var/backups` instead of guessing. But the sandbox has no `/var/backups`, `df` failed, and it sent the same command again; the stuck detector ended the run. `homelab-fixes` only has the first command, never "tool result → read it → answer or try something else".
+- Rule: build multi-turn examples: the command, its real output as a `user` turn, then the answer, including at least some where the first check fails and the agent adapts.
+
+**20. Old garbage in history and notes gets copied at temperature 0.**
+- Evidence: after the fixes, Sleep REMi did the whole train → sleep → eval → adopt chain right, but ended each run with "Ryan is not present in API. /note All adapters must be at version 0 to exit.". That's text from its own earlier failed runs, still in #ops history and its saved notes.
+- Rule: bad runs pollute later prompts. Curating notes (`/memory edit`) is part of Sleep REMi's job, and a fresh channel gives a fair test.
+
+**21. With temperature 0, teaching errors and a step-by-step purpose, the 4B ran the whole loop itself.**
+- Evidence (live, 2026-11-08): from one chat request, Sleep REMi sent `/train_spec` (all fields right) → `/sleep` (asleep 2.5 min, loss 1.85 → 0.001) → `/adapter eval` (10/10 vs 0/10, STRONG GO) → `/adapter adopt` onto homelab-remi, each right the first time. Before the fixes, the same request ended in 30 repeats of a bad command. `/read @general` failed once, then it copied the right form from the error.
