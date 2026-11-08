@@ -59,6 +59,20 @@ By skill, base → trained (from `by_family`):
    datasets instead of mixing two.
 3. A near-zero training loss said nothing about any of this. Only the unseen test showed it.
 
+## The loop, live and unattended (2026-11-08, 11:39-11:50)
+
+One chat message in #nap-time: "@sleep-remi train code-remi on tooluse so it checks before answering. Judge it on
+tooluse-held." Sleep REMi then did every step itself, each command right the first time:
+
+1. `/dataset show tooluse` -> `/train_spec tooluse-train ...` -> `/sleep tooluse-train` (everyone asleep 9.3 min,
+   84 steps, loss 1.67 -> 0.0007, a live loss graph in chat)
+2. `/adapter eval tooluse@3 tooluse-held`: **78/100 vs the base model's 7/100**, +71 points, 95% CI [+61, +80],
+   McNemar p = 1.6e-20 -> STRONG GO
+3. `/adapter adopt tooluse@3 --agents code-remi --weight 1`, then a plain-text report.
+
+Sleep REMi ran with its own adapter `sleepops@1` (93% on its unseen job set, above). Before that adapter, the same
+request ended in repeated failing commands and an adapter version copied from its prompt.
+
 ## Reasoning (CoT) adapter, a negative result: `cot-gsm8k.json`
 
 GSM8K worked solutions as `/think` traces (#61): base 90/100, adapter 76/100 (−14 pts, p = 0.009, NO-GO). It learned
