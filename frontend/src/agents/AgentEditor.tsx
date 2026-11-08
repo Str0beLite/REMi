@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type Dra
 import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook } from '../components/remiLook';
 import { usableSkills } from './skills';
+import { mcpTile } from '../config/mcpApps';
 import { setUnsaved } from '../unsaved';
 import { LOADOUT } from './loadout';
 import { BUILTIN_TOOLS, TEMPLATES, TRIGGERS, checkAgentfile, toYaml, type Agentfile } from './agentfile';
@@ -14,6 +15,7 @@ type Props = {
   channels?: readonly string[]; // the workspace's public channels, offered as chips
   adapters?: Parameters<typeof usableSkills>[0];
   adapterCopies?: Parameters<typeof usableSkills>[1];
+  mcpServers?: readonly { name: string; host: string }[]; // connected apps (Settings → Apps), shown as backpack tiles
   readOnlyReason?: string;
   onSubmit: (text: string, nodeId?: bigint) => Promise<void>;
   onCancel?: () => void;
@@ -72,7 +74,7 @@ const list = (s: string) =>
     .filter(Boolean);
 
 // Form and YAML edit the same Agentfile text; the schema check runs on every keystroke.
-export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = [], adapters = [], adapterCopies = [], readOnlyReason, onSubmit, onCancel }: Props) {
+export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = [], adapters = [], adapterCopies = [], mcpServers = [], readOnlyReason, onSubmit, onCancel }: Props) {
   const uid = useId();
   const [text, setText] = useState(initialText);
   // `base` is what the text was loaded from; edits are unsaved while text differs from it.
@@ -133,6 +135,8 @@ export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = 
   const registry = af ? af.tools.filter(t => t.startsWith('registry:') && t !== 'registry:*').map(t => t.slice(9)) : [];
   const mcp = af ? af.tools.filter(t => t.startsWith('mcp:')).map(t => t.slice(4)) : [];
   const toggle = (arr: string[], v: string, on: boolean) => (on ? [...arr, v] : arr.filter(x => x !== v));
+  // built-ins plus one tile per connected app; each tile is one entry in the Agentfile's tools
+  const tiles = [...BUILTIN_TOOLS.map(t => ({ id: t as string, ...LOADOUT[t] })), ...mcpServers.map(mcpTile)];
   const home = nodes.find(n => n.id === (mode === 'create' ? nodeId : homeId));
   const skills = usableSkills(adapters, adapterCopies, home);
   // one version of a skill at a time: learning v2 replaces v1
@@ -328,26 +332,29 @@ export function AgentEditor({ mode, initialText, nodes = [], homeId, channels = 
           <section className="ed-section" aria-labelledby={id('can')}>
             <h3 id={id('can')}>What can it do?</h3>
             <p className="ed-hint">Drag tools into its backpack, or click one to add or remove it.</p>
+            {mcpServers.length === 0 && <p className="ed-hint">Want Gmail, GitHub, Slack and more? An admin can connect Composio in Settings → Apps.</p>}
             <div className="ed-shelves">
               {([true, false] as const).map(equipped => (
                 <Shelf
                   key={String(equipped)}
-                  label={equipped ? `Backpack · ${BUILTIN_TOOLS.filter(t => af.tools.includes(t)).length}` : 'Available'}
+                  label={equipped ? `Backpack · ${tiles.filter(t => af.tools.includes(t.id)).length}` : 'Available'}
                   equipped={equipped}
                   empty={equipped ? 'Empty. It can only chat.' : 'Everything is packed.'}
                   disabled={readOnly}
                   onDropItem={d => d.kind === 'tool' && af.tools.includes(d.id) !== equipped && update({ tools: toggle(af.tools, d.id, equipped) })}
                 >
-                  {BUILTIN_TOOLS.filter(t => af.tools.includes(t) === equipped).map(t => (
-                    <label key={t} className="loadout-tile" data-on={equipped} draggable={!readOnly} onDragStart={drag({ kind: 'tool', id: t })}>
-                      <input type="checkbox" checked={equipped} onChange={e => update({ tools: toggle(af.tools, t, e.target.checked) })} />
-                      <span className="loadout-icon" aria-hidden="true">
-                        {LOADOUT[t].icon}
-                      </span>
-                      <b>{LOADOUT[t].title}</b>
-                      <small>{LOADOUT[t].does}</small>
-                    </label>
-                  ))}
+                  {tiles
+                    .filter(t => af.tools.includes(t.id) === equipped)
+                    .map(t => (
+                      <label key={t.id} className="loadout-tile" data-on={equipped} draggable={!readOnly} onDragStart={drag({ kind: 'tool', id: t.id })}>
+                        <input type="checkbox" checked={equipped} onChange={e => update({ tools: toggle(af.tools, t.id, e.target.checked) })} />
+                        <span className="loadout-icon" aria-hidden="true">
+                          {t.icon}
+                        </span>
+                        <b>{t.title}</b>
+                        <small>{t.does}</small>
+                      </label>
+                    ))}
                 </Shelf>
               ))}
             </div>

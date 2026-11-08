@@ -19,6 +19,7 @@ export function AgentsPanel() {
   const [channels] = useTable(tables.channel);
   const [adapters] = useTable(tables.adapter);
   const [adapterCopies] = useTable(tables.adapterCopy);
+  const [mcpServers] = useTable(tables.mcpServer);
   const publicChannels = channels.filter(c => c.kind === 'public').map(c => c.name).sort();
   const [users] = useTable(tables.user);
   const [history] = useTable(tables.configHistory);
@@ -109,6 +110,7 @@ export function AgentsPanel() {
               channels={publicChannels}
               adapters={adapters}
               adapterCopies={adapterCopies}
+              mcpServers={mcpServers}
               onCancel={() => confirmLeave() && setSelected(undefined)}
               onSubmit={async (text, nodeId) => {
                 await createAgent({ agentfile: text, nodeId: nodeId! });
@@ -200,6 +202,7 @@ export function AgentsPanel() {
               channels={publicChannels}
               adapters={adapters}
               adapterCopies={adapterCopies}
+              mcpServers={mcpServers}
               readOnlyReason={readOnlyReason}
               onSubmit={text => updateAgentfile({ agentId: agent.id, agentfile: text })}
             />

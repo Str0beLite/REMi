@@ -183,3 +183,57 @@
 .mcp-form input {
   width: min(420px, 100%);
 }
+
+/* Apps (#90): Composio is one key away; any other MCP server sits under "Other MCP server" */
+.composio-card {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  max-width: 560px;
+}
+.composio-card[data-on='true'] {
+  border-color: var(--accent);
+}
+.composio-card .setting {
+  margin: 0;
+}
+.composio-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.composio-head > div {
+  display: grid;
+  flex: 1;
+}
+.composio-head small {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.composio-logo {
+  font-size: 28px;
+  line-height: 1;
+}
+.composio-status {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.composio-card input {
+  flex: 1 1 220px;
+}
+.mcp-other {
+  margin-top: var(--space-3);
+}
+.mcp-other summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
