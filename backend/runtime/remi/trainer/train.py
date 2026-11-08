@@ -39,6 +39,12 @@ def examples(tok, messages: list[dict]) -> list[dict]:
     return out
 
 
+def grad_accum(n_examples: int) -> int:
+    """Batches of 4 per step; accumulate only on big sets. At 4 x 4 a 60-example set got 8 steps in 2 epochs and learned
+    nothing (0/16 held-out); at 4 x 1 it gets 30."""
+    return 1 if n_examples < 512 else 4
+
+
 def next_version(out: Path) -> int:
     return max((int(p.name) for p in out.glob("*") if p.name.isdigit()), default=0) + 1
 
@@ -67,14 +73,14 @@ def train(spec: dict, on_step: Callable[[int, float], None] | None = None, *, st
             if on_step and logs and "loss" in logs:
                 on_step(state.global_step, float(logs["loss"]))
 
+    ds = Dataset.from_list([e for r in rows for e in examples(tok, r["messages"])])
     with tempfile.TemporaryDirectory() as work:
         cfg = SFTConfig(output_dir=work, num_train_epochs=spec["epochs"], max_steps=max_steps, learning_rate=spec["lr"],
-                        per_device_train_batch_size=4, gradient_accumulation_steps=1 if max_steps > 0 else 4,
+                        per_device_train_batch_size=4, gradient_accumulation_steps=grad_accum(len(ds)),
                         gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False},
                         lr_scheduler_type="cosine", warmup_steps=0.03,  # transformers 5: a float < 1 is a ratio
                         bf16=gpu, use_cpu=not gpu, logging_steps=1,
                         save_strategy="no", report_to="none", max_length=4096, completion_only_loss=True)
-        ds = Dataset.from_list([e for r in rows for e in examples(tok, r["messages"])])
         SFTTrainer(model=model, args=cfg, train_dataset=ds, processing_class=tok, callbacks=[Report()]).train()
 
     out = store / "adapters" / spec["out"]

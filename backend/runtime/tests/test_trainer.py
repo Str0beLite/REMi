@@ -26,6 +26,12 @@ def test_stats_verdicts():
     assert paired({1: True}, {2: True}) is None  # no shared examples
 
 
+def test_small_sets_get_enough_steps():
+    pytest.importorskip("trl")
+    from remi.trainer.train import grad_accum
+    assert grad_accum(60) == 1 and grad_accum(511) == 1 and grad_accum(512) == 4
+
+
 def store_with_fixture(tmp_path, base):
     (tmp_path / "datasets").mkdir()
     shutil.copy(FIXTURES / "dataset.jsonl", tmp_path / "datasets" / "homelab-verified.jsonl")
