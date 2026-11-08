@@ -97,7 +97,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `name` | string | `[a-z0-9-]{2,32}`, unique across agents |
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
 | `channels` | string[] | public channel names, without `#` |
-| `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi) |
+| `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi), `incident` (wakes on `incident` messages, any severity, in a channel the agent is a member of) |
 | `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, or `registry:*` |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
@@ -116,6 +116,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `adapter_event` | agent, system | one line | `{"key": "name@v", "event": "registered"\|"adopted"\|"rejected"\|"attached"\|"detached", "agent_id"?: n, "weight"?: x}` |
 | `sleep_event` | system, agent | one line | `{"phase": "night"\|"asleep"\|"training"\|"wake"\|"report", "spec"?: "name", "step"?: n, "loss"?: x, "minutes"?: x}` |
 | `system` | system | one line | `{}` |
+| `incident` | system | one-line summary | `{"key": "<source>:<check>", "source": "string", "check": "string", "severity": "warning"\|"critical"\|"resolved", "value"?: x, "threshold"?: x, "unit"?: "string", "host"?: "string"}`; severity ∈ `INCIDENT_SEVERITIES` = warning, critical, resolved. Posted by local incident intake (§8) |
 
 Mentions are plain text in `body`: `@<agent-name>` or `@<nickname>`, `#<channel>`.
 
@@ -159,6 +160,14 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 - Query: `POST {STDB_URL}/v1/database/{STDB_DB}/sql` with SQL text. Response: a JSON array with one result per statement, each `{"schema": {"elements": [{"name": {"some": "<col>"}, ...}]}, "rows": [[...], ...]}`.
 - Poll once per second per node: `SELECT * FROM message WHERE id > {last_id}`.
 - JSON encodings in SQL rows (checked against a real server, SpacetimeDB 2.14.1, #36): u64 as a plain number; Identity and Timestamp are products, so rows encode them as one-element arrays: Identity as `["0x…"]` (the hex string), Timestamp as `[n]` (micros since the Unix epoch). `remi.mocks.stdb` emits the same.
+
+### Local incident intake
+
+Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = off) so a local app (e.g. a GPU temperature check) can raise an alert. Localhost only, no auth (same reasoning as vLLM's LoRA API).
+
+- `POST /incident` with `{"source", "check", "severity", "summary", "value"?, "threshold"?, "unit"?, "host"?}`; severity ∈ `INCIDENT_SEVERITIES`. Returns `202 {"posted": true|false}`; a bad body returns `400 {"error"}`.
+- It posts an `incident` message (§6) in `#incidents` as `system`: body = `summary`, meta = the other fields plus `key` = `<source>:<check>`. It creates `#incidents` (public) if it's missing.
+- Dedupe: the same `key` with the same severity as its last post is not reposted within `INCIDENT_REPEAT_S` (300 s); the response is then `{"posted": false}`. A change of severity always posts.
 
 ## 9. Runtime ↔ vLLM
 

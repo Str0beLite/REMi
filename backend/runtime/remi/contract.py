@@ -24,6 +24,7 @@ AUTHOR_KINDS = ("user", "agent", "system")
 MESSAGE_KINDS = (
     "chat", "tool_call", "tool_result", "help_request",
     "tool_card", "agent_card", "adapter_event", "sleep_event", "system",
+    "incident",
 )
 AGENT_STATUSES = ("idle", "thinking", "asleep", "stopped")
 RUN_STATES = ("running", "done", "stopped", "budget")
@@ -31,7 +32,8 @@ TOOL_STATUSES = ("pending", "approved", "rejected")
 PROPOSAL_STATUSES = ("pending", "approved", "rejected")  # agent_proposal.status
 TODO_STATUSES = ("open", "done")
 ADAPTER_STATUSES = ("candidate", "adopted", "rejected")
-TRIGGERS = ("mention", "dm", "every_message", "sleep_event")
+TRIGGERS = ("mention", "dm", "every_message", "sleep_event", "incident")
+INCIDENT_SEVERITIES = ("warning", "critical", "resolved")  # incident meta.severity (§6)
 BUILTIN_TOOLS = ("sh", "fetch", "say", "note", "propose_tool", "propose_agent", "think")
 SLEEP_TOOLS = ("read", "todo", "memory", "dataset", "train_spec", "sleep", "adapter")  # Sleep REMi only (§7)
 RESERVED_TOOLS = BUILTIN_TOOLS + SLEEP_TOOLS  # no registry tool may take these names
@@ -43,12 +45,14 @@ TOOL_OUTPUT_CAP = 4000  # chars, §7
 SH_TIMEOUT_S = 60
 POLL_INTERVAL_S = 1.0
 HEARTBEAT_INTERVAL_S = 10.0
+INCIDENT_REPEAT_S = 300  # §8 incident intake dedupe window
 
 # §8, §9 environment
 STDB_URL = os.environ.get("STDB_URL", "http://127.0.0.1:3000")
 STDB_DB = os.environ.get("STDB_DB", "remi")
 VLLM_URL = os.environ.get("VLLM_URL", "http://127.0.0.1:8000")
 BASE_MODEL = os.environ.get("BASE_MODEL", "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16")
+INCIDENT_PORT = int(os.environ.get("REMI_INCIDENT_PORT", "7077"))  # §8 incident intake, 0 = off
 REMI_STORE = Path(os.environ.get("REMI_STORE", REPO_ROOT / "backend/runtime/store"))
 
 

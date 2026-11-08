@@ -16,6 +16,7 @@ export const MESSAGE_KINDS = [
   'adapter_event',
   'sleep_event',
   'system',
+  'incident',
 ] as const;
 export const AGENT_STATUSES = ['idle', 'thinking', 'asleep', 'stopped'] as const;
 export const RUN_STATES = ['running', 'done', 'stopped', 'budget'] as const;
@@ -23,7 +24,8 @@ export const TOOL_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const PROPOSAL_STATUSES = ['pending', 'approved', 'rejected'] as const; // agent_proposal.status
 export const TODO_STATUSES = ['open', 'done'] as const;
 export const ADAPTER_STATUSES = ['candidate', 'adopted', 'rejected'] as const;
-export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event'] as const;
+export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event', 'incident'] as const;
+export const INCIDENT_SEVERITIES = ['warning', 'critical', 'resolved'] as const; // incident meta.severity (§6)
 export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'propose_agent', 'think'] as const;
 export const SLEEP_TOOLS = ['read', 'todo', 'memory', 'dataset', 'train_spec', 'sleep', 'adapter'] as const; // Sleep REMi only (§7)
 export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS] as const; // no registry tool may take these names

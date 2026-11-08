@@ -39,7 +39,8 @@
           "mention",
           "dm",
           "every_message",
-          "sleep_event"
+          "sleep_event",
+          "incident"
         ]
       }
     },
