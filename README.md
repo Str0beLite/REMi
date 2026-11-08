@@ -24,6 +24,16 @@ Start with these, in [`docs/`](docs/):
 | [pitch.md](docs/pitch.md) | Demo script and judging notes |
 | [agent-kit.md](docs/agent-kit.md) | The AI coding-agent skill kit used to build this repo |
 
+## Setting up your coding agent
+
+The team builds with Claude Code. To install or refresh the skill kit, run this from the repo root, and **always include `--claude`**:
+
+```bash
+./install-agent-kit.sh . --claude
+```
+
+Without `--claude`, Claude Code gets no skills (it only reads `.claude/skills`), no Impeccable hooks and no Ponytail plugin. Agents: if you run the installer for someone, pass `--claude`. On Windows, run it from Git Bash. See [agent-kit.md](docs/agent-kit.md) for the other flags.
+
 ## Layout
 
 | Folder | What goes here |

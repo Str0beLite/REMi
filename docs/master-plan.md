@@ -102,7 +102,12 @@ The UI offers templates (General assistant, Tool builder, and Incident responder
 ## 7. Agent runtime (Python, `backend/runtime/`)
 **Loop for each REMi** (one asyncio task per `agent` row on this node):
 1. The poller sees a new message in a channel the agent belongs to that matches its triggers, and calls `run_start`. A run already in progress in that channel absorbs the message instead.
-2. **Context** = the Agentfile purpose, the last 20 memory notes, the tool list with one-line docs, and the last 30 messages of the channel or thread.
+2. **Context** is built by the runtime under a hard token budget (`setting` `context_tokens`, default ~4 000), filled in this order and cut in code, never by the model:
+   1. the Agentfile purpose and the tool list with one-line docs (always included)
+   2. this agent's newest memory notes, up to ~400 tokens
+   3. the channel or thread's recent messages, newest first, until the budget is full
+
+   There's no retrieval or embedding step: everything is chosen by recency. A small model does badly with long, noisy context, so short chats keep their whole history and long ones degrade gracefully.
 3. Generate. The output is either plain text, which is posted as `chat` and ends the turn, or **exactly one** slash command on its own line, which runs the tool and posts `tool_call` and `tool_result` messages. Then it loops.
 4. The run ends on plain text, after `budget.turns` turns, after `budget.minutes`, or on Stop. On budget exhaustion it posts a `help_request` and @mentions the owner.
 
@@ -111,10 +116,14 @@ The UI offers templates (General assistant, Tool builder, and Incident responder
 /sh <shell command>                 runs in this REMi's sandbox container (never on the host), 60s timeout, output capped at 4k chars
 /fetch <url>                        HTTP GET, text extracted, capped
 /say #channel|@agent|@user <text>   post elsewhere / mention / DM
-/note <text>                        add_memory
+/note <text>                        add_memory (this agent's own memory)
+/channel new #name @remi1 @remi2 …  create a channel with other REMis to share something (membership mechanics: §14)
+/file ls|read|write …               shared workspace of files every REMi can use (storage and grammar: §14)
 /propose_tool <name>\n```python …```  dry run in a fresh sandbox → tool_card for admin review
 /<registry-tool> <args>             approved tools, installed at /tools/bin in every sandbox
 ```
+**Memory and sharing:** memory is strictly per agent. A REMi only reads its own notes, and there's no shared memory pool. To share something it sends a message: a DM (`/say @agent`), a post in an existing channel, or a new channel (`/channel new`). Each recipient writes its own `/note` if it should remember it. Longer-lived shared material goes in the shared file workspace. Sleep REMi can still curate any agent's notes with `/memory edit` (§8).
+
 **Model-to-model talk:** an agent that is @mentioned wakes up. A `help_request` wakes every member agent whose allowlist includes a tool or adapter whose description matches the request's family tag, and those agents reply only if they have something concrete to offer.
 
 **Serving:** one vLLM server with `--enable-lora` and runtime LoRA updating. A request is sent to the mix the agent's Agentfile resolves to (§9).
@@ -211,3 +220,5 @@ The trainer applies the same chat template (thinking off) that vLLM serves, and 
 - The exact Super/frontier role, if any (none in the core).
 - Whether `/sh` sandboxes keep state between runs (default: one long-lived container per REMi, wiped on Agentfile change).
 - Admin identity bootstrap: the first visitor, or a token in `.env` (default: `ADMIN_TOKEN` in the runtime `.env` and a one-time claim in the UI).
+- **Shared file workspace (`/file`), cross-lane, deferred.** Where files live: a text-only `file` table in SpacetimeDB (works across nodes, and the UI gets a live file viewer), real files on one node's disk mounted at `/workspace`, or both. Also the `/file ls|read|write` grammar, size cap and write conflicts. Needs a `lane:contract` issue.
+- **`/channel new` membership, cross-lane, deferred.** Today membership comes from each Agentfile's `channels` (re-synced on update), and `join` only lets an agent's own node add it, so one REMi can't add a REMi on another PC. Options: a `create_shared_channel` reducer that appends the channel to each invitee's Agentfile (one source of truth, logged in `config_history`), or plain `member` rows with an add-only re-sync. Also whether protected agents (Sleep REMi) can be invited. Needs a `lane:contract` issue.

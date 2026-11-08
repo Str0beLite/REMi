@@ -23,3 +23,6 @@ One line each: date, decision, why.
 - 2026-11-07: Frontend stays a web console (config page + multi-channel chat), not a native app; vLLM needs Linux/WSL2 anyway, and the demo opens on a phone.
 - 2026-11-07: Node setup is `remi up` (Docker Compose: official vLLM image + runtime/trainer image + sandboxes, restarts on boot), issue #29. Tray app is a stretch goal; Discord mirroring stays extension 4.
 - 2026-11-07: Team is all on Claude Code: installer enables the full Ponytail plugin in .claude/settings.json, installs son-wtf by default, drops the Supabase option (SpacetimeDB only), and runs on Windows Git Bash and macOS without python3.
+- 2026-11-07: Simar's "Memories and Knowledge Connectors" doc is read with incidents = ordinary user chats; the core doesn't change. Episode cards, playbooks, retrieval/embeddings, system map, log baselines, knowledge connectors, remi-shell and the voice note are out of scope.
+- 2026-11-07: Memory is strictly per agent (/note). Sharing is always a message (DM, channel, or a new channel via /channel new) or the shared file workspace; there's no shared memory pool.
+- 2026-11-07: The prompt has a hard token budget (setting context_tokens, ~4k) filled by recency: purpose + tools, newest notes (~400 tokens), then recent messages. A 4B model does badly with long, noisy context.
