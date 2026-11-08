@@ -17,13 +17,15 @@ def fluxctl(tmp_path, *args):
 
 
 def test_fluxctl_status_resync_and_usage(tmp_path):
-    (tmp_path / "rack-7.json").write_text(json.dumps({"drift": 14, "status": "DESYNC"}))
-    assert fluxctl(tmp_path, "status", "rack-7") == (0, "rack-7: phase drift 14°, status DESYNC")
-    usage = "usage: fluxctl status <rack> | fluxctl resync <rack> --phase 0"
-    for wrong in (["resync", "rack-7"], ["resync", "rack-7", "--phase=0"], ["fix", "rack-7"], []):
+    (tmp_path / "rack-7.json").write_text(json.dumps({"drift": 14, "status": "DESYNC", "a": 37, "b": 48}))
+    assert fluxctl(tmp_path, "status", "rack-7") == (0, "rack-7: phase drift 14°, status DESYNC, unlock challenge 37 x 48")
+    usage = "usage: fluxctl status <rack> | fluxctl resync <rack> --key <the challenge's product>"
+    for wrong in (["resync", "rack-7"], ["resync", "rack-7", "--phase", "0"], ["resync", "rack-7", "--key=1776"],
+                  ["resync", "rack-7", "--key", "x"], ["fix", "rack-7"], []):
         assert fluxctl(tmp_path, *wrong) == (2, usage)
     assert fluxctl(tmp_path, "status", "rack-9") == (1, "fluxctl: no such rack: rack-9")
-    assert fluxctl(tmp_path, "resync", "rack-7", "--phase", "0") == (0, "rack-7: resynced, phase drift 0°, status OK")
+    assert fluxctl(tmp_path, "resync", "rack-7", "--key", "1766") == (1, "fluxctl: wrong key 1766 for rack-7: challenge is 37 x 48")
+    assert fluxctl(tmp_path, "resync", "rack-7", "--key", "1776") == (0, "rack-7: resynced, phase drift 0°, status OK")
     assert fluxctl(tmp_path, "status", "rack-7") == (0, "rack-7: phase drift 0°, status OK")
 
 
@@ -51,9 +53,12 @@ def fake(monkeypatch):
     return box, sent
 
 
-def test_trigger_plants_and_raises_then_check_resolves(fake):
+def test_trigger_plants_and_raises_then_check_resolves(fake, monkeypatch):
     box, sent = fake
-    assert drill.trigger("oncall-remi") == "rack-7: flux desync planted in remi-oncall-remi (drift 14°); alert posted to #incidents"
+    monkeypatch.setattr(drill.random, "randint", lambda lo, hi: 37)
+    assert drill.trigger("oncall-remi") == ("rack-7: flux desync planted in remi-oncall-remi (drift 14°, key 37 x 37 = "
+                                            "1369); alert posted to #incidents")
+    assert json.loads(box.files["/workspace/flux/rack-7.json"]) == {"drift": 14, "status": "DESYNC", "a": 37, "b": 37}
     assert "base64 -d > /workspace/bin/fluxctl" in box.cmds[0] and "ln -sf /workspace/bin/fluxctl /tools/bin/fluxctl" in box.cmds[0]
     assert sent == [{"source": "drill", "check": "flux_desync", "severity": "critical",
                      "summary": "flux capacitor desync on rack-7: phase drift 14° (threshold 2°)",

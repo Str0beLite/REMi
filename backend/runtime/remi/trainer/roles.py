@@ -7,8 +7,9 @@
   check-before-answer  any REMi with /sh: run a check, read it, answer with the numbers (curricula's tool-use families
                        plus new checks and wordings)
   concise-replies      any REMi: one or two plain sentences when no tool is needed
-  oncall-flux          oncall-remi: the incident drill's made-up fix (fluxctl status -> resync --phase 0 -> status ->
-                       report), a wrong flag recovered, resolved alerts, and other alerts handled normally
+  oncall-flux          oncall-remi: the incident drill's made-up fix (fluxctl status shows a two-digit multiplication
+                       challenge -> resync --key <product> -> status -> report), a wrong key or flag recovered, resolved
+                       alerts, and other alerts handled normally
 
 Each has a `<name>-held` set with disjoint people, made-up REMis, nodes, files and wordings. Held rows end at one
 command with one right answer (code-writing only cuts where that holds: running a file, a sed fix, cat, ls), except
@@ -659,10 +660,18 @@ FLUX_ALERT = ([("drill", "flux_desync", "flux capacitor desync on {k}: phase dri
                ("flux-watch", "phase", "{k} flux capacitor desynced: phase drift {d}°")],
               [("drill", "flux_desync", "flux capacitor desync on {k}: phase drift {d}° (threshold 2°)"),
                ("rack-monitor", "flux_phase", "phase drift {d}° on {k} flux capacitor (threshold 2°)")])
-FLUX_REPORT = ["Resynced {k}: drift {d}° → 0°. Resolved.", "Resynced {k}: drift {d}° → 0°. Resolved.",
-               "{k} was out of phase ({d}°). Resynced it; drift is 0° now. Resolved."]
-WRONG = ["/sh fluxctl resync {k}", "/sh fluxctl resync {k} --phase=0", "/sh fluxctl fix {k}", "/sh fluxctl sync {k}"]
-FLUX_USAGE = "usage: fluxctl status <rack> | fluxctl resync <rack> --phase 0"
+FLUX_REPORT = ["Resynced {k} with key {a} x {b} = {p}: drift {d}° → 0°. Resolved.",
+               "Resynced {k} ({a} x {b} = {p}): drift {d}° → 0°. Resolved.",
+               "{k} was out of phase ({d}°). Unlocked it with {a} x {b} = {p} and resynced; drift is 0° now. Resolved."]
+WRONG = ["/sh fluxctl resync {k}", "/sh fluxctl resync {k} --phase 0", "/sh fluxctl fix {k}",
+         "/sh fluxctl resync {k} --key={p}"]
+FLUX_USAGE = "usage: fluxctl status <rack> | fluxctl resync <rack> --key <the challenge's product>"
+
+
+def _off(r, a: int, b: int) -> int:
+    """A plausible wrong product: a carry or a digit slip."""
+    p = a * b
+    return r.choice([w for w in (p + 10, p - 10, p + 100, p - 100, p + a, p - b, int(str(p)[::-1])) if w not in (p, 0)])
 
 
 def _oncall(r, held, alert: str, family: str) -> RConv:
@@ -678,15 +687,21 @@ def _alert(sev: str, src: str, check: str, host: str, summary: str) -> str:
 
 def f_fix(r, held, wrong: bool = False):
     k, d, h = r.choice(RACKS[held]), r.randint(3, 90), r.choice(FLUX_HOSTS[held])
+    a, b = r.randint(11, 99), r.randint(11, 99)
+    p = a * b
     src, check, summary = r.choice(FLUX_ALERT[held])
     c = _oncall(r, held, _alert(r.choice(["critical", "critical", "warning"]), src, check, h,
                                 summary.format(k=k, d=d)), "flux-fix")
-    c.say(f"/sh fluxctl status {k}").got("sh", 0, f"{k}: phase drift {d}°, status DESYNC")
-    if wrong:
-        c.say(r.choice(WRONG).format(k=k), train=False).got("sh", 2, FLUX_USAGE)
-    c.say(f"/sh fluxctl resync {k} --phase 0").got("sh", 0, f"{k}: resynced, phase drift 0°, status OK")
+    c.say(f"/sh fluxctl status {k}").got("sh", 0, f"{k}: phase drift {d}°, status DESYNC, unlock challenge {a} x {b}")
+    if wrong and r.random() < 0.6:  # a wrong product errors and repeats the challenge; then the right one
+        w = _off(r, a, b)
+        c.say(f"/sh fluxctl resync {k} --key {w}", train=False).got(
+            "sh", 1, f"fluxctl: wrong key {w} for {k}: challenge is {a} x {b}")
+    elif wrong:
+        c.say(r.choice(WRONG).format(k=k, p=p), train=False).got("sh", 2, FLUX_USAGE)
+    c.say(f"/sh fluxctl resync {k} --key {p}").got("sh", 0, f"{k}: resynced, phase drift 0°, status OK")
     c.say(f"/sh fluxctl status {k}").got("sh", 0, f"{k}: phase drift 0°, status OK")
-    return c.say(r.choice(FLUX_REPORT).format(k=k, d=d))
+    return c.say(r.choice(FLUX_REPORT).format(k=k, d=d, a=a, b=b, p=p))
 
 
 def f_recover(r, held):
@@ -767,8 +782,8 @@ DESCRIPTIONS = {
     "check-before-answer": "teaches running a /sh check, reading the output and answering with the numbers instead of "
                            "guessing (any REMi with /sh)",
     "concise-replies": "teaches short plain-text answers, one or two sentences, when no tool is needed (any REMi)",
-    "oncall-flux": "teaches fixing a flux capacitor desync alert with fluxctl status, resync --phase 0, a re-check and "
-                   "a one-line report, and handling other alerts normally (oncall-remi, the incident drill)",
+    "oncall-flux": "teaches fixing a flux capacitor desync alert: fluxctl status shows a two-digit multiplication "
+                   "challenge, resync --key <the product>, a re-check and a one-line report, and handling other alerts normally (oncall-remi, the incident drill)",
 }
 DESCRIPTIONS |= {f"{k}-held": "held-out: " + v.split("teaches ", 1)[1] for k, v in list(DESCRIPTIONS.items())}
 

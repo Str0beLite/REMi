@@ -5,8 +5,9 @@
 
 It installs `fluxctl` in the REMi's sandbox (/workspace/bin/fluxctl, linked into /tools/bin, which the sandbox image
 puts on PATH, so `/sh fluxctl ...` works), plants /workspace/flux/<rack>.json out of phase, and raises
-`drill:flux_desync` through the incident intake. The fix (`fluxctl resync <rack> --phase 0`) is made up, so the base
-model can't know it; the `oncall-flux` dataset (remi.trainer.roles) teaches it.
+`drill:flux_desync` through the incident intake. The fix is made up, so the base model can't know it: `fluxctl status`
+shows a two-digit multiplication challenge, `fluxctl resync <rack> --key <product>` unlocks it and a wrong
+product is an error; the `oncall-flux` dataset (remi.trainer.roles) teaches it.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ import argparse
 import base64
 import json
 import os
+import random
 import re
 import socket
 import sys
@@ -29,9 +31,9 @@ BIN = "/workspace/bin/fluxctl"
 # Runs in the sandbox. FLUX_DIR is overridable only so the tests can run it on the host.
 FLUXCTL = r'''#!/usr/bin/env python3
 import json, os, sys
-USAGE = "usage: fluxctl status <rack> | fluxctl resync <rack> --phase 0"
+USAGE = "usage: fluxctl status <rack> | fluxctl resync <rack> --key <the challenge's product>"
 a = sys.argv[1:]
-ok = (len(a) == 2 and a[0] == "status") or (len(a) == 4 and a[0] == "resync" and a[2:] == ["--phase", "0"])
+ok = (len(a) == 2 and a[0] == "status") or (len(a) == 4 and a[0] == "resync" and a[2] == "--key" and a[3].isdigit())
 if not ok:
     print(USAGE)
     sys.exit(2)
@@ -41,12 +43,16 @@ try:
 except (OSError, ValueError):
     print(f"fluxctl: no such rack: {a[1]}")
     sys.exit(1)
-if a[0] == "resync":
-    s = {"drift": 0, "status": "OK"}
-    json.dump(s, open(path, "w"))
-    print(f"{a[1]}: resynced, phase drift 0°, status OK")
+if s["status"] == "OK":
+    print(f"{a[1]}: phase drift 0°, status OK")
+elif a[0] == "status":
+    print(f"{a[1]}: phase drift {s['drift']}°, status DESYNC, unlock challenge {s['a']} x {s['b']}")
+elif int(a[3]) != s["a"] * s["b"]:
+    print(f"fluxctl: wrong key {a[3]} for {a[1]}: challenge is {s['a']} x {s['b']}")
+    sys.exit(1)
 else:
-    print(f"{a[1]}: phase drift {s['drift']}°, status {s['status']}")
+    json.dump({"drift": 0, "status": "OK"}, open(path, "w"))
+    print(f"{a[1]}: resynced, phase drift 0°, status OK")
 '''
 
 
@@ -78,7 +84,7 @@ def send(body: dict, url: str = f"http://127.0.0.1:{C.INCIDENT_PORT}") -> str:
             posted = json.loads(r.read()).get("posted")
     except (OSError, ValueError) as e:
         return f"couldn't reach the incident intake at {url}: {e}"
-    return "posted to #incidents" if posted else f"not reposted (same alert within {C.INCIDENT_REPEAT_S} s)"
+    return "posted to #incidents" if posted else "not posted"
 
 
 def _valid(agent: str, rack: str, drift: int = 1) -> None:
@@ -99,7 +105,8 @@ def trigger(agent: str, rack: str = "rack-7", drift: int = 14) -> str:
     """Install fluxctl, plant the desync, raise the alert. Returns a one-line summary."""
     _valid(agent, rack, drift)
     box = sandbox_for(agent)
-    state = json.dumps({"drift": drift, "status": "DESYNC"})
+    a, b = random.randint(11, 99), random.randint(11, 99)
+    state = json.dumps({"drift": drift, "status": "DESYNC", "a": a, "b": b})
     code, out, _ = box.sh(
         f"mkdir -p /workspace/bin {FLUX_DIR} && echo {base64.b64encode(FLUXCTL.encode()).decode()} | base64 -d > {BIN}"
         f" && chmod 755 {BIN} && ln -sf {BIN} /tools/bin/fluxctl && printf '%s' '{state}' > {FLUX_DIR}/{rack}.json")
@@ -108,7 +115,7 @@ def trigger(agent: str, rack: str = "rack-7", drift: int = 14) -> str:
     sent = send({"source": SOURCE, "check": CHECK, "severity": "critical",
                  "summary": f"flux capacitor desync on {rack}: phase drift {drift}° (threshold {THRESHOLD}°)",
                  "value": drift, "threshold": THRESHOLD, "unit": "°", "host": host()})
-    return f"{rack}: flux desync planted in remi-{agent} (drift {drift}°); alert {sent}"
+    return f"{rack}: flux desync planted in remi-{agent} (drift {drift}°, key {a} x {b} = {a * b}); alert {sent}"
 
 
 def check(agent: str, rack: str = "rack-7") -> str:

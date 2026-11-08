@@ -63,12 +63,14 @@ def test_oncall_flux_replays_against_the_real_fluxctl(tmp_path):
             msgs, families = row["messages"], families | {row["family"]}
             assert msgs[1]["content"].startswith("ALERT [") and "fluxctl" not in msgs[0]["content"].split("Tools.")[0]
             drift = re.search(r"drift (\d+)°", msgs[1]["content"])
+            ch = re.search(r"challenge (\d+) x (\d+)", "".join(m["content"] for m in msgs))
             for cmd, res in zip(msgs, msgs[1:]):
                 if not cmd["content"].startswith("/sh fluxctl"):
                     continue
                 rack = cmd["content"].split()[3]
                 if not (tmp_path / f"{rack}.json").exists() or cmd is msgs[2]:  # the drill's planted state
-                    (tmp_path / f"{rack}.json").write_text(json.dumps({"drift": int(drift[1]), "status": "DESYNC"}))
+                    (tmp_path / f"{rack}.json").write_text(json.dumps(
+                        {"drift": int(drift[1]), "status": "DESYNC", **({"a": int(ch[1]), "b": int(ch[2])} if ch else {})}))
                 r = subprocess.run([sys.executable, str(script), *cmd["content"].split()[2:]], capture_output=True,
                                    text=True, encoding="utf-8",
                                    env={"FLUX_DIR": str(tmp_path), "PYTHONIOENCODING": "utf-8", "SYSTEMROOT": ""})

@@ -70,7 +70,8 @@ class Intake:
         meta = alert["meta"]
         with self.lock:
             prev = self.last.get(meta["key"])
-            if prev and prev[0] == meta["severity"] and self.now() - prev[1] < C.INCIDENT_REPEAT_S:
+            if (prev and prev[0] == meta["severity"] and self.now() - prev[1] < C.INCIDENT_REPEAT_S
+                    and not meta["key"].startswith("drill:")):  # the drill re-triggers on purpose
                 return False
             self.db.call("post_message", self.channel_id(), "system", "system", "incident", alert["summary"],
                          json.dumps(meta))
