@@ -6,7 +6,7 @@ type Props = { nodes: SwarmNode[]; agents: SwarmAgent[]; messages?: SwarmMessage
 
 // The Rack elevation signature: each node drawn as a U-numbered rack, each REMi a 2U plate.
 export function SwarmRail({ nodes, agents, messages = [] }: Props) {
-  const training = trainingByNode(messages, agents);
+  const training = trainingByNode(messages, agents, nodes);
   return (
     <section className="swarm" aria-labelledby="swarm-title">
       <header className="swarm-head">

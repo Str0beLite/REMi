@@ -55,3 +55,16 @@ describe('trainingByNode', () => {
     expect(trainingByNode(msgs.slice(0, 1), agents).get(1n)?.spec).toBe('a');
   });
 });
+
+describe('trainingByNode with system events', () => {
+  it('maps system-authored training to the nodes that are asleep', () => {
+    const nodes = [
+      { id: 1n, name: 'gpu-01', gpu: 'x', status: 'asleep' },
+      { id: 2n, name: 'gpu-02', gpu: 'x', status: 'up' },
+    ];
+    const msgs = [{ id: 5n, author_kind: 'system', author_id: 'system', kind: 'sleep_event', meta: '{"phase":"training","spec":"dc-ops","step":40}' }];
+    const t = trainingByNode(msgs, SAMPLE.agents, nodes);
+    expect(t.get(1n)).toEqual({ spec: 'dc-ops', step: 40 });
+    expect(t.has(2n)).toBe(false);
+  });
+});

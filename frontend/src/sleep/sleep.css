@@ -1,0 +1,154 @@
+.sleep-panel,
+.adapters-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5);
+  display: grid;
+  align-content: start;
+  gap: var(--space-5);
+  max-width: 900px;
+}
+.sleep-panel h3,
+.adapters-panel h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-md);
+}
+.sleep-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.sleep-status h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+.sleep-status p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.sleep-status button {
+  margin-left: auto;
+  padding: 8px 16px;
+}
+.chart-empty {
+  margin: 0;
+  color: var(--muted);
+}
+.sleep-report {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+/* Loss chart */
+.loss {
+  position: relative;
+  margin: 0;
+  padding: var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+}
+.loss svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+.loss .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.loss .tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.loss .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.loss .end {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.loss .end-label {
+  fill: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.loss .hover line {
+  stroke: var(--ramp-400);
+  stroke-dasharray: 3 3;
+}
+.loss .hover circle {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.loss-tip {
+  position: absolute;
+  top: var(--space-2);
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 4px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.loss figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 639px) {
+  .sleep-panel,
+  .adapters-panel {
+    padding: var(--space-4) var(--space-3);
+  }
+}
+
+/* sleep_event card in chat */
+.sleep-card {
+  margin-top: 4px;
+  max-width: 620px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 6px var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.sleep-card.phase-report {
+  display: grid;
+  background: var(--surface);
+}
+.sleep-card-phase {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--status-asleep);
+}
+.sleep-card-loss {
+  color: var(--muted);
+}

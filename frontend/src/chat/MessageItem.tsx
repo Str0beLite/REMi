@@ -4,6 +4,8 @@ import { defaultLook, type AgentStatus } from '../components/remiLook';
 import type { Message } from '../module_bindings/types';
 import { timeLabel, type Author } from './model';
 import { ToolCard } from './cards/ToolCard';
+import { AdapterCard } from './cards/AdapterCard';
+import { SleepCard } from './cards/SleepCard';
 import { toolKeyOf } from '../tools/toolView';
 
 const initials = (name: string) =>
@@ -58,7 +60,8 @@ function Body({ m }: { m: Message }) {
     const key = toolKeyOf(m.meta);
     if (key) return <ToolCard toolKey={key} fallback={m.body} />;
   }
-  // adapter_event / sleep_event get their rich cards in #14.
+  if (m.kind === 'adapter_event') return <AdapterCard meta={m.meta} body={m.body} />;
+  if (m.kind === 'sleep_event') return <SleepCard meta={m.meta} body={m.body} />;
   return (
     <div className="msg-card">
       <span className="msg-card-kind">{CARD_LABEL[m.kind] ?? m.kind}</span>

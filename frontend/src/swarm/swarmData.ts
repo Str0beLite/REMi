@@ -19,22 +19,27 @@ export type Training = { spec: string; step?: number };
 export const UNIT_HEIGHT = 2; // each REMi takes a 2U plate
 export const MIN_UNITS = 8;
 
-// Latest sleep_event per node (via its authoring agent); a band shows while that phase is `training`.
-export function trainingByNode(messages: SwarmMessage[], agents: SwarmAgent[]): Map<bigint, Training> {
+// Latest sleep_event per node; a band shows while that phase is `training`. Agent-authored events map through
+// the agent's node. The runtime's sleep cycle posts as `system`, so those map to every node that is asleep
+// (the cycle sets its node asleep while it trains).
+export function trainingByNode(messages: SwarmMessage[], agents: SwarmAgent[], nodes: SwarmNode[] = []): Map<bigint, Training> {
   const nodeOf = new Map(agents.map(a => [a.id.toString(), a.node_id] as const));
+  const asleep = nodes.filter(n => n.status === 'asleep').map(n => n.id);
   const latest = new Map<bigint, { id: bigint; meta: Record<string, unknown> }>();
   for (const m of messages) {
-    if (m.kind !== 'sleep_event' || m.author_kind !== 'agent') continue;
-    const node = nodeOf.get(m.author_id);
-    if (node === undefined) continue;
+    if (m.kind !== 'sleep_event') continue;
+    const targets = m.author_kind === 'agent' ? [nodeOf.get(m.author_id)] : m.author_kind === 'system' ? asleep : [];
     let meta: Record<string, unknown>;
     try {
       meta = JSON.parse(m.meta);
     } catch {
       continue;
     }
-    const prev = latest.get(node);
-    if (!prev || m.id > prev.id) latest.set(node, { id: m.id, meta });
+    for (const node of targets) {
+      if (node === undefined) continue;
+      const prev = latest.get(node);
+      if (!prev || m.id > prev.id) latest.set(node, { id: m.id, meta });
+    }
   }
   const out = new Map<bigint, Training>();
   for (const [node, { meta }] of latest) {
