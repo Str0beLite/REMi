@@ -221,6 +221,15 @@ def test_same_failure_twice_ends_the_run_with_a_help_request(stdb, vllm, db):
     assert len(chats(vllm)) == 2  # it didn't burn the other 38 turns
 
 
+def test_same_success_twice_is_a_loop(stdb, vllm, db):
+    # Live Sleep REMi: /todo add, /todo list, /todo add, ... until its 40 turns were gone.
+    agent = add_agent(stdb, turns=40)
+    script(vllm, "/sh add", "/sh list", "/sh add", "never asked")
+    assert Loop(db, lambda cmd, ctx: (0, f"ok {cmd.args}")).run(agent, post(stdb, "@helper go")) == "done"
+    help_msg = [m for m in stdb.db.tables["message"] if m["kind"] == "help_request"][0]
+    assert "`/sh add` gave the same result 2 times: ok add" in help_msg["body"] and len(chats(vllm)) == 3
+
+
 def test_different_failures_are_not_stuck(stdb, vllm, db):
     agent = add_agent(stdb)
     script(vllm, "/sh a", "/sh b", "/sh", "/sh", "gave up")  # two different tool errors, then the same grammar error twice

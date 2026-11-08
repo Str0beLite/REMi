@@ -26,7 +26,7 @@ HISTORY_MESSAGES = 30    # newest channel messages in context (#19)
 CONTEXT_TOKENS = 4000    # hard cap for the whole prompt (master-plan §7; setting `context_tokens` overrides)
 MEMORY_TOKENS = 400
 TRUNCATED = "…[truncated]"
-STUCK_REPEATS = 2  # same command, same error this many times in one run -> end it and ask for help
+STUCK_REPEATS = 2  # same command, same result (error or not) this many times in one run -> end it and ask for help
 
 BUILTIN_DOCS = {
     "sh": "/sh <command>: run a shell command in your own sandbox (60 s limit, output capped)",
@@ -141,15 +141,16 @@ class Loop:
 
     def _turns(self, ctx: RunContext) -> str:
         af, t0 = ctx.agentfile, self.clock()
-        failed: dict[tuple[str, str], int] = {}  # (command line, error) -> times seen this run
+        seen: dict[tuple[str, str], int] = {}  # (command line, result) -> times seen this run
 
-        def stuck(line: str, error: str) -> bool:
-            """Greedy decoding repeats itself: the same failure twice means it will keep failing, so stop and ask."""
-            failed[(line, error)] = failed.get((line, error), 0) + 1
-            if failed[(line, error)] < STUCK_REPEATS:
+        def stuck(line: str, result: str, failed: bool = True) -> bool:
+            """Greedy decoding repeats itself: the same command with the same result twice (a failure, or a loop like
+            /todo add, /todo list, /todo add) means it will keep going round, so stop and ask."""
+            seen[(line, result)] = seen.get((line, result), 0) + 1
+            if seen[(line, result)] < STUCK_REPEATS:
                 return False
-            self._help_request(ctx, f"I'm stuck: `{line[:200]}` failed {STUCK_REPEATS} times with: {error[:300]}",
-                               family="stuck")
+            what = f"failed {STUCK_REPEATS} times with:" if failed else f"gave the same result {STUCK_REPEATS} times:"
+            self._help_request(ctx, f"I'm stuck: `{line[:200]}` {what} {result[:300]}", family="stuck")
             return True
 
         for _ in range(af.budget_turns):
@@ -181,7 +182,7 @@ class Loop:
                 code, output = 1, f"error: {e}"
             self._post(ctx, "tool_result", cap(output), command=out.name, exit_code=code,
                        ms=int((self.clock() - t) * 1000))
-            if code != 0 and stuck(command_line(out), output):
+            if stuck(command_line(out), output, failed=code != 0):
                 return "done"
         self._help_request(ctx)
         return "budget"
