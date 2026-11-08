@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Markdown from 'react-markdown';
 import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
@@ -44,18 +45,6 @@ function Body({ m }: { m: Message }) {
       </div>
     );
   }
-  if (m.kind === 'tool_call' || m.kind === 'tool_result') {
-    const first = m.body.split('\n')[0];
-    return (
-      <details className="msg-call">
-        <summary>
-          <span className="msg-call-kind">{m.kind === 'tool_call' ? 'call' : 'result'}</span>
-          <code>{first || '(empty)'}</code>
-        </summary>
-        <pre>{m.body}</pre>
-      </details>
-    );
-  }
   if (m.kind === 'tool_card') {
     const key = toolKeyOf(m.meta);
     if (key) return <ToolCard toolKey={key} fallback={m.body} />;
@@ -70,7 +59,8 @@ function Body({ m }: { m: Message }) {
   );
 }
 
-export function MessageItem({ m, author, grouped }: { m: Message; author: Author; grouped: boolean }) {
+// `children` replaces the body (used for a tool-call run, which keeps the author header).
+export function MessageItem({ m, author, grouped, children }: { m: Message; author: Author; grouped: boolean; children?: ReactNode }) {
   return (
     <li className={`msg${grouped ? ' is-grouped' : ''}`}>
       <div className="msg-gutter">{!grouped && <Avatar author={author} />}</div>
@@ -82,7 +72,7 @@ export function MessageItem({ m, author, grouped }: { m: Message; author: Author
             <time className="msg-time mono">{timeLabel(m)}</time>
           </div>
         )}
-        <Body m={m} />
+        {children ?? <Body m={m} />}
       </div>
     </li>
   );

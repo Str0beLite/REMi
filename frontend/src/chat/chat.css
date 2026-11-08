@@ -217,40 +217,112 @@
   background: none;
   padding: 0;
 }
-.msg-call {
+/* A run of tool calls from one agent, collapsed to one line */
+.tool-run {
   margin-top: 4px;
-  max-width: 100%;
-}
-.msg-call summary {
-  display: inline-flex;
-  max-width: 100%;
-  gap: var(--space-2);
-  align-items: center;
-  padding: 4px 10px;
+  max-width: 720px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   font-size: var(--text-xs);
-  cursor: pointer;
 }
-.msg-call summary code {
+.tool-run > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: 5px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.tool-run > summary:hover {
+  color: var(--ink);
+}
+/* disclosure chevron (flex/grid summaries drop the native marker) */
+.tool-run > summary::before,
+.tool-step > summary::before {
+  content: '▸';
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.12s;
+}
+.tool-run[open] > summary::before,
+.tool-step[open] > summary::before {
+  transform: rotate(90deg);
+}
+.tool-run > summary::-webkit-details-marker {
+  display: none;
+}
+.tool-run-count {
+  flex: none;
+  font-weight: 600;
+  color: var(--muted);
+}
+.tool-run-cmds {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.msg-call-kind {
+.tool-run-failed,
+.tool-step-state.is-failed {
+  flex: none;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--danger);
 }
-.msg-call pre {
-  margin: var(--space-2) 0 0;
+.tool-run-running,
+.tool-step-state.is-running {
+  flex: none;
+  color: var(--status-thinking);
+}
+.tool-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 6px;
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid var(--line);
+}
+.tool-step > summary {
+  display: grid;
+  grid-template-columns: 10px 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.tool-step > summary::-webkit-details-marker {
+  display: none;
+}
+.tool-step > summary:hover,
+.tool-step[open] > summary {
+  background: var(--surface);
+}
+.tool-step > summary code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tool-step-state {
+  font-weight: 600;
+  color: var(--status-idle);
+}
+.tool-step-ms {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tool-step pre {
+  margin: 4px 0 6px;
   padding: var(--space-2) var(--space-3);
+  max-height: 320px;
+  overflow: auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  overflow-x: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .msg-card {
   margin-top: 6px;

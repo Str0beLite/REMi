@@ -5,7 +5,8 @@ import type { Agent, Channel, Message, User } from '../module_bindings/types';
 import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { MessageItem } from './MessageItem';
-import { authorOf, mentionMatches, mentionQuery, purposeOf, type MentionOption } from './model';
+import { ToolRun } from './ToolRun';
+import { authorOf, feedItems, mentionMatches, mentionQuery, purposeOf, type MentionOption } from './model';
 
 type Props = {
   channel: Channel;
@@ -50,6 +51,7 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
     if (el) el.scrollTop = el.scrollHeight;
   }, [channel.id]);
   const last = messages.at(-1);
+  const items = feedItems(messages);
   useEffect(() => {
     const el = feed.current;
     if (el && (pinned.current || (last?.authorKind === 'user' && last.authorId === me))) el.scrollTop = el.scrollHeight;
@@ -190,16 +192,25 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
             No messages in {title} yet. Say hello, or mention a REMi with <code>@name</code> to wake it.
           </li>
         )}
-        {messages.map((m, i) => {
-          const prev = messages[i - 1];
+        {items.map((item, i) => {
+          const m = item.kind === 'msg' ? item.m : item.first;
+          const prev = items[i - 1];
+          const lastStep = prev?.kind === 'tools' ? prev.steps.at(-1) : undefined;
+          const p = prev && (prev.kind === 'msg' ? prev.m : (lastStep?.result ?? lastStep?.call ?? prev.first));
+          // chat and tool runs from the same author within 5 minutes share one header; cards keep theirs
+          const flows = (x: typeof item) => x.kind === 'tools' || x.m.kind === 'chat';
           const grouped =
-            !!prev &&
-            prev.authorKind === m.authorKind &&
-            prev.authorId === m.authorId &&
-            m.kind === 'chat' &&
-            prev.kind === 'chat' &&
-            Number((m.ts.microsSinceUnixEpoch - prev.ts.microsSinceUnixEpoch) / 1000n) < GROUP_MS;
-          return <MessageItem key={String(m.id)} m={m} author={authorOf(m, users, agents)} grouped={grouped} />;
+            !!p &&
+            p.authorKind === m.authorKind &&
+            p.authorId === m.authorId &&
+            flows(item) &&
+            flows(prev) &&
+            Number((m.ts.microsSinceUnixEpoch - p.ts.microsSinceUnixEpoch) / 1000n) < GROUP_MS;
+          return (
+            <MessageItem key={String(m.id)} m={m} author={authorOf(m, users, agents)} grouped={grouped}>
+              {item.kind === 'tools' ? <ToolRun steps={item.steps} /> : undefined}
+            </MessageItem>
+          );
         })}
       </ol>
 

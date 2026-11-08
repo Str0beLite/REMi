@@ -82,3 +82,38 @@ export function mentionMatches(query: string, agents: readonly Agent[], users: r
     .slice(0, limit)
     .map(x => x.o);
 }
+
+// Feed items: a message, or a run of back-to-back tool_call/tool_result messages from one agent shown as one block.
+export type ToolStep = { call?: Message; result?: Message };
+export type FeedItem = { kind: 'msg'; m: Message } | { kind: 'tools'; first: Message; steps: ToolStep[] };
+
+const isTool = (m: Message) => m.kind === 'tool_call' || m.kind === 'tool_result';
+
+export function feedItems(messages: readonly Message[]): FeedItem[] {
+  const out: FeedItem[] = [];
+  for (const m of messages) {
+    if (!isTool(m)) {
+      out.push({ kind: 'msg', m });
+      continue;
+    }
+    const prev = out.at(-1);
+    const run = prev?.kind === 'tools' && prev.first.authorKind === m.authorKind && prev.first.authorId === m.authorId ? prev : null;
+    const steps = run ? run.steps : [];
+    if (!run) out.push({ kind: 'tools', first: m, steps });
+    const open = steps.at(-1);
+    // a result closes the call before it; anything else starts a new step
+    if (m.kind === 'tool_result' && open?.call && !open.result) open.result = m;
+    else steps.push(m.kind === 'tool_call' ? { call: m } : { result: m });
+  }
+  return out;
+}
+
+export type ToolMeta = { command?: string; exit_code?: number; ms?: number };
+export function toolMeta(m?: Message): ToolMeta {
+  try {
+    const v = JSON.parse(m?.meta ?? '{}');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
