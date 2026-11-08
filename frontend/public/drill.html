@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16131d">
+<title>REMi drill</title>
+<style>
+  :root { --bg: #f6f4fb; --card: #fff; --ink: #1d1a26; --muted: #6b6578; --line: #ddd8e8; --accent: #6d4ee0; --danger: #c2334a; --ok: #1f8a5b; --on-danger: #fff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #16131d; --card: #211d2b; --ink: #f1eef8; --muted: #a59fb4; --line: #353044; --accent: #b9a6ff; --danger: #ff7a8e; --ok: #63d7a3; --on-danger: #16131d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; background: var(--bg); color: var(--ink); font: 16px/1.45 system-ui, -apple-system, sans-serif; }
+  main { max-width: 420px; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px 32px; display: grid; gap: 16px; }
+  h1 { margin: 8px 0 0; font-size: 22px; }
+  p { margin: 0; color: var(--muted); }
+  form { display: grid; gap: 12px; padding: 16px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; }
+  label { display: grid; gap: 4px; font-size: 14px; color: var(--muted); }
+  input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-height: 48px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button { font: inherit; font-weight: 600; min-height: 56px; border-radius: 12px; border: 0; cursor: pointer; touch-action: manipulation; }
+  .fire { background: var(--danger); color: var(--on-danger); font-size: 18px; }
+  .check { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button:disabled { opacity: .55; }
+  #out { min-height: 3em; padding: 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); white-space: pre-wrap; }
+  #out.ok { border-color: var(--ok); } #out.err { border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Incident drill</h1>
+  <p>Breaks a made-up "flux capacitor" on a rack in the on-call REMi's sandbox and raises an alert in #incidents. Only a REMi trained on it knows the fix.</p>
+  <form id="f">
+    <label>On-call REMi <input id="agent" autocomplete="off" autocapitalize="none" spellcheck="false" value="oncall-remi" required></label>
+    <div class="row">
+      <label>Rack <input id="rack" autocomplete="off" autocapitalize="none" spellcheck="false" value="rack-7" pattern="[a-z0-9-]{1,32}" required></label>
+      <label>Phase drift (°) <input id="drift" type="number" inputmode="numeric" min="1" max="90" value="14" required></label>
+    </div>
+    <button class="fire" type="submit" data-op="trigger">Trigger incident</button>
+    <button class="check" type="button" data-op="check">Check the fix</button>
+  </form>
+  <div id="out" role="status" aria-live="polite">Ready.</div>
+</main>
+<script>
+  const $ = id => document.getElementById(id);
+  const saved = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch { return null; } };
+  for (const k of ['agent', 'rack']) { const v = saved('drill-' + k); if (v) $(k).value = v; }
+
+  async function run(op) {
+    const f = $('f');
+    if (!f.reportValidity()) return;
+    for (const k of ['agent', 'rack']) saved('drill-' + k, $(k).value.trim());
+    const buttons = f.querySelectorAll('button');
+    buttons.forEach(b => (b.disabled = true));
+    $('out').className = '';
+    $('out').textContent = op === 'trigger' ? 'Breaking it…' : 'Checking…';
+    try {
+      const res = await fetch('/setup/drill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ op, agent: $('agent').value.trim(), rack: $('rack').value.trim(), drift: Number($('drift').value) }),
+      });
+      const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      $('out').className = res.ok ? 'ok' : 'err';
+      $('out').textContent = res.ok ? body.result : body.error;
+    } catch (e) {
+      $('out').className = 'err';
+      $('out').textContent = "Can't reach the PC: open this page from the PC's address on the same network.";
+    } finally {
+      buttons.forEach(b => (b.disabled = false));
+    }
+  }
+  $('f').addEventListener('submit', e => { e.preventDefault(); run('trigger'); });
+  document.querySelector('[data-op=check]').addEventListener('click', () => run('check'));
+</script>
+</body>
+</html>

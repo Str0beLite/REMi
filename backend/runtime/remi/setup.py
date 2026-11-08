@@ -122,6 +122,8 @@ def serve(setup: Setup, port: int = SETUP_PORT, host: str = "0.0.0.0") -> Thread
                 self.reply(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == "/setup/drill":
+                return self.drill()
             if self.path != "/setup/join":
                 return self.reply(404, {"error": "not found"})
             try:
@@ -131,6 +133,26 @@ def serve(setup: Setup, port: int = SETUP_PORT, host: str = "0.0.0.0") -> Thread
                 self.reply(400, {"error": str(e)})
             except ValueError:
                 self.reply(400, {"error": "body must be JSON"})
+
+        def drill(self):
+            """The phone page (/drill.html): {"op": "trigger"|"check", "agent", "rack"?, "drift"?}. Unguarded on
+            purpose (Ryan, 2026-11-08): anyone who reaches the console can break a made-up rack in a drill sandbox."""
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+            except ValueError:
+                return self.reply(400, {"error": "body must be JSON"})
+            from remi.incidents import drill  # lazy: only drills need it
+            try:
+                agent, rack = str(body.get("agent", "")), str(body.get("rack") or "rack-7")
+                if body.get("op") == "check":
+                    return self.reply(200, {"result": drill.check(agent, rack)})
+                if body.get("op") == "trigger":
+                    return self.reply(200, {"result": drill.trigger(agent, rack, int(body.get("drift") or 14))})
+                return self.reply(400, {"error": "op is trigger or check"})
+            except ValueError as e:
+                return self.reply(400, {"error": str(e)})
+            except Exception as e:  # noqa: BLE001 - the phone shows why
+                return self.reply(500, {"error": f"{type(e).__name__}: {e}"})
 
         def log_message(self, *_):  # keep the node log for the node
             pass
