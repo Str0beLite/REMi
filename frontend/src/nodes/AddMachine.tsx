@@ -86,7 +86,7 @@ export function AddMachine() {
       {!url && (
         <p className="add-machine-note">
           Other machines can't reach this workspace yet: it only listens on this PC. Run <code>scripts/remi up --lan</code>{' '}
-          here to open it to your network, then come back.
+          here to open it to your network, then come back, or open this console at an address the other machines use.
         </p>
       )}
 

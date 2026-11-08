@@ -37,7 +37,7 @@ One workspace, several GPU machines. On the PC that runs the workspace:
 scripts/remi up --lan         # opens it to your network (sticky; scripts/remi up --no-lan closes it again)
 ```
 
-`--lan` binds SpacetimeDB (3000) and the console (8080) to the network instead of localhost and stores the address other machines should use (setting `workspace_url`). On WSL2 it also forwards those two ports from Windows and allows them in the Windows firewall; Windows asks for admin once, and again only if WSL's address changes. The firewall rule covers Private and Domain networks, so mark your home network Private. Other PCs can then open the console at `http://<this-pc>:8080`.
+`--lan` binds SpacetimeDB (3000) and the console (8080) to the network instead of localhost and stores the address other machines should use (setting `workspace_url`). On WSL2 it also forwards those two ports from Windows and allows them in the Windows firewall; Windows asks for admin once, and again only if WSL's address changes. The firewall rule covers Private and Domain networks, so mark the network the machines share (including a VPN adapter) Private. Other PCs can then open the console at `http://<this-pc>:8080`.
 
 Then, as an admin in the console: **Config > Add a machine** (also the **+ Add a machine** slot at the bottom of the Swarm rail). **Allow machines to join** makes a join code and shows one command. Run it on the new PC:
 
@@ -52,13 +52,11 @@ git clone https://github.com/Str0beLite/REMi && cd REMi && scripts/remi join htt
 - The code lives in a private table. The console that made it remembers it; another admin's browser sees "joining is on" and gets a command after **New code**.
 - The LAN port is guarded only by SpacetimeDB auth, which is why joining is off by default.
 
-### Over Tailscale
+### How machines reach each other
 
-If the machines are on a tailnet, `remi up --lan` hands out this PC's Tailscale address (`tailscale ip -4`) instead of its LAN address, so machines and browsers anywhere on the tailnet can join; on Windows the firewall rule also covers the Tailscale adapter. To hand out a specific address or MagicDNS name, set `REMI_WORKSPACE_HOST=<host>` in `.env` before `remi up --lan`.
+REMi assumes the machines in a workspace reach each other directly, as if they were on one network: a LAN, a VPN or an overlay network all work, and nothing in REMi is specific to any of them. The Add a machine panel hands out the address you opened the console with, so open it the way the other machines would reach this PC. On `localhost` it falls back to the address `remi up --lan` stored: `REMI_WORKSPACE_HOST` from `.env` if you set it (any IP or name the others resolve), else this PC's default-route IP.
 
 There is no shared cloud database: each workspace is its own SpacetimeDB on its own hardware (Maincloud was dropped on 2026-11-08, #87).
-
-Model weights live in the `hf-cache` volume, datasets/adapters in `store` and the database in `stdb`, so all survive `down`/`up`.
 
 ## What the hand setup on Ryan's PC was (now in the image)
 

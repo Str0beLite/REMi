@@ -2,12 +2,13 @@
 
 const LOCAL = /^(localhost|127\.\d+\.\d+\.\d+|\[?::1\]?)$/;
 
-// The SpacetimeDB base URL another machine can reach, or '' if this workspace only listens on this machine.
-// `remi up --lan` stores `workspace_url`; a non-local console address (a LAN or Tailscale host) is reachable as is.
+// The SpacetimeDB base URL another machine can reach, or '' if none is known. Machines are assumed to reach each other
+// directly, so the address you opened the console with works for them too; only on localhost do we fall back to
+// `workspace_url`, which `remi up --lan` stores.
 export function workspaceUrl(setting: string, stdbUri: string): string {
-  if (setting.trim()) return setting.trim().replace(/\/+$/, '');
   const u = new URL(stdbUri.replace(/^ws/, 'http'));
-  return LOCAL.test(u.hostname) ? '' : u.origin;
+  if (!LOCAL.test(u.hostname)) return u.origin;
+  return setting.trim().replace(/\/+$/, '');
 }
 
 export const joinCommand = (url: string, db: string, code: string) =>

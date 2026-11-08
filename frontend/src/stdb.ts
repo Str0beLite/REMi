@@ -1,6 +1,6 @@
 // SpacetimeDB connection settings. Override with VITE_STDB_URI / VITE_STDB_DB in frontend/.env.local.
 // Default `same-host`: this page's own host on port 3000, i.e. the workspace that served the console (`remi up`),
-// and `npm run dev` on localhost talks to the local workspace. A browser on another machine (LAN, Tailscale) reaches
+// and `npm run dev` on localhost talks to the local workspace. A browser on another machine reaches
 // the workspace it loaded the console from instead of its own localhost (#83).
 import { DbConnection } from './module_bindings';
 

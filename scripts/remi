@@ -62,9 +62,6 @@ env_get() { sed -n "s/^$1=//p" .env 2>/dev/null | tail -1; }
 env_set() { if grep -q "^$1=" .env; then sed -i "s|^$1=.*|$1=$2|" .env; else echo "$1=$2" >>.env; fi; }
 
 wsl() { grep -qi microsoft /proc/version; }
-ts_ip() {  # this PC's Tailscale IPv4, if Tailscale runs here (on WSL: the Windows Tailscale, via interop)
-  if wsl; then tailscale.exe ip -4 2>/dev/null | head -1 | tr -d '\r'; else tailscale ip -4 2>/dev/null | head -1; fi
-}
 lan_ip() {  # the address other machines on the network reach this PC at
   if wsl; then
     powershell.exe -NoProfile -Command "(Get-NetIPConfiguration | Where-Object { \$_.IPv4DefaultGateway -and \$_.NetAdapter.Status -eq 'Up' } | Select-Object -First 1).IPv4Address.IPAddress" 2>/dev/null | tr -d '\r'
@@ -89,9 +86,6 @@ open_windows_ports() {
     [ $nat = 1 ] && echo "foreach (\$p in 3000,8080) { netsh interface portproxy add v4tov4 listenport=\$p listenaddress=0.0.0.0 connectport=\$p connectaddress=$wslip }"
     echo "Remove-NetFirewallRule -DisplayName 'REMi workspace' -ErrorAction SilentlyContinue"
     echo "New-NetFirewallRule -DisplayName 'REMi workspace' -Direction Inbound -Protocol TCP -LocalPort 3000,8080 -Action Allow -Profile Private,Domain | Out-Null"
-    # Tailscale's adapter often counts as a Public network: allow the ports on that adapter only, any profile
-    echo "Remove-NetFirewallRule -DisplayName 'REMi workspace (Tailscale)' -ErrorAction SilentlyContinue"
-    echo "New-NetFirewallRule -DisplayName 'REMi workspace (Tailscale)' -Direction Inbound -Protocol TCP -LocalPort 3000,8080 -Action Allow -InterfaceAlias 'Tailscale' -ErrorAction SilentlyContinue | Out-Null"
     [ $nat = 0 ] && echo "Remove-NetFirewallHyperVRule -Name REMi -ErrorAction SilentlyContinue" \
       && echo "New-NetFirewallHyperVRule -Name REMi -DisplayName 'REMi workspace' -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts 3000,8080 -Action Allow -ErrorAction SilentlyContinue | Out-Null"
   } >"$ps"
@@ -102,13 +96,13 @@ open_windows_ports() {
 }
 
 # --lan (sticky in .env) opens this workspace to the network: Docker binds 0.0.0.0, Windows forwards and allows the
-# ports, and `workspace_url` tells the console's Add a machine panel the address to hand out: REMI_WORKSPACE_HOST if
-# set (e.g. a MagicDNS name), else the Tailscale IP, else the LAN IP.
+# ports, and `workspace_url` is the address the Add a machine panel hands out when you're on localhost: REMI_WORKSPACE_HOST
+# if set (any name or IP the other machines reach this PC by), else this PC's default-route IP. The machines are
+# assumed to reach each other directly, however the network is built (LAN, VPN, ...).
 lan() {
   local ip
   if [ "$(env_get REMI_LAN)" = 1 ]; then
     ip=$(env_get REMI_WORKSPACE_HOST)
-    [ -n "$ip" ] || ip=$(ts_ip)
     [ -n "$ip" ] || ip=$(lan_ip)
     [ -n "$ip" ] || die "couldn't find this PC's network address; check the network connection, or set REMI_WORKSPACE_HOST in .env"
     env_set REMI_BIND 0.0.0.0
