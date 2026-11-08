@@ -161,7 +161,10 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
         path = store / "datasets" / f"{name}.jsonl"
         db.call("register_dataset", name, node.id, n, _sha256(path), f"used by train spec {spec['name']}", "sleep")
 
-    agents = [(a["id"], a["status"]) for a in db.sql("SELECT * FROM agent") if a["node_id"] == node.id]
+    # The status each agent wakes back to. "asleep" is never a status to go back to: a run that was killed mid-sleep
+    # leaves agents asleep, and copying that forward kept every REMi asleep after the next, healthy sleep.
+    agents = [(a["id"], "idle" if a["status"] == "asleep" else a["status"])
+              for a in db.sql("SELECT * FROM agent") if a["node_id"] == node.id]
     say("sleep_event", f"Going to sleep to train {spec['out']} from {', '.join(counts)}", phase="asleep", spec=spec["name"])
     for agent_id, _ in agents:
         db.call("set_agent_status", agent_id, "asleep")
@@ -211,13 +214,16 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     if error:
         done = (f"{spec['out']}@{path.name} was registered, but waking up failed" if registered
                 else "Nothing new was registered")
-        say("sleep_event", f"@sleep-remi wake report: {spec['name']} failed: {error}. {done}; "
-                           "everyone is back on their previous config.", phase="report", spec=spec["name"])
+        say("sleep_event", f"@sleep-remi `{spec['name']}` failed: {error}\n\n{done}; everyone is back on their "
+                           "previous config.", phase="report", spec=spec["name"])
         raise error
-    loss = f"loss {losses[0]:.3f} -> {losses[-1]:.3f} over {len(losses)} steps" if losses else "no loss logged"
+    # Markdown (the chat card renders it); 3 significant digits so a loss of 0.0001 doesn't read as 0.000
+    key = f"{spec['out']}@{path.name}"
+    lines = [f"- loss {losses[0]:.3g} → {losses[-1]:.3g} over {len(losses)} steps" if losses else "- no loss logged",
+             f"- asleep {minutes:.1f} min"]
     if stopped_at is not None:
-        loss += f" (stopped early from the console at step {stopped_at}; what it learned so far is kept)"
-    say("sleep_event", f"@sleep-remi wake report: {spec['name']} -> {spec['out']}@{path.name} is a candidate. "
-                       f"{loss}; asleep {minutes:.1f} min. Judge it with /adapter eval before adopting.",
+        lines.append(f"- stopped early from the console at step {stopped_at}; what it learned so far is kept")
+    say("sleep_event", f"@sleep-remi `{spec['name']}` is done: **{key}** is a new candidate.\n\n" + "\n".join(lines)
+        + f"\n\nJudge it with `/adapter eval {key} <unseen dataset>` before adopting.",
         phase="report", spec=spec["name"], minutes=round(minutes, 2))
     return path

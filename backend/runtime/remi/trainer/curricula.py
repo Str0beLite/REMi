@@ -681,16 +681,18 @@ def score(path: Path, models: dict[str, str]) -> dict:
             for k in spec.split("+")]
         model = model_for(refs) if refs else C.BASE_MODEL
         per: dict[str, list[int]] = {}
-        hits = []
+        hits, replies = [], []
         for row in rows:
             msgs = [{"role": m["role"], "content": m["content"]} for m in row["messages"]]
-            ok = chat(msgs[:-1], model).strip() == msgs[-1]["content"].strip()
+            reply = chat(msgs[:-1], model).strip()
+            ok = reply == msgs[-1]["content"].strip()
             hits.append(ok)
+            replies.append(reply)  # misses are the evidence: e.g. a training-only name reused on an unseen prompt
             for k in (f"family:{row['family']}", f"step:{row.get('step', '?')}"):
                 per.setdefault(k, [0, 0])
                 per[k][0] += ok
                 per[k][1] += 1
-        result[label] = {"model": model, "n": len(rows), "exact": sum(hits), "hits": hits, "by": per}
+        result[label] = {"model": model, "n": len(rows), "exact": sum(hits), "hits": hits, "replies": replies, "by": per}
     return result
 
 
