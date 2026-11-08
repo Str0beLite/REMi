@@ -1,68 +1,161 @@
+/* REMi theme: Lavender & plum, "Rack elevation" look (docs/design/app-directions/rack-elevation.html).
+   Every grey comes from the one lavender-to-plum ramp below; components use the semantic tokens. */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  /* ramp */
+  --ramp-50: #f6f3f9;
+  --ramp-100: #eee9f4;
+  --ramp-200: #e0d8ec;
+  --ramp-300: #d3c8e6;
+  --ramp-400: #b3a6c8;
+  --ramp-600: #6e5f7e;
+  --ramp-700: #55445e;
+  --ramp-800: #463852;
+  --ramp-900: #3b2f45;
+  --pink: #e8b8bf;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* surfaces and text */
+  --bg: var(--ramp-50); /* chat ground */
+  --surface: #ffffff; /* cards only */
+  --surface-2: var(--ramp-100); /* swarm rail, tool-call chips */
+  --ink: #2b2232;
+  --muted: var(--ramp-600); /* 5.3:1 on --bg */
+  --line: var(--ramp-200);
+  --line-strong: var(--ramp-300);
 
+  /* plum channel rail */
+  --rail: var(--ramp-900);
+  --rail-ink: var(--ramp-300); /* 7.8:1 on --rail */
+  --rail-muted: var(--ramp-400);
+  --rail-active: var(--ramp-700);
+  --rail-line: var(--ramp-800);
+
+  /* the one filled button per screen */
+  --accent: var(--ramp-700);
+  --on-accent: #ffffff;
+  --badge: var(--pink);
+  --on-badge: var(--ink);
+
+  /* agent statuses: always paired with the status word and the REMi face */
+  --status-idle: #2c7656;
+  --status-thinking: #8a5a00;
+  --status-asleep: #5563b5;
+  --status-stopped: var(--ramp-600);
+  --danger: #a3303a;
+
+  /* type */
+  --font-ui: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 22px;
+
+  /* space and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --rail-width: 248px;
+  --swarm-width: 300px;
+  --header-height: 56px;
+
+  color-scheme: light;
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 20px;
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17131c;
+    --surface: #211c27;
+    --surface-2: #1c1722;
+    --ink: #eee9f3;
+    --muted: var(--ramp-400); /* 7.8:1 on --bg */
+    --line: #2f2837;
+    --line-strong: #3d3447;
+    --rail: #120e16;
+    --rail-ink: var(--ramp-300);
+    --rail-muted: var(--ramp-400);
+    --rail-active: var(--ramp-800);
+    --rail-line: #241d2b;
+    --accent: #c9b8e4;
+    --on-accent: #241c2c;
+    --status-idle: #7fd1a6;
+    --status-thinking: #f0b860;
+    --status-asleep: #9aa6ee;
+    --status-stopped: var(--ramp-400);
+    --danger: #f08a92;
+    color-scheme: dark;
+  }
 }
-a:hover {
-  color: #535bf2;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background: var(--bg);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+code,
+kbd,
+pre,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 3px;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  font: 500 var(--text-sm) / 18px var(--font-ui);
+  color: var(--accent);
+  background: var(--surface);
+  border: 1px solid var(--ramp-400);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
   cursor: pointer;
-  transition: border-color 0.25s;
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--ramp-300);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
