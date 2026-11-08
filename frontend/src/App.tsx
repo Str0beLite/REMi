@@ -11,6 +11,7 @@ import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/
 import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
 import { readRoute, writeRoute, type PanelId, type Route } from './route';
+import { confirmLeave } from './unsaved';
 import './chat/chat.css';
 
 const PANELS: { id: PanelId; label: string }[] = [
@@ -39,6 +40,7 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   const go = (r: Route) => {
+    if (writeRoute(r) === location.hash || !confirmLeave()) return;
     location.hash = writeRoute(r); // pushes history; the hashchange listener updates state
   };
   const { panel, channelId: activeId } = route;

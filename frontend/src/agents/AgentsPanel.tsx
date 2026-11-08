@@ -4,6 +4,7 @@ import { reducers, tables } from '../module_bindings';
 import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { AgentEditor } from './AgentEditor';
+import { confirmLeave } from '../unsaved';
 import { TEMPLATES } from './agentfile';
 import './agents.css';
 
@@ -55,7 +56,7 @@ export function AgentsPanel() {
   return (
     <div className="agents">
       <aside className="agents-list" aria-label="Agents">
-        <button type="button" className="btn-primary agents-new" onClick={() => setSelected('new')}>
+        <button type="button" className="btn-primary agents-new" onClick={() => confirmLeave() && setSelected('new')}>
           New agent
         </button>
         {sorted.length === 0 && <p className="agents-empty">No REMis yet. Create one from a template.</p>}
@@ -64,7 +65,7 @@ export function AgentsPanel() {
             const look = defaultLook(a);
             return (
               <li key={String(a.id)}>
-                <button type="button" className="agent-row" aria-current={selected === a.id ? 'true' : undefined} onClick={() => setSelected(a.id)}>
+                <button type="button" className="agent-row" aria-current={selected === a.id ? 'true' : undefined} onClick={() => a.id !== selected && confirmLeave() && setSelected(a.id)}>
                   <RemiAvatar status={a.status as AgentStatus} headgear={look.headgear} tint={look.tint} size={32} />
                   <span className="agent-row-text">
                     <b>{a.name}</b>
@@ -90,7 +91,7 @@ export function AgentsPanel() {
               mode="create"
               initialText={TEMPLATES[0].text}
               nodes={nodes}
-              onCancel={() => setSelected(undefined)}
+              onCancel={() => confirmLeave() && setSelected(undefined)}
               onSubmit={async (text, nodeId) => {
                 await createAgent({ agentfile: text, nodeId: nodeId! });
                 setSelected(undefined);
@@ -138,7 +139,7 @@ export function AgentsPanel() {
               </p>
             )}
             <AgentEditor
-              key={`${agent.id}-${agent.agentfile}`}
+              key={String(agent.id)}
               mode="edit"
               initialText={agent.agentfile}
               readOnlyReason={readOnlyReason}

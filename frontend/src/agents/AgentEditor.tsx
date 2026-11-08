@@ -1,4 +1,5 @@
-import { useId, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { setUnsaved } from '../unsaved';
 import { BUILTIN_TOOLS, TEMPLATES, TRIGGERS, checkAgentfile, toYaml, type Agentfile } from './agentfile';
 
 type Props = {
@@ -20,6 +21,20 @@ const list = (s: string) =>
 export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onSubmit, onCancel }: Props) {
   const uid = useId();
   const [text, setText] = useState(initialText);
+  // `base` is what the text was loaded from; edits are unsaved while text differs from it.
+  const [base, setBase] = useState(initialText);
+  const [seen, setSeen] = useState(initialText);
+  const [stale, setStale] = useState(false);
+  const dirty = text !== base;
+  // The row changed underneath us: follow it if nothing is unsaved, otherwise keep the edits and say so.
+  if (initialText !== seen) {
+    setSeen(initialText);
+    if (!dirty || initialText === text) {
+      setText(initialText);
+      setBase(initialText);
+      setStale(false);
+    } else setStale(true);
+  }
   const [tab, setTab] = useState<'form' | 'yaml'>('form');
   const [nodeId, setNodeId] = useState<bigint | undefined>(nodes[0]?.id);
   const [busy, setBusy] = useState(false);
@@ -28,6 +43,12 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
   const checked = useMemo(() => checkAgentfile(text), [text]);
   const af = checked.ok ? checked.value : undefined;
   const readOnly = !!readOnlyReason;
+
+  const label = mode === 'create' ? 'the new agent' : (af?.name ?? 'this agent');
+  useEffect(() => {
+    setUnsaved(dirty && !readOnly ? `Discard unsaved changes to ${label}?` : null);
+    return () => setUnsaved(null);
+  }, [dirty, readOnly, label]);
 
   const update = (patch: Partial<Agentfile>) => af && setText(toYaml({ ...af, ...patch }));
   const registry = af ? af.tools.filter(t => t.startsWith('registry:') && t !== 'registry:*').map(t => t.slice(9)) : [];
@@ -40,6 +61,8 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
     setServerError('');
     try {
       await onSubmit(text, nodeId);
+      setBase(text);
+      setStale(false);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -65,6 +88,21 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
 
   return (
     <form className="editor" onSubmit={submit}>
+      {stale && (
+        <p className="editor-stale" role="status">
+          This agent changed elsewhere while you were editing. Saving overwrites that change.{' '}
+          <button
+            type="button"
+            onClick={() => {
+              setText(initialText);
+              setBase(initialText);
+              setStale(false);
+            }}
+          >
+            Load latest
+          </button>
+        </p>
+      )}
       <div className="editor-bar">
         <div className="seg" role="tablist" aria-label="Editor mode">
           {(['form', 'yaml'] as const).map(t => (
