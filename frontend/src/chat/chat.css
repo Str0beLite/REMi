@@ -11,6 +11,9 @@
   border-color: var(--accent);
   color: var(--on-accent);
 }
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 85%, var(--ink));
+}
 .form-error {
   margin: 0;
   color: var(--danger);
@@ -110,6 +113,9 @@
 }
 .chip-add {
   border-style: dashed;
+}
+.chip:hover {
+  border-color: var(--accent);
 }
 .thread-form {
   display: flex;

@@ -31,6 +31,7 @@ export function NicknamePrompt() {
           id="nickname"
           name="nickname"
           autoComplete="nickname"
+          spellCheck={false}
           maxLength={24}
           value={name}
           onChange={e => setName(e.target.value)}

@@ -25,7 +25,11 @@ const GROUP_MS = 5 * 60 * 1000;
 export function ChatView({ channel, title, parent, threads, messages, users, agents, me, connected, onOpen }: Props) {
   const post = useReducer(reducers.postMessage);
   const createChannel = useReducer(reducers.createChannel);
-  const [draft, setDraft] = useState('');
+  // One draft per channel, so switching channels doesn't carry half a message along.
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftKey = String(channel.id);
+  const draft = drafts[draftKey] ?? '';
+  const setDraft = (v: string) => setDrafts(d => ({ ...d, [draftKey]: v }));
   const [error, setError] = useState('');
   const [threadName, setThreadName] = useState<string | null>(null);
   const feed = useRef<HTMLOListElement>(null);
@@ -37,11 +41,19 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
   const options = mention && mention.start !== dismissed ? mentionMatches(mention.query, agents, users, me) : [];
   const menuOpen = options.length > 0;
 
-  // Keep the newest message in view when the channel changes or a message arrives.
+  // Follow new messages only while the reader is at the bottom (or just sent one);
+  // someone scrolled up into history stays where they are.
+  const pinned = useRef(true);
   useEffect(() => {
+    pinned.current = true;
     const el = feed.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [channel.id, messages.length]);
+  }, [channel.id]);
+  const last = messages.at(-1);
+  useEffect(() => {
+    const el = feed.current;
+    if (el && (pinned.current || (last?.authorKind === 'user' && last.authorId === me))) el.scrollTop = el.scrollHeight;
+  }, [last, me]);
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
@@ -163,7 +175,16 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         </div>
       )}
 
-      <ol className="chat-feed" ref={feed} aria-live="polite" aria-relevant="additions">
+      <ol
+        className="chat-feed"
+        ref={feed}
+        aria-live="polite"
+        aria-relevant="additions"
+        onScroll={e => {
+          const el = e.currentTarget;
+          pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        }}
+      >
         {messages.length === 0 && (
           <li className="chat-empty">
             No messages in {title} yet. Say hello, or mention a REMi with <code>@name</code> to wake it.

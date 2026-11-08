@@ -23,6 +23,8 @@ export function AgentsPanel() {
   const rollbackAgent = useReducer(reducers.rollbackAgent);
   const [selected, setSelected] = useState<bigint | 'new'>();
   const [actionError, setActionError] = useState('');
+  // Stop has no Resume in the UI, so it takes a second click to confirm.
+  const [confirmStop, setConfirmStop] = useState<bigint>();
 
   const me = users.find(u => identity && u.identity.isEqual(identity));
   const isAdmin = me?.isAdmin === true;
@@ -106,11 +108,29 @@ export function AgentsPanel() {
                   {agent.protected && ' · protected'}
                 </p>
               </div>
-              {isAdmin && (
-                <button type="button" className="agent-stop" disabled={agent.status === 'stopped'} onClick={() => act(() => stopAgent({ agentId: agent.id }))}>
-                  {agent.status === 'stopped' ? 'Stopped' : 'Stop'}
-                </button>
-              )}
+              {isAdmin &&
+                (confirmStop === agent.id && agent.status !== 'stopped' ? (
+                  <span className="agent-stop-confirm" role="group" aria-label={`Stop ${agent.name}?`}>
+                    <button
+                      type="button"
+                      className="agent-stop"
+                      autoFocus
+                      onClick={() => {
+                        setConfirmStop(undefined);
+                        act(() => stopAgent({ agentId: agent.id }));
+                      }}
+                    >
+                      Stop {agent.name}
+                    </button>
+                    <button type="button" onClick={() => setConfirmStop(undefined)}>
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" className="agent-stop" disabled={agent.status === 'stopped'} onClick={() => setConfirmStop(agent.id)}>
+                    {agent.status === 'stopped' ? 'Stopped' : 'Stop…'}
+                  </button>
+                ))}
             </header>
             {actionError && (
               <p className="form-error" role="alert">
