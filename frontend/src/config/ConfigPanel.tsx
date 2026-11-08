@@ -168,7 +168,7 @@ export function ConfigPanel() {
               {nickState}
             </span>
           </div>
-          <p className="setting-hint">{isAdmin ? 'You are an admin.' : 'Only admins can change runtime settings.'}</p>
+          {isAdmin && <p className="setting-hint">You are an admin.</p>}
         </form>
       </section>
 
@@ -218,6 +218,7 @@ export function ConfigPanel() {
 
       <section>
         <h2>Sleep</h2>
+        {!isAdmin && <p className="setting-hint">Only admins can change these settings.</p>}
         <SettingField
           id="sleep_cron"
           label="Nightly sleep schedule"
