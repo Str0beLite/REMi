@@ -214,6 +214,9 @@ export const config_history = table(
 
 export const setting = table({ name: 'setting', ...pub }, { key: t.string().primaryKey(), value: t.string() });
 
+// The one private table (§3): subscribers must not read one-time admin claim codes.
+export const admin_code = table({ name: 'admin_code', public: false }, { code: t.string().primaryKey() });
+
 const db = schema({
   user,
   node,
@@ -230,6 +233,7 @@ const db = schema({
   adapter,
   config_history,
   setting,
+  admin_code,
 });
 
 export default db;

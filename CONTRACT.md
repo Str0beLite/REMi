@@ -26,7 +26,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 
 ## 3. Tables
 
-All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin).
+All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code`, which is private (`public: false`) so subscribers can't read the codes.
 
 | Table | Columns (name: type) | Notes |
 |---|---|---|
@@ -45,6 +45,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `adapter` | id: u64 **pk autoInc**, key: string **unique**, name: string, version: u32, node_id: u64, base: string, description: string, sha256: string, size: u64, status: string, train_stats: string (JSON), parent_version: u32 (0 = none), dataset_names: string (comma-separated), ts | status ∈ `ADAPTER_STATUSES` = candidate, adopted, rejected |
 | `config_history` | id: u64 **pk autoInc**, agent_id: u64 **index**, agentfile: string, changed_by: string, ts | appended on every Agentfile change, including creation |
 | `setting` | key: string **pk**, value: string | defaults after `init`: `sleep_cron`=`0 3 * * *`, `max_train_minutes`=`30`, `last_sleep_ts`=`0` |
+| `admin_code` | code: string **pk** | **private** (`public: false`). One-time admin claim codes: `add_admin_code` inserts, `claim_admin` consumes |
 
 ## 4. Reducers
 
@@ -52,9 +53,9 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 
 | Reducer | Args | Who | Effect |
 |---|---|---|---|
-| `init` | — | module publish | creates `#general`, `#ops`, default settings |
+| `init` | — | module publish | creates `#general`, `#ops`, default settings, and `user { identity: ctx.sender, nickname: "owner", is_admin: true }`. `ctx.sender` in `init` is the identity that published the database (checked on SpacetimeDB 2.14.1), so whoever publishes a workspace is its admin, and a node using that same token passes `register_node` |
 | `set_nickname` | nickname: string | anyone | upserts `user` (1–24 chars) |
-| `register_node` | name: string, gpu: string, base_model: string | admin (until §12 admin bootstrap is decided) | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model |
+| `register_node` | name: string, gpu: string, base_model: string | admin | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model |
 | `heartbeat` | node_id: u64, status: string, stats: string | that node | sets status + last_seen; `stats` must be a JSON object, stored in `node.stats` |
 | `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>` |
 | `join` / `leave` | channel_id: u64, member_kind: string, member_id: string | the member itself, its node, or admin | |
@@ -80,6 +81,8 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `run_turn` | run_id: u64 | its node | turns += 1 |
 | `run_end` | run_id: u64, state: string | its node | |
 | `set_setting` | key: string, value: string | admin | |
+| `add_admin_code` | code: string | admin | `code` must be 16–64 chars of `[A-Za-z0-9_-]`; inserts it into `admin_code` (duplicate → error). `scripts/remi up` calls it and prints a console link carrying the code |
+| `claim_admin` | code: string | any caller with a `user` row | code must exist in `admin_code`; deletes it (single use) and sets the caller's `user.is_admin = true` |
 | `request_sleep` | — | admin | posts a `system`-authored `sleep_event` with meta `{"phase":"night"}` and body `Sleep now requested by <nickname>` in `#ops`; this is the console's "Sleep now" button and wakes Sleep REMi exactly like the nightly schedule |
 
 Extension 1 (`report_incident`, `take`, `handoff`) is not in this contract yet; it comes as a `lane:contract` issue when the core demos.
@@ -173,7 +176,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 
 ## 11. Mocks and fixtures
 
-- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`.
+- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` is private, so `/sql` refuses it.
 - `python -m remi.mocks.vllm --port 8999`: OpenAI-compatible `/v1/chat/completions`, `/v1/models`, `/v1/load_lora_adapter`, `/v1/unload_lora_adapter`. Replies come from a script you `POST /mock/script` (a JSON list of strings, consumed in order), else `"ok"`. `GET /mock/requests` returns every request received.
 - `fixtures/agentfiles/*.yaml` (valid examples incl. Sleep REMi), `fixtures/agentfiles/invalid/*.yaml`, `fixtures/dataset.jsonl` (60 valid examples), `fixtures/train_spec.json`.
 
@@ -181,7 +184,6 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 
 These were left open on purpose (master-plan §14). Whoever needs one first opens the `lane:contract` issue; until then don't build around a guess.
 
-- **Admin bootstrap** and how a node identity gets rights (`register_node` is admin-only until decided). Tests insert admin users and nodes directly.
 - **Super/frontier model role**, if any.
 
 ## 13. Checks

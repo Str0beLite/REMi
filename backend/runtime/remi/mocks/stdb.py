@@ -1,6 +1,7 @@
 """In-memory mock of the SpacetimeDB HTTP API (CONTRACT.md §8, §11).
 
-Run: uv run python -m remi.mocks.stdb --port 3999
+Run: uv run python -m remi.mocks.stdb --port 3999 [--owner <token>]
+`--owner` plays the publisher: `init` makes that identity an admin user named "owner" (§4).
 Callers authenticate with `Authorization: Bearer <token>`; the mock uses the token itself as the identity hex.
 Extra mock-only endpoints:
   POST /mock/seed   {"<table>": [row, ...]}  insert rows directly (e.g. an admin user, a node)
@@ -18,7 +19,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from remi import contract as C
 
 TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "agent_proposal", "memory",
-          "todo", "dataset", "adapter", "config_history", "setting")
+          "todo", "dataset", "adapter", "config_history", "setting", "admin_code")
+PRIVATE = ("admin_code",)  # §3: not readable through /sql
+ADMIN_CODE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*>\s*(\d+))?\s*;?\s*$", re.I)
 PUBLIC_NAME = re.compile(r"^[a-z0-9-]{1,32}$")
 
@@ -48,7 +51,7 @@ def _real_encoding(value):
 
 
 class MockDB:
-    def __init__(self) -> None:
+    def __init__(self, owner: str | None = None) -> None:
         self.lock = threading.Lock()
         self.tables: dict[str, list[dict]] = {t: [] for t in TABLES}
         self.next_id: dict[str, int] = {t: 1 for t in TABLES}
@@ -58,11 +61,13 @@ class MockDB:
                                     "created_by": ident("0x0"), "ts": now()})
         for k, v in C.DEFAULT_SETTINGS.items():
             self.tables["setting"].append({"key": k, "value": v})
+        if owner:
+            self.insert("user", {"identity": ident(owner), "nickname": "owner", "is_admin": True})
 
     # -- helpers -----------------------------------------------------------
     def insert(self, table: str, row: dict) -> dict:
         row = {k: _real_encoding(v) for k, v in row.items()}
-        if table not in ("user", "dataset", "setting"):
+        if table not in ("user", "dataset", "setting", "admin_code"):
             row = {"id": self.next_id[table], **row}
             self.next_id[table] += 1
         self.tables[table].append(row)
@@ -269,7 +274,25 @@ class MockDB:
                                 "kind": "sleep_event", "body": f"Sleep now requested by {self.user(caller)['nickname']}",
                                 "meta": json.dumps({"phase": "night"}), "ts": now()})
 
-    REDUCERS = ("request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
+    def add_admin_code(self, caller, code):
+        self.require_admin(caller)
+        if not isinstance(code, str) or not ADMIN_CODE.match(code):
+            raise SenderError("code must be 16-64 chars of [A-Za-z0-9_-]")
+        if self.one("admin_code", code=code):
+            raise SenderError("duplicate code")
+        self.insert("admin_code", {"code": code})
+
+    def claim_admin(self, caller, code):
+        u = self.user(caller)
+        if not u:
+            raise SenderError("set a nickname first")
+        c = self.one("admin_code", code=code)
+        if not c:
+            raise SenderError("no such code")
+        self.tables["admin_code"].remove(c)
+        u["is_admin"] = True
+
+    REDUCERS = ("add_admin_code", "claim_admin", "request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
                 "create_agent", "propose_agent", "review_agent", "set_agent_status", "run_start", "run_turn", "run_end", "add_memory")
 
     def call(self, caller: str, reducer: str, args: list) -> None:
@@ -281,7 +304,7 @@ class MockDB:
 
     def sql(self, query: str) -> list[dict]:
         m = SQL.match(query)
-        if not m or m[1] not in self.tables:
+        if not m or m[1] not in self.tables or m[1] in PRIVATE:
             raise ValueError("mock supports only: SELECT * FROM <table> [WHERE <col> > <int>]")
         with self.lock:
             rows = self.tables[m[1]]
@@ -292,8 +315,8 @@ class MockDB:
                      "rows": [[r[c] for c in cols] for r in rows]}]
 
 
-def make_server(port: int = 3999, host: str = "127.0.0.1") -> ThreadingHTTPServer:
-    db = MockDB()
+def make_server(port: int = 3999, host: str = "127.0.0.1", owner: str | None = None) -> ThreadingHTTPServer:
+    db = MockDB(owner)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):  # quiet
@@ -347,9 +370,10 @@ def make_server(port: int = 3999, host: str = "127.0.0.1") -> ThreadingHTTPServe
 def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--port", type=int, default=3999)
+    p.add_argument("--owner", help="bearer token of the publisher; init makes it admin")
     args = p.parse_args()
     print(f"mock SpacetimeDB on http://127.0.0.1:{args.port} (db name: any)")
-    make_server(args.port).serve_forever()
+    make_server(args.port, owner=args.owner).serve_forever()
 
 
 if __name__ == "__main__":
