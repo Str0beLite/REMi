@@ -4,7 +4,7 @@ import type { TrainStats } from './adapterData';
 export function StatBars({ stats }: { stats: TrainStats }) {
   const pct = (n: number) => `${Math.round(n * 100)}%`;
   const rows: { label: string; a?: number; b?: number; fmt: (n: number) => string; better: 'lower' | 'higher'; share?: boolean; names?: [string, string] }[] = [
-    { label: 'Held-out exact match', a: stats.heldoutBase, b: stats.heldoutCandidate, fmt: pct, better: 'higher', share: true, names: ['base', 'with it'] },
+    { label: 'Exact match on unseen examples', a: stats.heldoutBase, b: stats.heldoutCandidate, fmt: pct, better: 'higher', share: true, names: ['base', 'with it'] },
     { label: 'Judge', a: stats.judgeBefore, b: stats.judgeAfter, fmt: pct, better: 'higher', share: true },
     { label: 'Loss', a: stats.lossFirst, b: stats.lossLast, fmt: n => n.toFixed(3), better: 'lower' },
   ];
