@@ -103,3 +103,17 @@ def test_train_ten_steps_on_4b(tmp_path):
     path = train(spec, lambda step, loss: steps.append((step, loss)), store=tmp_path, max_steps=10)
     print(f"\n4B: 10 steps in {time.time() - t:.0f}s, loss {steps[0][1]:.3f} -> {steps[-1][1]:.3f}, wrote {path}")
     assert len(steps) == 10 and (path / "adapter_model.safetensors").exists()
+
+
+def test_gsm8k_lab_examples_and_scoring():
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "backend" / "runtime"))
+    from experiments.cot_gsm8k import final_number, gold, to_example
+    answer = "Natalia sold 48/2 = <<48/2=24>>24 clips in May.\nShe sold 48+24 = <<48+24=72>>72 in all.\n#### 72"
+    ex = to_example("How many clips?", answer)
+    assert ex["messages"][1] == {"role": "assistant", "content": "The answer is 72.",
+                                 "reasoning": "Natalia sold 48/2 = 24 clips in May.\nShe sold 48+24 = 72 in all."}
+    assert gold(answer) == 72 and gold("x #### 1,250") == 1250
+    assert final_number("48/2 = 24, so 72\n</think>\nThe answer is 1,250.") == 1250
+    assert final_number("still thinking about 72") is None  # ran out of tokens before </think>
+    assert final_number("</think>\nI don't know.") is None
