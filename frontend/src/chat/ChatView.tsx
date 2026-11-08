@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { useReducer } from 'spacetimedb/react';
 import { reducers } from '../module_bindings';
 import type { Agent, Channel, Message, User } from '../module_bindings/types';
+import { RemiAvatar } from '../components/RemiAvatar';
+import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { MessageItem } from './MessageItem';
-import { authorOf } from './model';
+import { authorOf, mentionMatches, mentionQuery, purposeOf, type MentionOption } from './model';
 
 type Props = {
   channel: Channel;
@@ -27,6 +29,13 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
   const [error, setError] = useState('');
   const [threadName, setThreadName] = useState<string | null>(null);
   const feed = useRef<HTMLOListElement>(null);
+  const box = useRef<HTMLTextAreaElement>(null);
+  const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
+  const [pick, setPick] = useState(0);
+  // Esc closes the menu for this @ only; typing a new @ opens it again.
+  const [dismissed, setDismissed] = useState<number | null>(null);
+  const options = mention && mention.start !== dismissed ? mentionMatches(mention.query, agents, users, me) : [];
+  const menuOpen = options.length > 0;
 
   // Keep the newest message in view when the channel changes or a message arrives.
   useEffect(() => {
@@ -47,7 +56,48 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
     }
   }
 
+  // Re-read the @query whenever the text or caret moves.
+  function track(el: HTMLTextAreaElement) {
+    const q = el.selectionStart === el.selectionEnd ? mentionQuery(el.value, el.selectionStart) : null;
+    setMention(prev => (prev?.start === q?.start && prev?.query === q?.query ? prev : q));
+    // functional: onSelect can fire in the same batch as the Esc that set it
+    setDismissed(d => (q?.start === d ? d : null));
+    if (q?.query !== mention?.query) setPick(0);
+  }
+
+  function choose(o: MentionOption) {
+    const el = box.current;
+    if (!el || !mention) return;
+    const end = mention.start + 1 + mention.query.length;
+    const insert = `@${o.name} `;
+    setDraft(draft.slice(0, mention.start) + insert + draft.slice(end));
+    setMention(null);
+    const caret = mention.start + insert.length;
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(caret, caret);
+    });
+  }
+
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (menuOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setPick(p => (p + step + options.length) % options.length);
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        choose(options[Math.min(pick, options.length - 1)]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setDismissed(mention!.start);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) void send(e);
   }
 
@@ -136,12 +186,57 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         <label className="sr-only" htmlFor="composer">
           Message {title}
         </label>
+        {menuOpen && (
+          <ul className="mention-menu" id="mention-menu" role="listbox" aria-label="Mention">
+            {options.map((o, i) => {
+              const status = o.kind === 'agent' ? (o.agent.status as AgentStatus) : null;
+              const purpose = o.kind === 'agent' ? purposeOf(o.agent.agentfile) : '';
+              return (
+                <li
+                  key={`${o.kind}:${o.name}`}
+                  id={`mention-${i}`}
+                  role="option"
+                  aria-selected={i === pick}
+                  className="mention-opt"
+                  // mousedown, not click: keeps focus (and the caret) in the composer
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    choose(o);
+                  }}
+                  onMouseEnter={() => setPick(i)}
+                >
+                  {o.kind === 'agent' ? (
+                    <RemiAvatar status={status!} {...defaultLook(o.agent)} size={24} />
+                  ) : (
+                    <span className="mention-initial" aria-hidden="true">
+                      {o.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="mention-name">@{o.name}</span>
+                  {status && <span className={`mention-status status-${status}`}>{status}</span>}
+                  {purpose && <span className="mention-purpose">{purpose}</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
         <textarea
           id="composer"
+          ref={box}
           name="message"
           rows={1}
           value={draft}
-          onChange={e => setDraft(e.target.value)}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? 'mention-menu' : undefined}
+          aria-activedescendant={menuOpen ? `mention-${Math.min(pick, options.length - 1)}` : undefined}
+          onChange={e => {
+            setDraft(e.target.value);
+            track(e.target);
+          }}
+          onSelect={e => track(e.currentTarget)}
+          onBlur={() => setMention(null)}
           onKeyDown={onKey}
           placeholder={`Message ${title}…`}
           autoComplete="off"

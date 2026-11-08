@@ -265,6 +265,7 @@
 
 /* Composer */
 .composer {
+  position: relative;
   flex: none;
   margin: 0 var(--space-5) var(--space-4);
   padding: var(--space-2) var(--space-3);
@@ -301,6 +302,63 @@
 .composer .form-error {
   color: var(--danger);
 }
+/* @mention autocomplete, opens above the composer */
+.mention-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgb(59 47 69 / 0.14);
+}
+.mention-opt {
+  display: grid;
+  grid-template-columns: 24px auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.mention-opt[aria-selected='true'] {
+  background: var(--surface-2);
+}
+.mention-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+.mention-status {
+  font-size: var(--text-xs);
+}
+.mention-purpose {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+.mention-initial {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ramp-200);
+  color: var(--ramp-800);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 kbd {
   font-family: var(--font-mono);
   font-size: 11px;

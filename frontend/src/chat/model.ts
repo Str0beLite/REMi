@@ -53,3 +53,32 @@ export function unreadIn(channelId: bigint, messages: readonly Message[], lastSe
   for (const m of messages) if (m.channelId === channelId && m.id > lastSeen) n++;
   return n;
 }
+
+// The `@query` being typed right before the caret, or null. Mirrors the runtime's matcher:
+// an @ that doesn't follow a word character or '-', so me@host.com doesn't count.
+export function mentionQuery(text: string, caret: number): { start: number; query: string } | null {
+  const m = /(?:^|[^\w-])@([\w-]*)$/.exec(text.slice(0, caret));
+  return m ? { start: caret - m[1].length - 1, query: m[1] } : null;
+}
+
+export type MentionOption = { kind: 'agent'; name: string; agent: Agent } | { kind: 'user'; name: string };
+
+// REMis before people; names starting with the query before ones that only contain it.
+export function mentionMatches(query: string, agents: readonly Agent[], users: readonly User[], me: string, limit = 6): MentionOption[] {
+  const q = query.toLowerCase();
+  const all: MentionOption[] = [
+    ...agents.map(agent => ({ kind: 'agent' as const, name: agent.name, agent })),
+    // Nicknames with spaces can't be @mentioned as one word, so they're left out.
+    ...users.filter(u => hexOf(u.identity) !== me && !/\s/.test(u.nickname)).map(u => ({ kind: 'user' as const, name: u.nickname })),
+  ];
+  const rank = (o: MentionOption) => {
+    const n = o.name.toLowerCase();
+    return n.startsWith(q) ? 0 : n.includes(q) ? 1 : -1;
+  };
+  return all
+    .map((o, i) => ({ o, r: rank(o), i }))
+    .filter(x => x.r >= 0)
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .slice(0, limit)
+    .map(x => x.o);
+}
