@@ -87,6 +87,8 @@ export const attach_adapter = db.reducer(
     const node = ctx.db.node.id.find(agent.node_id);
     if (!node || adapter.base !== node.base_model)
       throw new SenderError(`adapter ${key} was trained on ${adapter.base}, not this agent's base ${node?.base_model ?? '?'}`);
+    const here = adapter.node_id === agent.node_id || [...ctx.db.adapter_copy.key.filter(key)].some(c => c.node_id === agent.node_id);
+    if (!here) throw new SenderError(`adapter ${key}'s files aren't on ${node.name}; move the agent to a node that has them`);
 
     const af = parseAgentfile(agent.agentfile);
     const w = Math.round(weight * 100) / 100;

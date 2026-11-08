@@ -28,6 +28,13 @@ export const Adapter = __t.object("Adapter", {
 });
 export type Adapter = __Infer<typeof Adapter>;
 
+export const AdapterCopy = __t.object("AdapterCopy", {
+  id: __t.u64(),
+  key: __t.string(),
+  nodeId: __t.u64(),
+});
+export type AdapterCopy = __Infer<typeof AdapterCopy>;
+
 export const AdminCode = __t.object("AdminCode", {
   code: __t.string(),
 });
@@ -58,6 +65,14 @@ export const AgentProposal = __t.object("AgentProposal", {
 });
 export type AgentProposal = __Infer<typeof AgentProposal>;
 
+export const BlobChunk = __t.object("BlobChunk", {
+  id: __t.u64(),
+  blob: __t.string(),
+  seq: __t.u32(),
+  data: __t.string(),
+});
+export type BlobChunk = __Infer<typeof BlobChunk>;
+
 export const Channel = __t.object("Channel", {
   id: __t.u64(),
   name: __t.string(),
@@ -87,6 +102,22 @@ export const Dataset = __t.object("Dataset", {
   ts: __t.timestamp(),
 });
 export type Dataset = __Infer<typeof Dataset>;
+
+export const FileTransfer = __t.object("FileTransfer", {
+  id: __t.u64(),
+  blob: __t.string(),
+  name: __t.string(),
+  size: __t.u64(),
+  sha256: __t.string(),
+  chunks: __t.u32(),
+  fromAgent: __t.u64(),
+  toAgent: __t.u64(),
+  channelId: __t.u64(),
+  note: __t.string(),
+  state: __t.string(),
+  ts: __t.timestamp(),
+});
+export type FileTransfer = __Infer<typeof FileTransfer>;
 
 export const McpServer = __t.object("McpServer", {
   name: __t.string(),
@@ -130,6 +161,17 @@ export const Message = __t.object("Message", {
   ts: __t.timestamp(),
 });
 export type Message = __Infer<typeof Message>;
+
+export const Migration = __t.object("Migration", {
+  id: __t.u64(),
+  agentId: __t.u64(),
+  fromNode: __t.u64(),
+  toNode: __t.u64(),
+  state: __t.string(),
+  note: __t.string(),
+  ts: __t.timestamp(),
+});
+export type Migration = __Infer<typeof Migration>;
 
 export const Node = __t.object("Node", {
   id: __t.u64(),

@@ -79,6 +79,7 @@ export const set_agent_status = db.reducer({ agent_id: t.u64(), status: t.string
   const a = agentOrThrow(ctx, agent_id);
   requireCallerNodeFor(ctx, a);
   oneOf(status, AGENT_STATUSES, 'agent status');
+  if (a.status === 'moving' && status !== 'moving') return; // the migration owns the status until it's done or failed (#76)
   ctx.db.agent.id.update({ ...a, status });
 });
 
