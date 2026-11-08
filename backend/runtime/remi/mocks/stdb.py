@@ -204,7 +204,14 @@ class MockDB:
             self.require_agent_node(caller, agent_id)
         self.insert("memory", {"agent_id": agent_id, "text": text, "ts": now()})
 
-    REDUCERS = ("set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
+    def request_sleep(self, caller):
+        self.require_admin(caller)
+        ops = self.one("channel", name="ops", kind="public")
+        self.insert("message", {"channel_id": ops["id"], "author_kind": "system", "author_id": "",
+                                "kind": "sleep_event", "body": f"Sleep now requested by {self.user(caller)['nickname']}",
+                                "meta": json.dumps({"phase": "night"}), "ts": now()})
+
+    REDUCERS = ("request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
                 "create_agent", "set_agent_status", "run_start", "run_turn", "run_end", "add_memory")
 
     def call(self, caller: str, reducer: str, args: list) -> None:
