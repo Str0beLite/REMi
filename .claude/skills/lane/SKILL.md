@@ -15,7 +15,8 @@ If `$ARGUMENTS` isn't `web`, `core` or `gpu`, ask which lane and stop.
 
 1. Read `CONTRACT.md`, `docs/master-plan.md` and `AGENTS.md`. The contract is law for this lane.
 2. Check `gh auth status` works. If not, tell the user and stop.
-3. Scripts live next to this skill: `S=.claude/skills/lane/scripts` (or `.agents/skills/lane/scripts`).
+3. Load your lane's stack skills before writing code: web → `typescript-server`, `typescript-client`, `react-best-practices` (+ `cli` to publish); core → `spacetimedb-http`, `spacetimedb-sql`, `spacetimedb-serialization`; gpu → `trl-training`.
+4. Scripts live next to this skill: `S=.claude/skills/lane/scripts` (or `.agents/skills/lane/scripts`).
 
 ## 1. Pick
 
