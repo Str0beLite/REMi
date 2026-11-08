@@ -67,15 +67,18 @@ function Body({ m }: { m: Message }) {
 }
 
 // `children` replaces the body (used for a tool-call run, which keeps the author header).
-export function MessageItem({ m, author, grouped, children }: { m: Message; author: Author; grouped: boolean; children?: ReactNode }) {
+type ItemProps = { m: Message; author: Author; grouped: boolean; mentionsMe?: boolean; children?: ReactNode };
+export function MessageItem({ m, author, grouped, mentionsMe, children }: ItemProps) {
   return (
-    <li className={`msg${grouped ? ' is-grouped' : ''}`}>
+    <li className={`msg${grouped ? ' is-grouped' : ''}${mentionsMe ? ' is-mention' : ''}`}>
       <div className="msg-gutter">{!grouped && <Avatar author={author} />}</div>
       <div className="msg-main">
+        {mentionsMe && grouped && <span className="sr-only">Mentions you.</span>}
         {!grouped && (
           <div className="msg-who">
             <b>{author.name}</b>
             {author.kind === 'agent' && <span className="msg-tag">REMi</span>}
+            {mentionsMe && <span className="msg-tag msg-tag-mention">mentions you</span>}
             <time className="msg-time mono">{timeLabel(m)}</time>
           </div>
         )}

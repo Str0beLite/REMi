@@ -122,6 +122,31 @@
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+/* the feed's frame, so the new-messages button can float over its bottom edge */
+.chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat-unseen {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-3);
+  transform: translateX(-50%);
+  z-index: 2;
+  border-radius: 999px;
+  padding: 5px 14px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: 0 4px 14px rgb(59 47 69 / 0.18);
+}
+.chat-unseen:hover {
+  background: color-mix(in srgb, var(--accent) 85%, var(--ink));
+}
 .chat-feed {
   flex: 1;
   min-height: 0;
@@ -507,4 +532,17 @@ kbd {
   .panel-tabs {
     flex-basis: 100%;
   }
+}
+
+/* A message that @mentions you */
+.msg.is-mention {
+  margin-left: calc(-1 * var(--space-2));
+  padding: 4px 0 4px calc(var(--space-2) - 3px);
+  border-left: 3px solid var(--pink);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in srgb, var(--pink) 12%, transparent);
+}
+.msg-tag-mention {
+  color: var(--ink);
+  border-color: var(--pink);
 }

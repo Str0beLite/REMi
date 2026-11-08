@@ -6,7 +6,7 @@ import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
 import { MessageItem } from './MessageItem';
 import { ToolRun } from './ToolRun';
-import { authorOf, feedItems, mentionMatches, mentionQuery, purposeOf, type MentionOption } from './model';
+import { authorOf, feedItems, hexOf, mentionMatches, mentionQuery, mentionsName, purposeOf, type MentionOption } from './model';
 
 type Props = {
   channel: Channel;
@@ -45,6 +45,8 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
   // Follow new messages only while the reader is at the bottom (or just sent one);
   // someone scrolled up into history stays where they are.
   const pinned = useRef(true);
+  // id of the newest message the reader has seen at the bottom; anything newer (not theirs) is unseen
+  const [readTo, setReadTo] = useState<bigint>();
   useEffect(() => {
     pinned.current = true;
     const el = feed.current;
@@ -54,8 +56,20 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
   const items = feedItems(messages);
   useEffect(() => {
     const el = feed.current;
-    if (el && (pinned.current || (last?.authorKind === 'user' && last.authorId === me))) el.scrollTop = el.scrollHeight;
-  }, [last, me]);
+    if (!el || !last) return;
+    if (pinned.current || (last.authorKind === 'user' && last.authorId === me)) {
+      el.scrollTop = el.scrollHeight;
+      setReadTo(last.id);
+    }
+    // keyed on the id, not the row object, so only a genuinely new message counts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [last?.id, me]);
+  const unseen = readTo === undefined ? 0 : messages.filter(m => m.id > readTo && !(m.authorKind === 'user' && m.authorId === me)).length;
+  const toBottom = () => {
+    const el = feed.current;
+    el?.scrollTo({ top: el.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+  const myName = users.find(u => hexOf(u.identity) === me)?.nickname;
 
   async function send(e?: FormEvent) {
     e?.preventDefault();
@@ -177,6 +191,7 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         </div>
       )}
 
+      <div className="chat-feed-wrap">
       <ol
         className="chat-feed"
         ref={feed}
@@ -185,6 +200,7 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         onScroll={e => {
           const el = e.currentTarget;
           pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+          if (pinned.current && last) setReadTo(last.id);
         }}
       >
         {messages.length === 0 && (
@@ -207,12 +223,24 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
             flows(prev) &&
             Number((m.ts.microsSinceUnixEpoch - p.ts.microsSinceUnixEpoch) / 1000n) < GROUP_MS;
           return (
-            <MessageItem key={String(m.id)} m={m} author={authorOf(m, users, agents)} grouped={grouped}>
+            <MessageItem
+              key={String(m.id)}
+              m={m}
+              author={authorOf(m, users, agents)}
+              grouped={grouped}
+              mentionsMe={!!myName && m.authorId !== me && item.kind === 'msg' && mentionsName(m.body, myName)}
+            >
               {item.kind === 'tools' ? <ToolRun steps={item.steps} /> : undefined}
             </MessageItem>
           );
         })}
       </ol>
+        {unseen > 0 && (
+          <button type="button" className="chat-unseen" onClick={toBottom}>
+            {unseen} new {unseen === 1 ? 'message' : 'messages'} ↓
+          </button>
+        )}
+      </div>
 
       <form className="composer" onSubmit={send}>
         <label className="sr-only" htmlFor="composer">

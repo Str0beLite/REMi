@@ -224,3 +224,23 @@
   color: var(--rail-muted);
   font-size: var(--text-xs);
 }
+
+/* Skip link: hidden until keyboard focus */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 50;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible {
+  transform: none;
+}
+.shell-main:focus {
+  outline: none; /* focused only programmatically by the skip link */
+}

@@ -24,6 +24,17 @@ export function AppShell({ rail, main, swarm, title = 'REMi' }: Props) {
 
   return (
     <div className="shell" data-rail-open={railOpen} data-swarm-open={swarmOpen}>
+      {/* not a #hash link: the hash is the app's route */}
+      <a
+        href="#composer"
+        className="skip-link"
+        onClick={e => {
+          e.preventDefault();
+          (document.getElementById('composer') ?? document.getElementById('shell-main'))?.focus();
+        }}
+      >
+        Skip to message box
+      </a>
       <div className="shell-bar">
         <button
           type="button"
@@ -54,7 +65,9 @@ export function AppShell({ rail, main, swarm, title = 'REMi' }: Props) {
       <nav id="shell-rail" className="shell-rail" aria-label="Channels">
         {rail}
       </nav>
-      <main className="shell-main">{main}</main>
+      <main id="shell-main" className="shell-main" tabIndex={-1}>
+        {main}
+      </main>
       {/* a button in the Swarm drawer navigates, so close the drawer to show where it went */}
       <aside
         id="shell-swarm"

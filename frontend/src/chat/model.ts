@@ -117,3 +117,9 @@ export function toolMeta(m?: Message): ToolMeta {
     return {};
   }
 }
+
+// Same rule as the runtime's poller: @name as a whole word, any case (not @name-2, not me@name.com).
+export function mentionsName(body: string, name: string) {
+  const esc = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\w-])@${esc}(?![\\w-])`, 'i').test(body);
+}

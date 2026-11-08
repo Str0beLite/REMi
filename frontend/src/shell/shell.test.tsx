@@ -23,7 +23,8 @@ describe('AppShell', () => {
   it('renders the three slots as nav, main and aside with collapsed toggles', () => {
     const out = renderToStaticMarkup(<AppShell rail={<p>R</p>} main={<p>M</p>} swarm={<p>S</p>} />);
     expect(out).toMatch(/<nav id="shell-rail"[^>]*aria-label="Channels"><p>R<\/p><\/nav>/);
-    expect(out).toContain('<main class="shell-main"><p>M</p></main>');
+    expect(out).toContain('<main id="shell-main" class="shell-main" tabindex="-1"><p>M</p></main>');
+    expect(out).toContain('class="skip-link">Skip to message box</a>');
     expect(out).toMatch(/<aside id="shell-swarm"[^>]*><p>S<\/p><\/aside>/);
     expect(out).toContain('aria-controls="shell-swarm"');
     expect(out).toContain('aria-controls="shell-rail"');

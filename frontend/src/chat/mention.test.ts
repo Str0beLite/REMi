@@ -27,3 +27,13 @@ describe('mentionMatches', () => {
     expect(mentionMatches('PRI', agents, users, 'self').map(o => o.kind)).toEqual(['user']);
   });
 });
+
+describe('mentionsName', () => {
+  it('matches @name as a whole word, any case', async () => {
+    const { mentionsName } = await import('./model');
+    expect(mentionsName('hey @Priya can you look', 'priya')).toBe(true);
+    expect(mentionsName('@priya-2 ping', 'priya')).toBe(false);
+    expect(mentionsName('mail me@priya.com', 'priya')).toBe(false);
+    expect(mentionsName('ask @a.b now', 'a.b')).toBe(true);
+  });
+});
