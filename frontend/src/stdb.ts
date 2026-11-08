@@ -46,6 +46,16 @@ async function dropRejectedToken() {
   }
 }
 
+// Log out: there are no accounts, so this browser forgets its identity and the reload joins as someone new.
+export function logOut() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // storage blocked: the identity only lived in this tab anyway
+  }
+  location.replace(location.pathname);
+}
+
 export const connectionBuilder = () =>
   DbConnection.builder()
     .withUri(STDB_URI)

@@ -237,3 +237,6 @@
   font-weight: 600;
   margin-bottom: var(--space-2);
 }
+.logout {
+  justify-self: start;
+}

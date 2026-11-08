@@ -1,3 +1,4 @@
+import { logOut } from '../stdb';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
@@ -172,6 +173,19 @@ export function ConfigPanel() {
           </div>
           {isAdmin && <p className="setting-hint">You are an admin.</p>}
         </form>
+        <div className="setting">
+          <button
+            type="button"
+            className="logout"
+            onClick={() =>
+              window.confirm(
+                `Log out of REMi on this browser?\n\nThere are no passwords: this browser forgets you, and next time you join as someone new.${isAdmin ? ' You also stop being an admin until another admin sends you an admin link.' : ''}`,
+              ) && logOut()
+            }
+          >
+            Log out
+          </button>
+        </div>
       </section>
 
       <People />
