@@ -8,6 +8,8 @@ uv run pytest            # what CI runs (GPU tests skipped)
 uv run pytest -m gpu     # lane:gpu, on the 5070 Ti PC
 ```
 
+GPU setup (WSL), the vLLM launcher and its measured numbers: [remi/serving/README.md](remi/serving/README.md).
+
 Mocks for building before the real pieces exist ([CONTRACT.md §11](../../CONTRACT.md)):
 
 ```bash

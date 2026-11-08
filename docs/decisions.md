@@ -31,3 +31,4 @@ One line each: date, decision, why.
 - 2026-11-07: Adapters attach only on the node that trained them (files are local); agents with adapters can't move. Relaxed with the LoRA library (extension 3).
 - 2026-11-07: New PCs join with an admin-set `node_join_code` passed to `register_node`; this settles the node half of the admin-bootstrap question.
 - 2026-11-08: Lane work skips PRs: agents rebase, run checks, push straight to main and close the issue with evidence. Contract changes stay Ryan-only.
+- 2026-11-08: GPU stack is an optional `gpu` extra in backend/runtime (vllm 0.33.0, peft 0.21.2, transformers 5.20.2, Linux only); vLLM runs at --gpu-memory-utilization 0.85 and --max-lora-rank 64 (= training guardrail); runtime LoRA loading verified on nemotron_h (#23).
