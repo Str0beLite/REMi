@@ -459,6 +459,157 @@ SLEEPOPS = [s_train, s_train, s_train, s_train_unnamed, s_train_unnamed, s_refus
             s_fetch, s_adapters]
 
 
+# --------------------------------------------------------------------------------------- datacollect
+# Finding training data on the Hugging Face Hub with plain /fetch (the Hub's public JSON APIs, no Composio), then
+# /dataset fetch. The URLs and response shapes are the real ones (checked 2026-11-08); repo names are made up.
+# The rules, so every decision has one right answer:
+#   search -> skip gated -> /splits: needs config "default" and a split with "train" in it (/dataset fetch can't pick a
+#   config) -> /first-rows: needs a `messages` or `conversations` column -> /dataset fetch -> /dataset show --n 2 -> report.
+HUB_SEARCH = "https://huggingface.co/api/datasets?search={q}&limit=5&sort=downloads&expand[]=gated&expand[]=downloads&expand[]=tags"
+HUB_SPLITS = "https://datasets-server.huggingface.co/splits?dataset={id}"
+HUB_ROWS = "https://datasets-server.huggingface.co/first-rows?dataset={id}&config=default&split={split}"
+
+HUB_TOPICS = (  # (how people ask, search words)
+    [("tool calling", "tool calling"), ("customer support chats", "customer support"), ("SQL questions", "text to sql"),
+     ("shell commands", "bash commands"), ("short answers", "concise answers")],
+    [("network troubleshooting", "network troubleshooting"), ("math tutoring", "math tutor"),
+     ("Kubernetes help", "kubernetes")],
+)
+HUB_ORGS = (["acme-ai", "openlab", "datafolk", "tinyteam", "nlp-co"], ["hubworks", "corpus-lab", "fieldnotes"])
+LICENSES = ["apache-2.0", "mit", "cc-by-4.0", "cc-by-sa-4.0", "odc-by"]
+
+
+def _repo(r, held, words):
+    slug = "-".join(words.split()[:2]) + r.choice(["", "-v2", "-chat", "-sft", "-mix"])
+    return f"{r.choice(HUB_ORGS[held])}/{slug}"
+
+
+def _hub_hits(r, held, words, good_at: int | None):
+    """5 search hits; `good_at` is the index of the first usable one (None: none usable). Each hit carries what the
+    next checks will show: gated, its configs/splits and its columns."""
+    hits = []
+    for i in range(5):
+        repo = _repo(r, held, words)
+        while any(h["id"] == repo for h in hits):
+            repo = _repo(r, held, words)
+        flaw = None if i == good_at else r.choice(["gated", "configs", "columns"]) if good_at is None or i < good_at else None
+        lic = r.choice(LICENSES)
+        hits.append({"id": repo, "gated": "auto" if flaw == "gated" else False, "downloads": 0, "lic": lic, "flaw": flaw,
+                     "split": r.choice(["train", "train", "train_sft"]),
+                     "columns": r.choice([["prompt", "messages"], ["conversations"], ["messages"], ["id", "messages"]])
+                     if flaw != "columns" else r.choice([["system", "chat"], ["instruction", "output"], ["text"]])})
+    for h, d in zip(hits, sorted((r.randint(800, 90000) for _ in hits), reverse=True)):
+        h["downloads"] = d
+    return hits
+
+
+def _search_json(hits) -> str:
+    return json.dumps([{"_id": f"{i:024x}", "id": h["id"], "gated": h["gated"], "downloads": h["downloads"],
+                        "tags": ["task_categories:text-generation", "language:en", f"license:{h['lic']}", "format:json"]}
+                       for i, h in enumerate(hits)], separators=(",", ":"))
+
+
+def _splits_json(h) -> str:
+    configs = ["single_turn", "multi_turn"] if h["flaw"] == "configs" else ["default"]
+    splits = [h["split"], "test" if h["split"] == "train" else "test_sft"]
+    return json.dumps({"splits": [{"dataset": h["id"], "config": c, "split": s} for c in configs for s in splits],
+                       "pending": [], "failed": []}, separators=(",", ":"))
+
+
+def _rows_json(h) -> str:
+    feats = [{"feature_idx": i, "name": c, "type": {"dtype": "string", "_type": "Value"} if c not in ("messages", "conversations")
+              else [{"content": {"dtype": "string", "_type": "Value"}, "role": {"dtype": "string", "_type": "Value"}}]}
+             for i, c in enumerate(h["columns"])]
+    return json.dumps({"dataset": h["id"], "config": "default", "split": h["split"], "features": feats,
+                       "rows": [{"row_idx": 0, "row": {c: "..." for c in h["columns"]}}]}, separators=(",", ":"))
+
+
+def _skip_reason(h) -> str:
+    return {"gated": "gated (needs approval)", "configs": "split into named configs, no default",
+            "columns": f"columns {', '.join(h['columns'])}, not chat messages"}[h["flaw"]]
+
+
+def _check_and_fetch(c: Conv, r, hits, name: str, n: int | None, start: int = 0) -> str | None:
+    """Walk candidates from `start` with the rules above; fetch the first usable one. Returns the report, or None
+    when nothing fit (the caller says so)."""
+    skipped = []
+    for h in hits[start:]:
+        if h["gated"]:
+            skipped.append(f"{h['id']}: {_skip_reason(h)}")
+            continue
+        c.say(f"/fetch {HUB_SPLITS.format(id=h['id'])}").got("fetch", 0, _splits_json(h))
+        if h["flaw"] == "configs":
+            skipped.append(f"{h['id']}: {_skip_reason(h)}")
+            continue
+        c.say(f"/fetch {HUB_ROWS.format(id=h['id'], split=h['split'])}").got("fetch", 0, _rows_json(h))
+        if h["flaw"] == "columns":
+            skipped.append(f"{h['id']}: {_skip_reason(h)}")
+            continue
+        src = f"hf:{h['id']}" + ("" if h["split"] == "train" else f":{h['split']}")
+        got = r.choice([n or FETCH_N, (n or FETCH_N) - r.randint(1, 9)])
+        c.say(f"/dataset fetch {name} {src}" + (f" --n {n}" if n else "")).got(
+            "dataset", 0, f"fetched {got} examples from {src} into {name}" + ("" if got == (n or FETCH_N) else
+                                                                              f" ({(n or FETCH_N) - got} rows skipped)"))
+        example = json.dumps({"messages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]})
+        c.say(f"/dataset show {name} --n 2").got("dataset", 0, f"{name}: {got} examples\n{example}\n{example}")
+        why = f" I skipped {'; '.join(skipped)}." if skipped else ""
+        return (f"Fetched {got} examples from {h['id']} ({h['split']}, license {h['lic']}) into {name}.{why} The two I "
+                "checked are chat examples. They aren't verified yet: judge anything trained on them on unseen examples "
+                "before adopting it.")
+    return None if not skipped else "; ".join(skipped)
+
+
+FETCH_N = 200
+
+
+def _dc_conv(r, held, text, family) -> Conv:
+    tools = list(SLEEP.tools) + ([] if "fetch" in SLEEP.tools else ["fetch"])
+    return Conv(SLEEP.purpose, tools, r.choice(POOLS["nick"][held]), text, family)
+
+
+def _ds_name(r, held, words) -> tuple[str, str]:
+    """(dataset name, the request's 'call it' clause)."""
+    slug = "-".join(words.split()[:2])
+    if r.random() < 0.5:  # a name the person gives, always about the same topic
+        name = f"{slug}-{r.choice(['chats', 'data', 'examples', 'hub'])}"
+        return name, f" Call it {name}."
+    return slug, ""
+
+
+def d_search(r, held):
+    ask_how, words = r.choice(HUB_TOPICS[held])
+    name, called = _ds_name(r, held, words)
+    n = r.choice([None, None, 300, 500])
+    many = f" about {n} examples" if n else ""
+    text = r.choice([f"@sleep-remi find a Hugging Face dataset for {ask_how} and pull{many} into a dataset.{called}",
+                     f"@sleep-remi get me training data for {ask_how} from the Hub{many}.{called}"])
+    c = _dc_conv(r, held, text, "hub-search")
+    hits = _hub_hits(r, held, words, good_at=r.choice([0, 0, 1, 2]))
+    c.say(f"/fetch {HUB_SEARCH.format(q=words.replace(' ', '+'))}").got("fetch", 0, _search_json(hits))
+    return c.say(_check_and_fetch(c, r, hits, name, n))
+
+
+def d_by_id(r, held):
+    ask_how, words = r.choice(HUB_TOPICS[held])
+    h = _hub_hits(r, held, words, good_at=0)[0]
+    name, called = _ds_name(r, held, words)
+    c = _dc_conv(r, held, f"@sleep-remi pull {h['id']} from the Hub into a dataset.{called}", "hub-by-id")
+    return c.say(_check_and_fetch(c, r, [h], name, None))
+
+
+def d_none(r, held):
+    ask_how, words = r.choice(HUB_TOPICS[held])
+    c = _dc_conv(r, held, f"@sleep-remi find a Hugging Face dataset for {ask_how}", "hub-nothing-fits")
+    hits = _hub_hits(r, held, words, good_at=None)
+    c.say(f"/fetch {HUB_SEARCH.format(q=words.replace(' ', '+'))}").got("fetch", 0, _search_json(hits))
+    reasons = _check_and_fetch(c, r, hits, "unused", None)
+    return c.say(f"None of the top 5 results for \"{words}\" can be fetched: {reasons}. Try another search word, or "
+                 "give me a dataset id with a default config and a messages column.")
+
+
+DATACOLLECT = [d_search, d_search, d_search, d_by_id, d_none]
+
+
 # --------------------------------------------------------------------------------------------- output
 
 
@@ -469,9 +620,11 @@ def held_out(conv: Conv, r: random.Random) -> dict | None:
     if not cuts:
         return None
     i = r.choice(cuts)
-    return {"family": conv.family, "step": conv.m[i]["content"].split()[0] + (
-        " " + conv.m[i]["content"].split()[1] if conv.m[i]["content"].startswith(("/dataset", "/adapter")) else ""),
-            "messages": conv.m[:i + 1]}
+    words = conv.m[i]["content"].split()
+    step = words[0] + (" " + words[1] if words[0] in ("/dataset", "/adapter") else "")
+    if words[0] == "/fetch":  # which Hub call: search, splits or first-rows
+        step += " " + next((k for k in ("api/datasets", "splits", "first-rows") if k in words[1]), "url")
+    return {"family": conv.family, "step": step, "messages": conv.m[:i + 1]}
 
 
 def build(families, n: int, held: int, seed: int) -> list[dict]:
@@ -492,7 +645,8 @@ def build(families, n: int, held: int, seed: int) -> list[dict]:
 def write(out: Path, seed: int = 0) -> dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sets = {"tooluse": build(TOOLUSE, 360, 0, seed), "tooluse-held": build(TOOLUSE, 120, 1, seed + 1),
-            "sleepops": build(SLEEPOPS, 240, 0, seed + 2), "sleepops-held": build(SLEEPOPS, 120, 1, seed + 3)}
+            "sleepops": build(SLEEPOPS, 240, 0, seed + 2), "sleepops-held": build(SLEEPOPS, 120, 1, seed + 3),
+            "datacollect": build(DATACOLLECT, 200, 0, seed + 4), "datacollect-held": build(DATACOLLECT, 80, 1, seed + 5)}
     for name, rows in sets.items():
         (out / f"{name}.jsonl").write_text("".join(json.dumps(x) + "\n" for x in rows), encoding="utf-8")
     return {k: len(v) for k, v in sets.items()}
@@ -529,6 +683,8 @@ DESCRIPTIONS = {
     "tooluse-held": "held-out: tool use (new paths, services, agents, wordings)",
     "sleepops": "Sleep REMi's train, eval and adopt loop, with names and versions copied from results",
     "sleepops-held": "held-out: Sleep REMi's train, eval and adopt decisions (new datasets, agents, adapters)",
+    "datacollect": "finding training data on the Hugging Face Hub with /fetch, checking it fits, then /dataset fetch",
+    "datacollect-held": "held-out: Hub data collection (new topics, repos, people)",
 }
 SPECS = [{"name": f"{n}-train", "base": BASE, "datasets": [n], "rank": 16, "lr": 2e-4, "epochs": 2, "targets": "attn+mlp",
           "out": n, "desc": DESCRIPTIONS[n].split(":")[0]} for n in ("tooluse", "sleepops")]
