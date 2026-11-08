@@ -99,3 +99,13 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 
 **21. With temperature 0, teaching errors and a step-by-step purpose, the 4B ran the whole loop itself.**
 - Evidence (live, 2026-11-08): from one chat request, Sleep REMi sent `/train_spec` (all fields right) → `/sleep` (asleep 2.5 min, loss 1.85 → 0.001) → `/adapter eval` (10/10 vs 0/10, STRONG GO) → `/adapter adopt` onto homelab-remi, each right the first time. Before the fixes, the same request ended in 30 repeats of a bad command. `/read @general` failed once, then it copied the right form from the error.
+
+**22. A tool's one-line description can beat the purpose: test prompt wording against the live model, not by guessing.**
+- Evidence (live, 2026-11-08, fresh workspace, no notes): asked to train, Sleep REMi opened with `/todo add <the request>` every time, even in an empty channel and with "/todo is only for a later night" added to its purpose. Replaying the exact system prompt against vLLM: removing the `/todo` tool, or moving its line last, gave `/dataset show`. So did one sentence in the purpose: "When someone asks you to train, your first command is /dataset show <dataset>." The earlier success had a saved note about the dataset that steered it there.
+- Rule: name the first command for each kind of request in the purpose. When a model picks the wrong tool, replay its context with 3–5 variants (seconds each) before you rebuild anything.
+
+**23. Loops can be made of successes: stop on the same command with the same result, not only the same error.**
+- Evidence: `/todo add` → "added", `/todo list` → "1: …", 20 times each, 40 turns in 20 s. Every call worked, so the failure-only stuck detector never fired. Counting (command, result) pairs ends the run after the second repeat.
+
+**24. After training, vLLM can fail to come back on a hybrid Mamba model: pin `--max-num-seqs`.**
+- Evidence: `max_num_seqs (256) exceeds available Mamba cache blocks (252)`. The trainer leaves slightly less VRAM free (3.76 vs 3.84 GiB of KV), and Mamba needs one cache block per sequence. `--max-num-seqs 64` fixes it; a node never runs 64 sequences at once.
