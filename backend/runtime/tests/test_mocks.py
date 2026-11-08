@@ -54,10 +54,10 @@ def call(base, reducer, args, token=NODE):
 
 def test_stdb_happy_path(db):
     _, base = db
-    post(f"{base}/mock/seed", {"user": [{"identity": {"__identity__": ADMIN}, "nickname": "ryan", "is_admin": True}]})
+    post(f"{base}/mock/seed", {"user": [{"identity": [ADMIN], "nickname": "ryan", "is_admin": True}]})
     assert {c["name"] for c in rows(base, "channel")} == {"general", "ops"}
     # The node registers itself, so the "node" token must be an admin until §12 admin bootstrap is decided.
-    post(f"{base}/mock/seed", {"user": [{"identity": {"__identity__": NODE}, "nickname": "pc", "is_admin": True}]})
+    post(f"{base}/mock/seed", {"user": [{"identity": [NODE], "nickname": "pc", "is_admin": True}]})
     assert call(base, "register_node", ["pc", "5070 Ti", C.BASE_MODEL])[0] == 200
     assert rows(base, "node")[0]["base_model"] == C.BASE_MODEL
     af = (C.REPO_ROOT / "fixtures/agentfiles/tool-builder.yaml").read_text()
@@ -99,7 +99,7 @@ def test_vllm_mock(llm):
 def test_request_sleep(db):
     _, base = db
     assert call(base, "request_sleep", [], "0xeve")[1] == "admin only"
-    post(f"{base}/mock/seed", {"user": [{"identity": {"__identity__": ADMIN}, "nickname": "ryan", "is_admin": True}]})
+    post(f"{base}/mock/seed", {"user": [{"identity": [ADMIN], "nickname": "ryan", "is_admin": True}]})
     assert call(base, "request_sleep", [], ADMIN)[0] == 200
     [m] = rows(base, "message")
     assert (m["kind"], json.loads(m["meta"]), m["channel_id"]) == ("sleep_event", {"phase": "night"}, 2)

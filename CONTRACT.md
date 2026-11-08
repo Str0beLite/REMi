@@ -151,7 +151,7 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 - Call a reducer: `POST {STDB_URL}/v1/database/{STDB_DB}/call/{reducer}` with a JSON **array** of the args in §4 order. 200 = committed; any other status = rejected, body is the reason.
 - Query: `POST {STDB_URL}/v1/database/{STDB_DB}/sql` with SQL text. Response: a JSON array with one result per statement, each `{"schema": {"elements": [{"name": {"some": "<col>"}, ...}]}, "rows": [[...], ...]}`.
 - Poll once per second per node: `SELECT * FROM message WHERE id > {last_id}`.
-- JSON encodings to verify against the real server in the first `lane:core` client issue (and fix here via `lane:contract` if wrong): u64 as number, Identity as `{"__identity__": "0x…"}`, Timestamp as `{"__timestamp_micros_since_unix_epoch__": n}`.
+- JSON encodings in SQL rows (checked against a real server, SpacetimeDB 2.14.1, #36): u64 as a plain number; Identity and Timestamp are products, so rows encode them as one-element arrays: Identity as `["0x…"]` (the hex string), Timestamp as `[n]` (micros since the Unix epoch). `remi.mocks.stdb` emits the same.
 
 ## 9. Runtime ↔ vLLM
 

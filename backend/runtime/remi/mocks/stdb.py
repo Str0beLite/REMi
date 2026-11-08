@@ -27,12 +27,24 @@ class SenderError(Exception):
     pass
 
 
-def ident(hex_: str) -> dict:
-    return {"__identity__": hex_}
+def ident(hex_: str) -> list:
+    """Identity as HTTP SQL rows encode it (§8): a one-element array holding the hex string."""
+    return [hex_]
 
 
-def now() -> dict:
-    return {"__timestamp_micros_since_unix_epoch__": time.time_ns() // 1000}
+def now() -> list:
+    """Timestamp as HTTP SQL rows encode it (§8): a one-element array holding micros since the Unix epoch."""
+    return [time.time_ns() // 1000]
+
+
+def _real_encoding(value):
+    """Seeds may still use the old object forms; store them the way the real server encodes them (§8)."""
+    if isinstance(value, dict) and len(value) == 1:
+        if "__identity__" in value:
+            return [value["__identity__"]]
+        if "__timestamp_micros_since_unix_epoch__" in value:
+            return [value["__timestamp_micros_since_unix_epoch__"]]
+    return value
 
 
 class MockDB:
@@ -49,6 +61,7 @@ class MockDB:
 
     # -- helpers -----------------------------------------------------------
     def insert(self, table: str, row: dict) -> dict:
+        row = {k: _real_encoding(v) for k, v in row.items()}
         if table not in ("user", "dataset", "setting"):
             row = {"id": self.next_id[table], **row}
             self.next_id[table] += 1

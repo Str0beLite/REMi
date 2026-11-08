@@ -26,7 +26,7 @@ def test_call_and_sql_roundtrip(db, server):
     db.call("register_node", "pc", "5070 Ti", "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16")
     assert server.db.calls[-1]["args"] == ["pc", "5070 Ti", "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16"]
     [node] = db.sql("SELECT * FROM node")
-    assert node["name"] == "pc" and node["identity"] == {"__identity__": ADMIN} and node["id"] == 1
+    assert node["name"] == "pc" and node["identity"] == [ADMIN] and node["id"] == 1
     db.call("heartbeat", node["id"], "asleep")
     assert db.sql("SELECT * FROM node")[0]["status"] == "asleep"
 
