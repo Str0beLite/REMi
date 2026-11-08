@@ -335,7 +335,22 @@ def sleep(ctx, args: str) -> str:
                         agent=ctx.agent, channel_id=ctx.channel_id)
     except cycle.Refused as e:
         raise Usage(f"refused: {e}") from None
-    return f"trained {out.parent.name}@{out.name}; it's a candidate. /adapter eval it before adopting."
+    key = f"{out.parent.name}@{out.name}"
+    row = next((a for a in ctx.db.sql("SELECT * FROM adapter") if a["key"] == key), {})
+    try:
+        stats = json.loads(row.get("train_stats") or "{}")
+    except ValueError:
+        stats = {}
+    return sleep_result(key, stats.get("loss_first"), stats.get("loss_last"), stats.get("steps"), stats.get("stopped_early_at"))
+
+
+def sleep_result(key: str, first, last, steps, stopped_at=None) -> str:
+    """What /sleep tells Sleep REMi: the run's numbers, so it can judge it (an undertrained or memorized run) before /adapter
+    eval. remi.trainer.curricula renders its training data with this same function."""
+    run = f"loss {first:.3g} → {last:.3g} over {steps} steps" if first is not None and last is not None else "no loss logged"
+    if stopped_at is not None:
+        run += f", stopped early at step {stopped_at}"
+    return f"trained {key} ({run}); it's a candidate. /adapter eval it before adopting."
 
 
 def _key(text: str, db=None) -> tuple[str, int]:

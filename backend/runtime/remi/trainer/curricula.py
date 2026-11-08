@@ -341,9 +341,9 @@ def _listing(r, held, must: list[tuple]) -> str:
     return "\n".join(f"{d}: {rows[d][0]} examples, {rows[d][1]}" for d in sorted(keep))
 
 
-def _verdict(r) -> tuple[str, int, int, int, str]:
+def _verdict(r, kind: str | None = None) -> tuple[str, int, int, int, str]:
     n = r.choice([10, 16, 20, 24])
-    kind = r.choice(["STRONG GO", "STRONG GO", "WEAK GO", "NO-GO"])
+    kind = kind or r.choice(["STRONG GO", "STRONG GO", "WEAK GO", "NO-GO"])
     if kind == "STRONG GO":
         base, cand = r.randint(0, n // 3), r.randint(n - 2, n)
         lo, hi = 100 * (cand - base) / n - 15, min(100, 100 * (cand - base) / n + 10)
@@ -359,21 +359,45 @@ def _verdict(r) -> tuple[str, int, int, int, str]:
     return kind, n, cand, base, f"diff {diff:+.1f} pts, 95% CI [{lo:+.1f}, {hi:+.1f}], McNemar p={p:.3g} -> {kind}"
 
 
-def _judge(c: Conv, r, key: str, held_ds: str, agent: str) -> str:
-    """eval -> adopt/reject. Returns the report's eval sentence and outcome."""
-    kind, n, cand, base, tail = _verdict(r)
+MEMORIZED_BELOW = 0.01  # final loss under this and still NO-GO on unseen data: it learned the examples, not the skill
+UNDERTRAINED_ABOVE = 0.3  # training-notes lesson 2: a narrow skill's final loss should end near 0
+OVERFIT_SEEN = 0.8  # NO-GO on unseen data while this share of its own training examples come out right: overfit
+
+
+def _judge(c: Conv, r, key: str, held_ds: str, agent: str, kind: str | None = None, last: float = 0.05,
+           train_ds: str | None = None) -> str:
+    """The overfitting numbers, read together: the run's final loss, the unseen score (eval on the held-out set) and,
+    when the training set is known, the seen score (eval on the training set). Then adopt or reject."""
+    kind, n, cand, base, tail = _verdict(r, kind)
     c.say(f"/adapter eval {key} {held_ds}").got("adapter", 0, f"{key} on {held_ds} ({n} examples, exact match): "
                                                               f"candidate {cand}, base {base}; {tail}")
     result = f"On {held_ds} it scored {cand}/{n} against the base model's {base}/{n}: {kind}."
+    seen = None
+    if train_ds:  # the seen score: on examples it trained on. Far above the unseen score = overfit.
+        m = 100
+        memorized = kind == "NO-GO" and (last < MEMORIZED_BELOW or r.random() < 0.5)
+        sc = r.randint(int(0.85 * m), m) if kind != "NO-GO" or memorized else r.randint(int(0.2 * m), int(0.6 * m))
+        sb = r.randint(0, int(0.3 * m))
+        c.say(f"/adapter eval {key} {train_ds}").got("adapter", 0, f"{key} on {train_ds} ({m} examples, exact match): "
+                                                                   f"candidate {sc}, base {sb}; diff {100 * (sc - sb) / m:+.1f} pts")
+        seen = (sc, m)
+    if kind == "NO-GO" and (seen and seen[0] >= OVERFIT_SEEN * seen[1] or not seen and last < MEMORIZED_BELOW):
+        numbers = f"seen {seen[0]}/{seen[1]} vs unseen {cand}/{n}" if seen else f"loss {last:.3g} but {cand}/{n} unseen"
+        c.say(f"/adapter reject {key} overfit: {numbers}").got("adapter", 0, f"{key} rejected")
+        return (f"{result} It overfit: training loss {last:.3g}, {numbers}. It learned its training examples, not the "
+                "skill, so I rejected it. Send me more varied examples and I'll retrain.")
     if kind == "NO-GO":
         c.say(f"/adapter reject {key} NO-GO on {held_ds}: {cand}/{n} vs base {base}/{n}").got("adapter", 0, f"{key} rejected")
         return f"{result} I rejected it, so {agent} keeps its current adapters."
     c.say(f"/adapter adopt {key} --agents {agent} --weight 1").got(
         "adapter", 0, f"{key} adopted and attached to {agent} at weight 1")
-    return f"{result} I adopted it onto {agent} at weight 1."
+    gap = f" Seen {seen[0]}/{seen[1]}, so it generalizes rather than memorizing." if seen else ""
+    return f"{result}{gap} I adopted it onto {agent} at weight 1."
 
 
-def s_train(r, held, named: bool = True, refused: bool = False):
+def s_train(r, held, named: bool = True, refused: bool = False, run: str = "fine"):
+    """run: fine | undertrained | memorized | stopped-fine | stopped-undertrained. Sets the numbers /sleep reports and
+    the right call on them (see _judge and the undertrained branch below)."""
     topic = r.choice(TOPICS[held])
     ds, held_ds, _, goal, how = topic
     agent = r.choice(POOLS["agent"][held])
@@ -403,9 +427,39 @@ def s_train(r, held, named: bool = True, refused: bool = False):
                      f"saved ({ds}, for {agent}) and on my todo list for tonight.")
     v = r.randint(1, 9)
     key = f"{adapter}@{v}"
-    c.say(f"/sleep {spec}").got("sleep", 0, f"trained {key}; it's a candidate. /adapter eval it before adopting.")
-    outcome = _judge(c, r, key, held_ds, agent)
+    steps = r.choice([30, 42, 84, 132])
+    first = round(r.uniform(0.6, 2.4), 3)
+    last = {"fine": r.uniform(0.0003, 0.2), "stopped-fine": r.uniform(0.02, 0.25), "memorized": r.uniform(0.00004, 0.006),
+            "undertrained": r.uniform(0.35, 1.5), "stopped-undertrained": r.uniform(0.4, 1.4)}[run]
+    stopped = r.randint(steps // 5, steps // 2) if run.startswith("stopped") else None
+    done = stopped or steps
+    c.say(f"/sleep {spec}").got("sleep", 0, sleep_tools.sleep_result(key, first, last, done, stopped))
+    if last > UNDERTRAINED_ABOVE:  # don't judge it: it never learned; queue a longer run for the next night
+        c.say(f"/adapter reject {key} undertrained: loss ended at {last:.3g} after {done} steps").got("adapter", 0, f"{key} rejected")
+        c.say(f"/todo add retrain {adapter} for {agent} on {ds} with epochs=3 ({key} was undertrained, loss {last:.3g})").got(
+            "todo", 0, "added")
+        why = f"it stopped early at step {stopped}" if stopped else f"{done} steps weren't enough"
+        return c.say(f"I trained {key} for {agent} on {ds}, but its loss only got to {last:.3g} ({why}), so it hasn't "
+                     f"learned the skill yet. I rejected it without judging it and put a 3-epoch retrain on my todo list "
+                     f"for tonight.")
+    outcome = _judge(c, r, key, held_ds, agent, kind="NO-GO" if run == "memorized" else None, last=last, train_ds=ds)
     return c.say(f"I trained {key} for {agent} on {ds} ({n_ex} examples). {outcome}")
+
+
+# trainjudge: the same chain, weighted to the calls a training run's numbers decide
+def j_fine(r, held):
+    return s_train(r, held, named=True, run=r.choice(["fine", "stopped-fine"]))
+
+
+def j_undertrained(r, held):
+    return s_train(r, held, named=True, run=r.choice(["undertrained", "stopped-undertrained"]))
+
+
+def j_memorized(r, held):
+    return s_train(r, held, named=True, run="memorized")
+
+
+TRAINJUDGE = [j_fine, j_fine, j_undertrained, j_undertrained, j_memorized, j_memorized]
 
 
 def s_train_unnamed(r, held):
@@ -682,7 +736,8 @@ def write(out: Path, seed: int = 0) -> dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sets = {"tooluse": build(TOOLUSE, 360, 0, seed), "tooluse-held": build(TOOLUSE, 120, 1, seed + 1),
             "sleepops": build(SLEEPOPS, 240, 0, seed + 2), "sleepops-held": build(SLEEPOPS, 120, 1, seed + 3),
-            "datacollect": build(DATACOLLECT, 200, 0, seed + 4), "datacollect-held": build(DATACOLLECT, 80, 1, seed + 5)}
+            "datacollect": build(DATACOLLECT, 200, 0, seed + 4), "datacollect-held": build(DATACOLLECT, 80, 1, seed + 5),
+            "trainjudge": build(TRAINJUDGE, 200, 0, seed + 6), "trainjudge-held": build(TRAINJUDGE, 80, 1, seed + 7)}
     for name, rows in sets.items():
         (out / f"{name}.jsonl").write_text("".join(json.dumps(x) + "\n" for x in rows), encoding="utf-8")
     return {k: len(v) for k, v in sets.items()}
@@ -723,6 +778,8 @@ DESCRIPTIONS = {
     "sleepops-held": "held-out: Sleep REMi's train, eval and adopt decisions (new datasets, agents, adapters)",
     "datacollect": "finding training data on the Hugging Face Hub with /fetch, checking it fits, then /dataset fetch",
     "datacollect-held": "held-out: Hub data collection (new topics, repos, people)",
+    "trainjudge": "judging a training run from its numbers: undertrained (high final loss), memorized (near-zero loss, NO-GO), or adopt",
+    "trainjudge-held": "held-out: judging training runs (new datasets, agents, adapters)",
 }
 SPECS = [{"name": f"{n}-train", "base": BASE, "datasets": [n], "rank": 16, "lr": 2e-4, "epochs": 2, "targets": "attn+mlp",
           "out": n, "desc": DESCRIPTIONS[n].split(":")[0]} for n in ("tooluse", "sleepops")]

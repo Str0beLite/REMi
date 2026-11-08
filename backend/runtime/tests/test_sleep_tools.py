@@ -30,7 +30,7 @@ class FakeDb:
             "todo": [{"id": 7, "agent_id": 1, "text": "check jellyfin", "status": "open"},
                      {"id": 8, "agent_id": 2, "text": "not mine", "status": "open"}],
             "memory": [{"id": 3, "agent_id": 2, "text": "old note"}],
-            "dataset": [], "setting": [{"key": "last_sleep_ts", "value": "0"}, {"key": "max_train_minutes", "value": "30"}],
+            "dataset": [], "adapter": [], "setting": [{"key": "last_sleep_ts", "value": "0"}, {"key": "max_train_minutes", "value": "30"}],
         }
 
     def sql(self, q):

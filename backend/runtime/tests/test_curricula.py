@@ -11,7 +11,7 @@ from remi.trainer import curricula
 def test_curricula_are_valid_parseable_and_held_out(tmp_path):
     counts = curricula.write(tmp_path)
     assert counts == {"tooluse": 360, "tooluse-held": 120, "sleepops": 240, "sleepops-held": 120, "datacollect": 200,
-                      "datacollect-held": 80}
+                      "datacollect-held": 80, "trainjudge": 200, "trainjudge-held": 80}
     store = _store(tmp_path)
     for name in counts:
         lines = (tmp_path / f"{name}.jsonl").read_text(encoding="utf-8").splitlines()
@@ -32,9 +32,9 @@ def test_curricula_are_valid_parseable_and_held_out(tmp_path):
                         assert isinstance(cmd, grammar.Chat), (name, m["content"])
             if name.endswith("-held"):
                 assert row["messages"][-1]["role"] == "assistant" and row["messages"][-1]["content"].startswith("/")
-    train = {json.dumps(json.loads(ln)["messages"][:2]) for n in ("tooluse", "sleepops", "datacollect")
+    train = {json.dumps(json.loads(ln)["messages"][:2]) for n in ("tooluse", "sleepops", "datacollect", "trainjudge")
              for ln in (tmp_path / f"{n}.jsonl").read_text(encoding="utf-8").splitlines()}
-    held = {json.dumps(json.loads(ln)["messages"][:2]) for n in ("tooluse-held", "sleepops-held", "datacollect-held")
+    held = {json.dumps(json.loads(ln)["messages"][:2]) for n in ("tooluse-held", "sleepops-held", "datacollect-held", "trainjudge-held")
             for ln in (tmp_path / f"{n}.jsonl").read_text(encoding="utf-8").splitlines()}
     assert not train & held
 
