@@ -12,6 +12,19 @@ Local agents never get better at your work: every lesson has to be stuffed back 
 - **Sleep REMi runs the nightly "REM sleep" cycle.** It reviews the day and decides whether to update memories or docs, or to train a LoRA. If it trains, it builds the dataset and spec, trains, judges the new adapter, and attaches it to the agents that need it.
 - **No monolithic model.** One base model (Nemotron 3 Nano 4B on vLLM) plus small, versioned LoRAs that each agent mixes with its own weights, hot-loaded live.
 
+## Run it yourself
+
+You need an NVIDIA GPU with 16 GB+ and Docker (Windows: WSL2 + Docker Desktop; Linux: Docker + NVIDIA Container Toolkit). From a WSL2 / Linux shell:
+
+```bash
+git clone https://github.com/Str0beLite/REMi && cd REMi
+cp .env.example .env    # SpacetimeDB URL, database and admin token
+scripts/remi doctor     # checks the prerequisites
+scripts/remi up         # starts the node in the background
+```
+
+Then open the console and chat with a REMi in `#general`. Details and troubleshooting: [node-setup.md](docs/node-setup.md).
+
 ## Docs
 
 Start with these, in [`docs/`](docs/):

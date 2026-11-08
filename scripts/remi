@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# remi doctor | up | down | status | logs   — run a REMi node in Docker (docs/node-setup.md)
+set -uo pipefail
+cd "$(dirname "$0")/.."
+dc() { docker compose "$@"; }
+
+doctor() {
+  local bad=0
+  ok()   { printf '  ok    %s\n' "$1"; }
+  fail() { printf '  FAIL  %s\n        fix: %s\n' "$1" "$2"; bad=1; }
+  command -v docker >/dev/null && ok "docker CLI" || fail "docker CLI" "install Docker Desktop (Windows: WSL2 backend) or Docker Engine (Linux)"
+  docker info >/dev/null 2>&1 && ok "docker daemon running" || fail "docker daemon" "start Docker Desktop, or: sudo systemctl start docker"
+  docker compose version >/dev/null 2>&1 && ok "docker compose v2" || fail "docker compose" "update Docker (compose v2 ships with it)"
+  if docker run --rm --gpus all ubuntu:24.04 nvidia-smi -L >/tmp/remi-gpu.txt 2>&1; then ok "GPU in containers: $(head -1 /tmp/remi-gpu.txt)"
+  else fail "GPU in containers" "install the NVIDIA driver; Linux: also the NVIDIA Container Toolkit (docs/node-setup.md)"; fi
+  if [ ! -f .env ]; then fail ".env" "cp .env.example .env and fill it in"
+  elif ! grep -q '^STDB_TOKEN=.\+' .env; then fail "STDB_TOKEN in .env" "spacetime login show --token (an admin identity)"
+  else ok ".env"; fi
+  return $bad
+}
+
+case "${1:-}" in
+  doctor) doctor ;;
+  up)     doctor && dc up -d --build && echo "Starting. vLLM takes a few minutes the first time (model download): scripts/remi status" ;;
+  down)   dc down ;;
+  status) dc ps
+          dc exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
+            || echo "node: not running" ;;
+  logs)   dc logs -f --tail 100 node ;;
+  *)      echo "usage: scripts/remi doctor | up | down | status | logs" >&2; exit 2 ;;
+esac

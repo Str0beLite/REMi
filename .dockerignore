@@ -1,0 +1,5 @@
+# The node image only needs these (backend/runtime/Dockerfile)
+*
+!contract
+!backend/runtime/remi
+**/__pycache__
