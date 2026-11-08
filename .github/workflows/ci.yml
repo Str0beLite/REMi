@@ -47,7 +47,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-        with: { python-version: '3.12' }
+        # Pinned: without a version it asks the GitHub API for "latest", which 504'd on 3 of 5 runs on 2026-11-08.
+        with: { python-version: '3.12', version: '0.13.4' }
       - run: uv sync --locked --extra cpu   # CPU torch + trainer stack for the trainer tests
       - run: uv run pytest
 
