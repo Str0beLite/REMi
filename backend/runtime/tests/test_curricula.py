@@ -1,4 +1,5 @@
 """The Sleep REMi curricula: valid rows, real grammar, the agent's own tools, held-out disjoint from training."""
+import dataclasses
 import json
 
 from remi import contract as C
@@ -35,6 +36,24 @@ def test_curricula_are_valid_parseable_and_held_out(tmp_path):
     held = {json.dumps(json.loads(ln)["messages"][:2]) for n in ("tooluse-held", "sleepops-held")
             for ln in (tmp_path / f"{n}.jsonl").read_text(encoding="utf-8").splitlines()}
     assert not train & held
+
+
+def test_live_agents_never_get_a_tool_their_prompt_lacks(tmp_path, monkeypatch):
+    """train_all mixes in the workspace's own REMis; one without /sh must never be shown calling /sh."""
+    monkeypatch.setattr(curricula, "LIVE", [("boss-remi coordinates tasks.", ["say", "note", "agents"]),
+                                            ("code-remi writes code.", ["sh", "say", "note"])])
+    # the live Sleep REMi also has /sh: its "no /sh" variant must drop it
+    monkeypatch.setattr(curricula, "SLEEP", dataclasses.replace(curricula.SLEEP, tools=(*curricula.SLEEP.tools, "sh", "fetch")))
+    curricula.write(tmp_path)
+    for name in ("tooluse", "tooluse-held"):
+        for line in (tmp_path / f"{name}.jsonl").read_text(encoding="utf-8").splitlines():
+            msgs = json.loads(line)["messages"]
+            listed = {t for t, doc in curricula.loop.BUILTIN_DOCS.items() if "\n" + doc in msgs[0]["content"]}
+            for m in msgs:
+                if m["role"] == "assistant" and m.get("train", True) and m["content"].startswith("/"):
+                    assert grammar.parse(m["content"]).name in listed, (m["content"], listed)
+                if m["role"] == "assistant" and "I don't have /sh" in m["content"]:
+                    assert "sh" not in listed
 
 
 def test_sleep_prompt_is_the_fixture_purpose_the_runtime_renders():

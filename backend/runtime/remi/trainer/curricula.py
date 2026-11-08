@@ -29,6 +29,7 @@ from remi.sleep import tools as sleep_tools  # registers Sleep REMi's tool docs 
 
 FIX = C.REPO_ROOT / "fixtures" / "agentfiles"
 SLEEP = C.load_agentfile((FIX / "sleep-remi.yaml").read_text(encoding="utf-8"))
+LIVE: list[tuple[str, list[str]]] = []  # (purpose, tools) of the workspace's own REMis; train_all fills it from the DB
 HOMELAB_PURPOSE = "You help users debug their home lab. Be brief. Use /sh to check before you answer."
 BASE = C.BASE_MODEL
 
@@ -95,19 +96,24 @@ def _free(r: random.Random) -> tuple[str, str, str, str]:
     return f"{total}G", f"{used}G", f"{avail}G", out
 
 
-def agent_for(r: random.Random, held: int, need: str | None = None) -> tuple[str, str, list[str]]:
-    """(name, purpose, tools): the purposes REMis really run with, and tool sets with and without what's needed."""
+def agent_for(r: random.Random, held: int, need: str | None = "sh") -> tuple[str, str, list[str]]:
+    """(name, purpose, tools): the purposes REMis really run with. `need` is the tool the example uses: an agent that
+    has it is picked when one does, else it's added, so no example calls a tool its prompt doesn't list."""
     name = r.choice(POOLS["agent"][held])
     choices = [
         (HOMELAB_PURPOSE, ["sh", "fetch", "say", "note"]),
         (f"You are {name}. You help run a small homelab. Answer briefly in plain text.", ["sh", "say", "note"]),
         (C.load_agentfile((FIX / "incident-remi.yaml").read_text(encoding="utf-8")).purpose, ["sh", "say", "note", "read"]),
         (f"You are {name}, a helpful REMi for the team. Be brief.", ["sh", "fetch", "say", "note", "think"]),
+        *[(p, list(t)) for p, t in LIVE],  # the prompts the adapter will really serve under
     ]
+    if need and need != "no-sh":
+        choices = [c for c in choices if need in c[1]] or choices
     purpose, tools = r.choice(choices)
+    tools = [t for t in tools if t in loop.BUILTIN_DOCS]  # registry:/mcp: tools render from the DB, not from here
     if need == "no-sh":
         purpose, tools = r.choice([(f"You are {name}. You help run a small homelab. Answer briefly in plain text.",
-                                    ["say", "note"]), (SLEEP.purpose, list(SLEEP.tools))])
+                                    ["say", "note"]), (SLEEP.purpose, [t for t in SLEEP.tools if t != "sh"])])
     elif need and need not in tools:
         tools = tools + [need]
     return name, purpose, tools
@@ -543,11 +549,18 @@ def train_all(seed: int = 0) -> dict:
 
         def start(self) -> None: ...
 
+    global SLEEP
     store = C.REMI_STORE
-    counts = write(store / "datasets", seed)
     node = Node.from_env(store)
     node.register()
     db = node.db
+    # Train under the prompts these REMis really run with: the live Sleep REMi Agentfile, and every REMi's purpose and
+    # tools for the default tool-use adapter.
+    agents = db.sql("SELECT * FROM agent")
+    live = {a["name"]: C.load_agentfile(a["agentfile"]) for a in agents}
+    SLEEP = live.get("sleep-remi", SLEEP)
+    LIVE[:] = [(af.purpose, list(af.tools)) for af in live.values()]
+    counts = write(store / "datasets", seed)
     for name, n in counts.items():
         path = store / "datasets" / f"{name}.jsonl"
         db.call("register_dataset", name, node.id, n, hashlib.sha256(path.read_bytes()).hexdigest(), DESCRIPTIONS[name],
