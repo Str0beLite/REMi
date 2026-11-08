@@ -241,3 +241,17 @@ def test_dataset_fetch_keeps_chat_rows_and_registers(ctx, tmp_path, monkeypatch)
     monkeypatch.undo()
     monkeypatch.setattr(C, "REMI_STORE", tmp_path)
     assert "the source is hf:" in do(ctx, "/dataset fetch x ftp://nope")[1]
+
+
+def test_dataset_fetch_turns_prompt_answer_pairs_into_one_turn_chats(ctx, tmp_path, monkeypatch):
+    """#97: most Hub sets are instruction/response or question/answer; the first matching non-empty columns win."""
+    rows = [{"flags": "B", "instruction": "cancel my order", "category": "ORDER", "response": "I can help with that."},
+            {"question": "Do you ship abroad?", "answer": "Yes, to 40 countries."},
+            {"prompt": "", "input": "2+2?", "output": "4"},
+            {"question": "only a question"},  # no answer: skipped
+            {"subject": "help", "body": "it broke"}]  # neither: skipped
+    monkeypatch.setattr(tools, "_source_rows", lambda source: iter(rows))
+    assert do(ctx, "/dataset fetch support hf:org/support")[1] == "fetched 3 examples from hf:org/support into support (2 rows skipped)"
+    lines = [json.loads(ln)["messages"] for ln in (tmp_path / "datasets/support.jsonl").read_text().splitlines()]
+    assert lines[0] == [{"role": "user", "content": "cancel my order"}, {"role": "assistant", "content": "I can help with that."}]
+    assert lines[2] == [{"role": "user", "content": "2+2?"}, {"role": "assistant", "content": "4"}]

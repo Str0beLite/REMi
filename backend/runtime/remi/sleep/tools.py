@@ -31,6 +31,8 @@ DOCS = {
 }
 READ_DEFAULT, READ_MAX, SHOW_DEFAULT, EVAL_MAX = 50, 200, 5, 100
 FETCH_DEFAULT, FETCH_MAX = 200, 2000
+PAIR_PROMPT = ("instruction", "question", "prompt", "input")
+PAIR_ANSWER = ("response", "answer", "output", "completion")
 SHAREGPT_ROLES = {"system": "system", "human": "user", "user": "user", "gpt": "assistant", "assistant": "assistant"}
 FENCE_OPEN = re.compile(r"^\s*```\s*(jsonl|json)?\s*$", re.I)
 FENCE_CLOSE = re.compile(r"^\s*```\s*$")
@@ -172,8 +174,12 @@ def _as_messages(row: dict) -> dict | None:
     elif isinstance(row.get("conversations"), list):
         msgs = [{"role": SHAREGPT_ROLES.get(m.get("from")), "content": m.get("value")}
                 for m in row["conversations"] if isinstance(m, dict)]
-    else:
-        return None
+    else:  # a single-turn pair (#97): most Hub sets are instruction/response or question/answer, not chat
+        ask = next((row[k] for k in PAIR_PROMPT if isinstance(row.get(k), str) and row[k].strip()), None)
+        say = next((row[k] for k in PAIR_ANSWER if isinstance(row.get(k), str) and row[k].strip()), None)
+        if ask is None or say is None:
+            return None
+        msgs = [{"role": "user", "content": ask}, {"role": "assistant", "content": say}]
     out = {"messages": msgs}
     return None if cycle._bad_example(json.dumps(out)) else out
 
@@ -235,7 +241,8 @@ def dataset(ctx, args: str, block: str | None) -> str:
             if len(kept) >= want or skipped >= 5 * want:  # a source in some other shape: stop scanning early
                 break
         if not kept:
-            raise Usage(f"no chat examples in {source} ({skipped} rows skipped): it needs `messages` or `conversations`")
+            raise Usage(f"no chat examples in {source} ({skipped} rows skipped): it needs `messages`, `conversations` "
+                        "or a prompt/answer column pair")
         path(name).parent.mkdir(parents=True, exist_ok=True)
         path(name).write_text("".join(json.dumps(e) + "\n" for e in kept), encoding="utf-8")
         ctx.db.call("register_dataset", name, ctx.agent["node_id"], len(kept), _sha256(path(name)), f"from {source}",

@@ -464,7 +464,8 @@ SLEEPOPS = [s_train, s_train, s_train, s_train_unnamed, s_train_unnamed, s_refus
 # /dataset fetch. The URLs and response shapes are the real ones (checked 2026-11-08); repo names are made up.
 # The rules, so every decision has one right answer:
 #   search -> skip gated -> /splits: needs config "default" and a split with "train" in it (/dataset fetch can't pick a
-#   config) -> /first-rows: needs a `messages` or `conversations` column -> /dataset fetch -> /dataset show --n 2 -> report.
+#   config) -> /first-rows: needs a `messages` or `conversations` column, or a prompt/answer pair like instruction +
+#   response (#97) -> /dataset fetch (if it keeps nothing, next candidate) -> /dataset show --n 2 -> report.
 HUB_SEARCH = "https://huggingface.co/api/datasets?search={q}&limit=5&sort=downloads&expand[]=gated&expand[]=downloads&expand[]=tags"
 HUB_SPLITS = "https://datasets-server.huggingface.co/splits?dataset={id}"
 HUB_ROWS = "https://datasets-server.huggingface.co/first-rows?dataset={id}&config=default&split={split}"
@@ -492,12 +493,16 @@ def _hub_hits(r, held, words, good_at: int | None):
         repo = _repo(r, held, words)
         while any(h["id"] == repo for h in hits):
             repo = _repo(r, held, words)
-        flaw = None if i == good_at else r.choice(["gated", "configs", "columns"]) if good_at is None or i < good_at else None
+        flaw = (None if i == good_at else r.choice(["gated", "configs", "columns", "columns", "rows"])
+                if good_at is None or i < good_at else None)
         lic = r.choice(LICENSES)
         hits.append({"id": repo, "gated": "auto" if flaw == "gated" else False, "downloads": 0, "lic": lic, "flaw": flaw,
                      "split": r.choice(["train", "train", "train_sft"]),
-                     "columns": r.choice([["prompt", "messages"], ["conversations"], ["messages"], ["id", "messages"]])
-                     if flaw != "columns" else r.choice([["system", "chat"], ["instruction", "output"], ["text"]])})
+                     # what the live Hub really has (2026-11-08): mostly pairs, some chat, many neither
+                     "columns": r.choice([["prompt", "messages"], ["conversations"], ["messages"], ["instruction", "response"],
+                                          ["flags", "instruction", "category", "response"], ["question", "answer"]])
+                     if flaw != "columns" else r.choice([["system", "chat"], ["text"], ["conversation", "tools"],
+                                                          ["subject", "body", "queue"], ["cleaned_text"]])})
     for h, d in zip(hits, sorted((r.randint(800, 90000) for _ in hits), reverse=True)):
         h["downloads"] = d
     return hits
@@ -526,7 +531,12 @@ def _rows_json(h) -> str:
 
 def _skip_reason(h) -> str:
     return {"gated": "gated (needs approval)", "configs": "split into named configs, no default",
-            "columns": f"columns {', '.join(h['columns'])}, not chat messages"}[h["flaw"]]
+            "columns": f"columns {', '.join(h['columns'])}: no chat messages and no prompt/answer pair",
+            "rows": "its rows aren't plain user/assistant turns"}[h["flaw"]]
+
+
+# what /dataset fetch says when nothing in a source is usable (remi.sleep.tools)
+NO_CHAT = "no chat examples in {src} ({n} rows skipped): it needs `messages`, `conversations` or a prompt/answer column pair"
 
 
 def _check_and_fetch(c: Conv, r, hits, name: str, n: int | None, start: int = 0) -> str | None:
@@ -546,8 +556,14 @@ def _check_and_fetch(c: Conv, r, hits, name: str, n: int | None, start: int = 0)
             skipped.append(f"{h['id']}: {_skip_reason(h)}")
             continue
         src = f"hf:{h['id']}" + ("" if h["split"] == "train" else f":{h['split']}")
+        fetch = f"/dataset fetch {name} {src}" + (f" --n {n}" if n else "")
+        if h["flaw"] == "rows":  # live: a messages column of tool-role turns; fetch keeps nothing, so try the next one
+            c.say(fetch).got("dataset", 2, f"error: {NO_CHAT.format(src=src, n=5 * (n or FETCH_N))}\n"
+                                           f"right form: {sleep_tools.DOCS['dataset']}")
+            skipped.append(f"{h['id']}: {_skip_reason(h)}")
+            continue
         got = r.choice([n or FETCH_N, (n or FETCH_N) - r.randint(1, 9)])
-        c.say(f"/dataset fetch {name} {src}" + (f" --n {n}" if n else "")).got(
+        c.say(fetch).got(
             "dataset", 0, f"fetched {got} examples from {src} into {name}" + ("" if got == (n or FETCH_N) else
                                                                               f" ({(n or FETCH_N) - got} rows skipped)"))
         example = json.dumps({"messages": [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]})
