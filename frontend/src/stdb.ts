@@ -23,10 +23,29 @@ function writeToken(token: string) {
   }
 }
 
+// A token signed by another server (the workspace was wiped or re-created on the same port) gets 401 forever and the
+// console hangs on "Connecting". Drop it only when the server says it's invalid, never on a plain network error.
+async function dropRejectedToken() {
+  const token = readToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${STDB_URI.replace(/^ws/, 'http')}/v1/identity/websocket-token`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status !== 401) return;
+    localStorage.removeItem(TOKEN_KEY);
+    location.reload();
+  } catch {
+    // Server unreachable: keep the token and let the reconnect retry.
+  }
+}
+
 export const connectionBuilder = () =>
   DbConnection.builder()
     .withUri(STDB_URI)
     .withDatabaseName(STDB_DB)
     .withToken(readToken())
     .withAutomaticReconnect()
-    .onConnect((_conn, _identity, token) => writeToken(token));
+    .onConnect((_conn, _identity, token) => writeToken(token))
+    .onConnectError(() => void dropRejectedToken());
