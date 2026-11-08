@@ -23,6 +23,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 - **Name + version keys** (`tool`, `adapter`): an extra unique string column `key` = `"<name>@<version>"`, since SpacetimeDB primary keys are single-column.
 - **Validation lives in reducers.** Every reducer validates its input and throws `SenderError("<reason>")` on bad input or missing permission. This is the trust boundary; clients may skip validation, the module may not.
 - **Callers.** A reducer call comes from a **user** (browser, identity in `user`) or a **node** (runtime, identity in `node.identity`). "admin" means `user.is_admin`. A node acts for any agent whose `agent.node_id` is that node.
+- **Identity hex** (user `member_id`, a user message's `author_id`, `help_request` meta `owner`, `config_history.changed_by`, `dataset.created_by`) is `Identity.toHexString()`: **64 lowercase hex characters, no `0x`**.
 
 ## 3. Tables
 
