@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agoLabel, cronError, minutesError, nodeHealth } from './configData';
+import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
 
 describe('cronError', () => {
   it.each(['0 3 * * *', '*/15 * * * *', '0 2-4 * * 1-5', '30 1,13 1 */2 0', '0 3 * * 7'])('accepts %s', e => {
@@ -39,5 +39,15 @@ describe('nodeHealth', () => {
   it('labels how long ago', () => {
     expect(agoLabel(now - 5_000_000n, now)).toBe('5s ago');
     expect(agoLabel(now - 90_000_000n, now)).toBe('1m ago');
+  });
+});
+
+describe('cronLabel', () => {
+  it('reads the common nightly shapes and gives up on fancier ones', () => {
+    expect(cronLabel('0 3 * * *')).toBe('03:00 every night');
+    expect(cronLabel('30 22 * * 1-5')).toBe('22:30 on weekdays');
+    expect(cronLabel('0 4 * * 0')).toBe('04:00 every Sunday');
+    expect(cronLabel('*/15 * * * *')).toBe('');
+    expect(cronLabel('nope')).toBe('');
   });
 });

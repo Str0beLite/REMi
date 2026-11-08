@@ -26,6 +26,11 @@
   font-size: var(--text-xs);
   color: var(--muted);
 }
+.setting-explain {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--ink);
+}
 .setting-row {
   display: flex;
   flex-wrap: wrap;
@@ -43,9 +48,12 @@
   min-width: 0;
   width: min(280px, 100%);
 }
+/* read-only for non-admins: drop the field chrome so it doesn't look editable */
 .setting-row input[readonly] {
-  background: var(--surface-2);
-  border-color: var(--line);
+  background: transparent;
+  border-color: transparent;
+  padding-left: 0;
+  cursor: default;
 }
 .setting-row input[aria-invalid='true'] {
   border-color: var(--danger);

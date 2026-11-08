@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
-import { agoLabel, cronError, minutesError, nodeHealth } from './configData';
+import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
 import './config.css';
 
 const nowMicros = () => BigInt(Date.now()) * 1000n;
@@ -15,6 +15,7 @@ function SettingField({
   validate,
   canEdit,
   inputMode,
+  explain,
 }: {
   id: string;
   label: string;
@@ -23,6 +24,7 @@ function SettingField({
   validate: (v: string) => string;
   canEdit: boolean;
   inputMode?: 'numeric';
+  explain?: (v: string) => string; // plain-words reading of the value, shown under the field
 }) {
   const setSetting = useReducer(reducers.setSetting);
   const [draft, setDraft] = useState(value);
@@ -85,6 +87,7 @@ function SettingField({
           {status === 'saved' && !dirty ? 'Saved' : ''}
         </span>
       </div>
+      {!error && explain?.(draft) && <p className="setting-explain">= {explain(draft)}</p>}
       {error && (
         <p className="form-error" id={`setting-${id}-err`}>
           {error}
@@ -218,6 +221,7 @@ export function ConfigPanel() {
           hint="Cron, in each node's local time. 0 3 * * * is 03:00 every night."
           value={value('sleep_cron')}
           validate={cronError}
+          explain={cronLabel}
           canEdit={isAdmin}
         />
         <SettingField

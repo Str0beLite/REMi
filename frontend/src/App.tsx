@@ -24,6 +24,14 @@ const PANELS: { id: PanelId; label: string }[] = [
 ];
 const OTHER_PANELS = { agents: AgentsPanel, tools: ToolsPanel, adapters: AdaptersPanel, sleep: SleepPanel, config: ConfigPanel };
 
+// The tab title carries the view and the unread count, since REMi sits in a background tab all day.
+function DocTitle({ text }: { text: string }) {
+  useEffect(() => {
+    document.title = text;
+  }, [text]);
+  return null;
+}
+
 export default function App() {
   const { isActive, identity } = useSpacetimeDB();
   const [users, usersReady] = useTable(tables.user);
@@ -160,5 +168,12 @@ export default function App() {
     </>
   );
 
-  return <AppShell rail={rail} main={main} swarm={swarm} title="REMi" />;
+  const totalUnread = [...publics, ...dms].reduce((n, c) => n + unread(c.id), 0);
+  const view = panel === 'chat' ? title : (PANELS.find(p => p.id === panel)?.label ?? '');
+  return (
+    <>
+      <DocTitle text={`${totalUnread ? `(${totalUnread}) ` : ''}${view ? `${view} · ` : ''}REMi`} />
+      <AppShell rail={rail} main={main} swarm={swarm} title="REMi" />
+    </>
+  );
 }

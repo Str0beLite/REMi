@@ -1,3 +1,5 @@
+import { cronLabel } from '../config/configData';
+import { RemiAvatar } from '../components/RemiAvatar';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
@@ -45,12 +47,18 @@ export function SleepPanel() {
   return (
     <div className="sleep-panel">
       <section className="sleep-status">
+        <RemiAvatar status={sleeping ? 'asleep' : 'idle'} headgear="nightcap" size={44} />
         <div>
           <h2>{s.phase ? (PHASE_LABEL[s.phase] ?? s.phase) : 'Awake'}</h2>
           <p>
             {when ? `Last event ${when}` : 'No sleep yet.'}
             {s.spec && <> · spec <code>{s.spec}</code></>}
-            {cron && <> · nightly at <code>{cron}</code></>}
+            {cron && (
+              <>
+                {' '}
+                · sleeps {cronLabel(cron) || <code>{cron}</code>}
+              </>
+            )}
           </p>
         </div>
         {isAdmin && (

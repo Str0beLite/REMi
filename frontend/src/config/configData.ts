@@ -26,6 +26,19 @@ export function cronError(expr: string): string {
   return '';
 }
 
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// Plain words for the common nightly shapes ("0 3 * * *" → "03:00 every night"); '' when it's anything fancier.
+export function cronLabel(expr: string): string {
+  const p = expr.trim().split(/\s+/);
+  if (p.length !== 5 || cronError(expr) || !/^\d+$/.test(p[0]) || !/^\d+$/.test(p[1]) || p[2] !== '*' || p[3] !== '*') return '';
+  const at = `${p[1].padStart(2, '0')}:${p[0].padStart(2, '0')}`;
+  if (p[4] === '*') return `${at} every night`;
+  if (p[4] === '1-5') return `${at} on weekdays`;
+  if (/^\d$/.test(p[4])) return `${at} every ${DAYS[Number(p[4])]}`;
+  return '';
+}
+
 export function minutesError(value: string): string {
   if (!/^\d+$/.test(value.trim())) return 'Enter whole minutes.';
   const n = Number(value);

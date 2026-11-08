@@ -205,7 +205,10 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
       >
         {messages.length === 0 && (
           <li className="chat-empty">
-            No messages in {title} yet. Say hello, or mention a REMi with <code>@name</code> to wake it.
+            <RemiAvatar status="idle" size={56} />
+            <p>
+              No messages in {title} yet. Say hello, or mention a REMi with <code>@name</code> to wake it.
+            </p>
           </li>
         )}
         {items.map((item, i) => {
