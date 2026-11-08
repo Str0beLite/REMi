@@ -2,7 +2,7 @@
 
 Every lane builds against this file. It turns [docs/master-plan.md](docs/master-plan.md) §5–§9 into exact names and types. When this file and the plan disagree, this file wins.
 
-**Changing it:** only through a `lane:contract` issue that a session Ryan runs commits to main and closes (see the `lane-tasks` skill). Lane work never edits this file, `contract/`, `backend/module/src/contract.ts` or `backend/runtime/remi/contract.py`.
+**Changing it:** only through a `lane:contract` issue, landed on main by a session Ryan runs or, when it blocks a lane, by the `contract-approver` subagent under Ryan's standing approval (2026-11-08; `.claude/agents/contract-approver.md`). See the `lane-tasks` skill. Lane work never edits this file, `contract/`, `backend/module/src/contract.ts` or `backend/runtime/remi/contract.py`.
 
 ## 1. Lanes and ownership
 
@@ -11,7 +11,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 | `lane:web` | `backend/module/` (except `src/contract.ts`), `frontend/` | TypeScript, npm |
 | `lane:core` | `backend/runtime/remi/` except the gpu paths below, `backend/sandbox/` | Python 3.12, uv |
 | `lane:gpu` | `backend/runtime/remi/serving/`, `backend/runtime/remi/sleep/`, `backend/runtime/remi/trainer/`, `backend/runtime/remi/mixer/`, `backend/runtime/store/` (gitignored data) | Python 3.12, uv, needs the 5070 Ti PC |
-| `lane:contract` | this file, `contract/`, `fixtures/`, `backend/module/src/contract.ts`, `backend/runtime/remi/contract.py`, `backend/runtime/remi/mocks/` | Ryan commits |
+| `lane:contract` | this file, `contract/`, `fixtures/`, `backend/module/src/contract.ts`, `backend/runtime/remi/contract.py`, `backend/runtime/remi/mocks/` | Ryan or contract-approver |
 
 ## 2. Conventions
 

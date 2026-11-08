@@ -83,7 +83,11 @@ Go back to **1. Pick**. If CI on main goes red after your push, fixing it comes 
 
 ## 5. Wait
 
-Nothing in the lane is unblocked. Take the first blocker `next_issue.py` printed and wait on it **as a background command** (no tokens spent while waiting):
+Nothing in the lane is unblocked. Take the first blocker `next_issue.py` printed.
+
+**If it's a `lane:contract` issue** (`gh issue view <blocker> --json labels`), don't wait: start the `contract-approver` subagent on it (Agent tool, `subagent_type: contract-approver`, prompt `Land lane:contract issue #<blocker>`). Wait for its report. Ryan gave it standing approval (2026-11-08) to land contract changes that are exact and additive. When it reports a sha, `git fetch origin` and go to **1. Pick**. When it hands the issue to Ryan (`needs:ryan`), tell the user why, then wait as below.
+
+Otherwise, or after a `needs:ryan` handoff, wait on it **as a background command** (no tokens spent while waiting):
 
 ```bash
 bash $S/wait_for_issue.sh <blocker>
@@ -93,11 +97,12 @@ It polls every 5 minutes and exits 0 when the issue is closed as completed, 1 if
 
 ## 6. Contract problems
 
-The contract changes only through a `lane:contract` issue that Ryan resolves. Only a session Ryan runs commits contract files to main and closes that issue; lane agents never do:
+The contract changes only through a `lane:contract` issue. Either a session Ryan runs lands it, or the `contract-approver` subagent does under Ryan's standing approval. Lane agents never edit contract files themselves:
 
 1. Open the issue with the `lane-tasks` skill format, label `lane:contract`, describing the exact change (field, type, reducer signature) and why.
 2. Add its number to your issue's `## Blocked by`, label your issue `status:blocked`, remove `status:in-progress`, and comment the reason.
 3. Push your work-in-progress to a branch (`git push -u origin HEAD` on `lane/N-<slug>`, never main) so it isn't lost, and go back to **1. Pick**.
+4. If nothing else in the lane is unblocked, **5. Wait** starts the `contract-approver` on it.
 
 ## Rules
 

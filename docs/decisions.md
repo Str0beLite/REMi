@@ -38,3 +38,4 @@ One line each: date, decision, why.
 - 2026-11-08: CI installs a `cpu` extra (CPU-only torch from the PyTorch CPU index + transformers/peft/trl/datasets) so the trainer's CPU test runs in CI; `cpu` and `gpu` extras conflict (#24).
 - 2026-11-08: Adapter mixes are merged straight from the LoRA files (stack A/B with weights and scales folded in = PEFT `cat`, exact; past rank 64 an exact low-rank SVD cuts back to 64), so no base model is loaded and a mix change takes under a second (#25).
 - 2026-11-08: Agent turns run at temperature 0 and end a run after the same failure twice; new built-in `/think` makes one thinking-on call (temperature 0.6) on the agent's own adapter mix, so adapters can shape reasoning (CoT training: #61).
+- Contract issues that block a lane are landed by the contract-approver subagent (.claude/agents/contract-approver.md) under Ryan's standing approval (2026-11-08); only exact, additive changes, anything else gets needs:ryan.
