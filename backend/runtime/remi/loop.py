@@ -59,6 +59,18 @@ def cap(text: str, limit: int = C.TOOL_OUTPUT_CAP) -> str:
     return text if len(text) <= limit else text[: limit - len(TRUNCATED)] + TRUNCATED
 
 
+def alert_line(m: dict) -> str:
+    """An `incident` message as the agent reads it (CONTRACT §6 meta); the summary carries the numbers, e.g.
+    ALERT [critical] gpu-watch:gpu_temp on pc: GPU 0 at 92 °C (threshold 85 °C)"""
+    try:
+        meta = json.loads(m.get("meta") or "{}")
+    except ValueError:
+        meta = {}
+    meta = meta if isinstance(meta, dict) else {}
+    where = f" on {meta['host']}" if meta.get("host") else ""
+    return f"ALERT [{meta.get('severity', '?')}] {meta.get('key', 'unknown')}{where}: {m['body']}"
+
+
 def command_line(cmd: Command) -> str:
     parts = [f"/{cmd.name}", cmd.target or "", cmd.args]
     return " ".join(p for p in parts if p)
@@ -227,6 +239,8 @@ class Loop:
                 meta = json.loads(m["meta"] or "{}")
                 return {"role": "user", "content": f"[{meta.get('command')} exit {meta.get('exit_code')}]\n{m['body']}"}
             return {"role": "assistant", "content": m["body"]}
+        if m["kind"] == "incident":
+            return {"role": "user", "content": alert_line(m)}
         if m["author_kind"] == "user":
             who = users.get(identity_hex(m["author_id"]), "user")
         else:

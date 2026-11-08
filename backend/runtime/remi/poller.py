@@ -42,6 +42,8 @@ def wakes(msg: dict, agent_id: int, agent_name: str, triggers: tuple[str, ...], 
         return False
     if "sleep_event" in triggers and msg["kind"] == "sleep_event" and _meta(msg).get("phase") == "night":
         return True
+    if "incident" in triggers and msg["kind"] == "incident":  # any severity, resolved included
+        return True
     if "mention" in triggers and mentions(msg["body"], agent_name):
         return True
     if "dm" in triggers and channel_kind == "dm":
