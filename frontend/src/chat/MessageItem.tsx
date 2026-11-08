@@ -3,6 +3,8 @@ import { RemiAvatar } from '../components/RemiAvatar';
 import { defaultLook, type AgentStatus } from '../components/remiLook';
 import type { Message } from '../module_bindings/types';
 import { timeLabel, type Author } from './model';
+import { ToolCard } from './cards/ToolCard';
+import { toolKeyOf } from '../tools/toolView';
 
 const initials = (name: string) =>
   name
@@ -52,7 +54,11 @@ function Body({ m }: { m: Message }) {
       </details>
     );
   }
-  // tool_card / adapter_event / sleep_event get their rich cards in #13 and #14.
+  if (m.kind === 'tool_card') {
+    const key = toolKeyOf(m.meta);
+    if (key) return <ToolCard toolKey={key} fallback={m.body} />;
+  }
+  // adapter_event / sleep_event get their rich cards in #14.
   return (
     <div className="msg-card">
       <span className="msg-card-kind">{CARD_LABEL[m.kind] ?? m.kind}</span>
