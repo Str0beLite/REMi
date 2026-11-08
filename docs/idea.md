@@ -14,6 +14,8 @@
 
 **Stretch (only if time):** incidents API + sandboxes + chaos button; laptop as a 2nd node; global LoRA library on HF; Discord/Telegram bridges.
 
-**Out of scope:** OpenClaw itself, native function calling, multiple base models, real auth.
+**Swarm (designed, master-plan §15):** many REMis per machine; more PCs join the swarm and each REMi is pinned to one; each machine serves one selectable Nemotron version.
+
+**Out of scope:** OpenClaw itself, native function calling, more than one base model per machine, real auth.
 
 **Hackathon track / prizes targeted:**

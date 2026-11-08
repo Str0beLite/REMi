@@ -26,3 +26,7 @@ One line each: date, decision, why.
 - 2026-11-07: Simar's "Memories and Knowledge Connectors" doc is read with incidents = ordinary user chats; the core doesn't change. Episode cards, playbooks, retrieval/embeddings, system map, log baselines, knowledge connectors, remi-shell and the voice note are out of scope.
 - 2026-11-07: Memory is strictly per agent (/note). Sharing is always a message (DM, channel, or a new channel via /channel new) or the shared file workspace; there's no shared memory pool.
 - 2026-11-07: The prompt has a hard token budget (setting context_tokens, ~4k) filled by recency: purpose + tools, newest notes (~400 tokens), then recent messages. A 4B model does badly with long, noisy context.
+- 2026-11-07: Multi-PC swarm keeps the term "node" (one PC = one runtime + one vLLM); many agents per node, each pinned by `agent.node_id`, re-pinned with `move_agent`. Sleep is per node, so other PCs stay awake.
+- 2026-11-07: An agent's Nemotron version is an Agentfile `base` field from a fixed `BASE_MODELS` list (BF16 nemotron_h only); it must equal its node's base, so adapter.base = agent base = node base.
+- 2026-11-07: Adapters attach only on the node that trained them (files are local); agents with adapters can't move. Relaxed with the LoRA library (extension 3).
+- 2026-11-07: New PCs join with an admin-set `node_join_code` passed to `register_node`; this settles the node half of the admin-bootstrap question.

@@ -7,7 +7,8 @@ REMi is an OpenClaw-style agent system that runs on a gaming PC.
 - **Every agent is "a REMi".** Users create as many as they want, each with its own purpose, channels, tools and adapter mix.
 - **Agents and humans talk in Slack-like channels** that live in SpacetimeDB.
 - **One built-in agent, Sleep REMi,** runs the "REM sleep" cycle each night. It decides whether anything needs improving: memories, `.md` docs, or a LoRA. If a LoRA does, it builds the dataset and training spec itself, calls `/sleep`, and when it wakes it judges the candidate adapter and attaches it to whichever REMis it sees fit.
-- **No monolithic model.** There is one base model (Nemotron 3 Nano 4B), plus small named, versioned LoRAs that each REMi mixes with its own weights.
+- **No monolithic model.** Each node serves one base model (default Nemotron 3 Nano 4B; the Nemotron version is selectable, §15), plus small named, versioned LoRAs that each REMi mixes with its own weights.
+- **A swarm can span several PCs.** Each PC is a node; many REMis run on one node, and each REMi is pinned to one node (§15).
 
 **One-line pitch:** agents that sleep on it. They learn from their day overnight, on your own GPU.
 
@@ -22,11 +23,11 @@ REMi is an OpenClaw-style agent system that runs on a gaming PC.
 
 **Extensions, in priority order, only after the core demos:**
 1. **Incidents:** a `report_incident` reducer as an external API, a `#incidents` channel, the pilot's sandboxes + injector + a chaos button, and a `/take` driver with `/handoff`.
-2. **Second node:** the 3060 laptop runs its own REMis and verifies adapters on its own stack (pilot.md's trusted/disputed rule).
+2. **Second node:** the 3060 laptop runs its own REMis and verifies adapters on its own stack (pilot.md's trusted/disputed rule). The node model it needs (join, pinning, per-node sleep) is designed in §15.
 3. **Global LoRA library:** adapters shared through a private HF Hub repo, with SpacetimeDB storing repo, revision, sha256 and size. Sleep REMi can pull a library LoRA instead of training, or improve one.
 4. **External channels:** Discord/Telegram bridges.
 
-**Out of scope:** OpenClaw itself, native function calling, multiple base models, auth beyond nickname + admin.
+**Out of scope:** OpenClaw itself, native function calling, more than one base model on a single node, moving adapter files between nodes (until extension 3), auth beyond nickname + admin.
 
 ## 3. Architecture
 ```
@@ -93,6 +94,7 @@ channels: [general, homelab]
 triggers: [mention, dm]         # mention | dm | every_message | incident (ext. 1)
 tools: [sh, fetch, say, note, propose_tool, "registry:*"]   # allowlist; registry:<name> per tool
 budget: {turns: 12, minutes: 10}
+base: nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16   # optional; one of BASE_MODELS, must match the node (§15)
 adapters:                       # weighted mix; [] = base model
   - {name: sre, version: 3, weight: 1.0}
   - {name: tone-brief, version: 1, weight: 0.3}
@@ -214,7 +216,7 @@ The trainer applies the same chat template (thinking off) that vLLM serves, and 
 | `add_weighted_adapter` across ranks / hybrid model | W3 unit test on two tiny adapters | require equal ranks and use `linear` |
 | A 4B is weak as a general assistant | M1 | keep purposes narrow; move to Nano 9B FP8 (fits 16GB, pilot LoRA doesn't transfer) |
 | Maincloud free-tier auto-pause; polling cost | W1 | we have credits, so use a paid DB; wake it before the demo |
-| Training stops all agents (one GPU) | by design ("asleep") | extension 2: the laptop keeps a REMi awake |
+| Training stops all agents (one GPU) | by design ("asleep"), but only on the training node (§15) | a second node keeps its REMis awake |
 
 ## 14. Still open (decide during the build)
 - The exact Super/frontier role, if any (none in the core).
@@ -222,3 +224,47 @@ The trainer applies the same chat template (thinking off) that vLLM serves, and 
 - Admin identity bootstrap: the first visitor, or a token in `.env` (default: `ADMIN_TOKEN` in the runtime `.env` and a one-time claim in the UI).
 - **Shared file workspace (`/file`), cross-lane, deferred.** Where files live: a text-only `file` table in SpacetimeDB (works across nodes, and the UI gets a live file viewer), real files on one node's disk mounted at `/workspace`, or both. Also the `/file ls|read|write` grammar, size cap and write conflicts. Needs a `lane:contract` issue.
 - **`/channel new` membership, cross-lane, deferred.** Today membership comes from each Agentfile's `channels` (re-synced on update), and `join` only lets an agent's own node add it, so one REMi can't add a REMi on another PC. Options: a `create_shared_channel` reducer that appends the channel to each invitee's Agentfile (one source of truth, logged in `config_history`), or plain `member` rows with an add-only re-sync. Also whether protected agents (Sleep REMi) can be invited. Needs a `lane:contract` issue.
+
+## 15. Swarm: nodes, pinned agents, Nemotron version (design, 2026-11-07)
+Agreed with Ryan, so it is in the docs only for now. The contract (`CONTRACT.md`, `contract/`) and code follow later through a `lane:contract` issue and lane tasks.
+
+**Terms.** A **node** is one machine running one REMi runtime and one vLLM server: a PC, a laptop, or a rented box. A **swarm** is every node attached to the same SpacetimeDB database. We keep the word "node", which the code already uses, rather than "endpoint".
+
+**Many agents per node.** This already works: the runtime runs one asyncio worker per `agent` row whose `node_id` is its own node, and all of them share that node's vLLM (one LoRA slot per distinct mix).
+
+**Adding a PC to the swarm.**
+- An admin sets a join code in the console (setting `node_join_code`; empty = joining is off).
+- On the new PC, `remi up` runs with `REMI_JOIN_CODE`, a node name, its GPU and its base model, and calls `register_node(name, gpu, base_model, join_code)`. Admins may register without a code.
+- This settles the node half of the admin-bootstrap question (§14). The first-admin half is still open.
+
+**Pinning agents to a machine.**
+- Every agent is pinned to exactly one node (`agent.node_id`), chosen when it is created. Only that node runs it.
+- `move_agent(agent_id, node_id)` re-pins it (owner or admin; protected agents admin only). It is refused while the agent is `thinking`, when the target node runs a different base, or while the agent has adapters attached. The move is logged in `#ops` and `config_history`. The old node's runtime drops the worker on its next poll, and the new node starts one. Memory and todos live in SpacetimeDB, so they move with the agent. The sandbox does not move.
+- The console gets a Nodes view (machines, status, GPU, base, their agents, the join code) and a Move button on each agent.
+
+**Choosing the Nemotron version.**
+- The module and runtime share a fixed list, `BASE_MODELS` (HF id + UI label). Every entry is a BF16 `nemotron_h` text model, so the trainer can train LoRAs on it:
+  - `nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16`: Nemotron 3 Nano 4B (default; fits the 5070 Ti)
+  - `nvidia/NVIDIA-Nemotron-Nano-9B-v2`: Nemotron Nano 9B v2
+  - `nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16`: Nemotron 3 Nano 30B-A3B (a bigger box)
+- A node picks its base at `remi up`, and vLLM serves only that one model.
+- An agent's model config is the optional Agentfile field `base`. If it is omitted, the agent's node fills it in on creation, so every stored Agentfile names its base. In the editor, picking a version filters the node list to machines that run it.
+- To run an agent on another version, move it to a node that serves that version. Changing `base` is refused while adapters are attached.
+
+**How this keeps "adapters only attach to matching bases".**
+- The rule becomes one chain: `adapter.base` = agent `base` = node `base_model`. `register_adapter`, `attach_adapter`, `create_agent`, `update_agentfile` and `move_agent` each check their link of that chain.
+- Adapter files stay on the disk of the node that trained them, so an adapter attaches only to agents on that same node. An agent with adapters can't move until they are detached. Extension 3 (the LoRA library) lifts this by moving files between nodes.
+
+**Sleep is per node.**
+- `/sleep` puts only the training node's agents to sleep and stops only that node's vLLM. Agents on other nodes keep chatting.
+- A train spec's `base` must equal the training node's base (a runtime guardrail).
+- Sleep REMi judges and attaches adapters for agents on its own node. A second node that wants to train needs its own Sleep REMi; that is extension 2.
+
+**Contract changes needed later** (one `lane:contract` issue):
+- `BASE_MODELS`
+- Agentfile `base`
+- setting `node_join_code`
+- a `join_code` argument for `register_node`
+- the new reducer `move_agent`
+- a same-node check on `attach_adapter`
+- per-node sleep in §10
