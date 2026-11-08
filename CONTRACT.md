@@ -37,6 +37,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `agent` | id: u64 **pk autoInc**, name: string **unique**, agentfile: string (YAML), status: string, node_id: u64, owner: Identity, protected: bool | status ∈ `AGENT_STATUSES` = idle, thinking, asleep, stopped. name = Agentfile `name` |
 | `run` | id: u64 **pk autoInc**, agent_id: u64 **index**, channel_id: u64, trigger_msg_id: u64, turns: u32, started: Timestamp, state: string | state ∈ `RUN_STATES` = running, done, stopped, budget |
 | `tool` | id: u64 **pk autoInc**, key: string **unique**, name: string, version: u32, code: string, docs: string, status: string, author_agent: u64, dry_run: string (JSON), reviewer: Identity?, review_note: string, ts | status ∈ `TOOL_STATUSES` = pending, approved, rejected. name `[a-z][a-z0-9_]{1,31}`, not a built-in command |
+| `agent_proposal` | id: u64 **pk autoInc**, agentfile: string (YAML), node_id: u64, author_agent: u64, reason: string, status: string, reviewer: Identity?, review_note: string, agent_id: u64 (0 until approved), ts | status ∈ `PROPOSAL_STATUSES` = pending, approved, rejected |
 | `memory` | id: u64 **pk autoInc**, agent_id: u64 **index**, text: string, ts | text ≤ 2 000 chars |
 | `todo` | id: u64 **pk autoInc**, agent_id: u64 **index**, text: string, status: string, ts | status ∈ open, done |
 | `dataset` | name: string **pk**, node_id: u64, n_examples: u32, sha256: string, description: string, created_by: string, ts | name `[a-z0-9-]{1,48}`; created_by is an agent id or identity hex |
@@ -64,6 +65,8 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `rollback_agent` | agent_id: u64, history_id: u64 | admin | restores that `config_history` Agentfile (and logs a new history row) |
 | `propose_tool` | name: string, code: string, docs: string, author_agent: u64, dry_run: string | node of that agent | new `tool`, version = last + 1, status pending; posts a `tool_card` message in the proposing channel is the runtime's job |
 | `review_tool` | key: string, approve: bool, note: string | admin | status approved/rejected, reviewer, review_note |
+| `propose_agent` | agentfile: string, author_agent: u64, reason: string | node of that agent | parses + validates the Agentfile (§5); the name must not belong to an agent or a pending proposal. **Guardrails:** its `tools` ⊆ the author's tools, with no Sleep REMi commands; `adapters` must be `[]`. New `agent_proposal`, node_id = the author's node, status pending; posting an `agent_card` message in the proposing channel is the runtime's job |
+| `review_agent` | id: u64, approve: bool, note: string | admin | pending only; status approved/rejected, reviewer, review_note. Approve also creates the agent exactly like `create_agent` (owner = the reviewer, node = the proposal's node_id, `protected` false) and stores agent_id |
 | `add_memory` | agent_id: u64, text: string | its node, or admin (Sleep REMi's `/memory edit` goes through its node) | |
 | `edit_memory` | memory_id: u64, text: string | node of any agent, admin | used by Sleep REMi |
 | `todo_add` | agent_id: u64, text: string | its node | |
@@ -103,6 +106,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `tool_result` | agent | output, ≤ 4 000 chars, truncated with `…[truncated]` | `{"run_id": n, "command": "sh", "exit_code": n, "ms": n}` |
 | `help_request` | agent | what it needs | `{"run_id": n, "family": "string", "owner": "<identity hex>"}` |
 | `tool_card` | agent | one-line summary | `{"key": "name@v"}` (the UI reads the `tool` row) |
+| `agent_card` | agent | one-line summary | `{"proposal_id": n}` (the UI reads the `agent_proposal` row) |
 | `adapter_event` | agent, system | one line | `{"key": "name@v", "event": "registered"\|"adopted"\|"rejected"\|"attached"\|"detached", "agent_id"?: n, "weight"?: x}` |
 | `sleep_event` | system, agent | one line | `{"phase": "night"\|"asleep"\|"training"\|"wake"\|"report", "spec"?: "name", "step"?: n, "loss"?: x, "minutes"?: x}` |
 | `system` | system | one line | `{}` |
@@ -119,6 +123,7 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /say <#channel|@agent|@nickname> <text>
 /note <text>
 /propose_tool <name>                 followed by a ```python fenced block (the tool's code); docs = the block's leading docstring
+/propose_agent <reason>              followed by a ```yaml fenced block (the Agentfile)
 /think <question>                    one extra call with thinking on (temperature 0.6, the agent's own adapters); returns the conclusion, capped at 4 000 chars
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```

@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from remi import contract as C
 
-TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "memory",
+TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "agent_proposal", "memory",
           "todo", "dataset", "adapter", "config_history", "setting")
 SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*>\s*(\d+))?\s*;?\s*$", re.I)
 PUBLIC_NAME = re.compile(r"^[a-z0-9-]{1,32}$")
@@ -158,6 +158,9 @@ class MockDB:
                                 "kind": kind, "body": body, "meta": meta, "ts": now()})
 
     def create_agent(self, caller, agentfile, node_id):
+        self._create_agent(caller, agentfile, node_id)
+
+    def _create_agent(self, caller, agentfile, node_id) -> dict:
         if not self.user(caller):
             raise SenderError("set a nickname first")
         try:
@@ -175,6 +178,39 @@ class MockDB:
             c = self.one("channel", name=ch, kind="public")
             if c and not self.one("member", channel_id=c["id"], member_kind="agent", member_id=str(a["id"])):
                 self.insert("member", {"channel_id": c["id"], "member_kind": "agent", "member_id": str(a["id"])})
+        return a
+
+    def propose_agent(self, caller, agentfile, author_agent, reason):
+        author = self.require_agent_node(caller, author_agent)
+        try:
+            af = C.load_agentfile(agentfile)
+        except C.ContractError as e:
+            raise SenderError(str(e)) from None
+        if self.one("agent", name=af.name) or any(
+                p["status"] == "pending" and C.load_agentfile(p["agentfile"]).name == af.name
+                for p in self.tables["agent_proposal"]):
+            raise SenderError(f"{af.name} is taken")
+        mine = set(C.load_agentfile(author["agentfile"]).tools)
+        if extra := [t for t in af.tools if t not in mine]:
+            raise SenderError(f"tools the author doesn't have: {', '.join(extra)}")
+        if sleep := [t for t in af.tools if t in C.SLEEP_TOOLS]:
+            raise SenderError(f"no Sleep REMi commands: {', '.join(sleep)}")
+        if af.adapters:
+            raise SenderError("adapters must be []")
+        self.insert("agent_proposal", {"agentfile": agentfile, "node_id": author["node_id"],
+                                       "author_agent": author_agent, "reason": reason, "status": "pending",
+                                       "reviewer": None, "review_note": "", "agent_id": 0, "ts": now()})
+
+    def review_agent(self, caller, id, approve, note):
+        self.require_admin(caller)
+        p = self.one("agent_proposal", id=id)
+        if not p:
+            raise SenderError("no such proposal")
+        if p["status"] != "pending":
+            raise SenderError("proposal is not pending")
+        if approve:
+            p["agent_id"] = self._create_agent(caller, p["agentfile"], p["node_id"])["id"]
+        p.update(status="approved" if approve else "rejected", reviewer=ident(caller), review_note=note)
 
     def set_agent_status(self, caller, agent_id, status):
         self.check(status, C.AGENT_STATUSES, "status")
@@ -216,7 +252,7 @@ class MockDB:
                                 "meta": json.dumps({"phase": "night"}), "ts": now()})
 
     REDUCERS = ("request_sleep", "set_nickname", "register_node", "heartbeat", "create_channel", "join", "post_message",
-                "create_agent", "set_agent_status", "run_start", "run_turn", "run_end", "add_memory")
+                "create_agent", "propose_agent", "review_agent", "set_agent_status", "run_start", "run_turn", "run_end", "add_memory")
 
     def call(self, caller: str, reducer: str, args: list) -> None:
         if reducer not in self.REDUCERS:

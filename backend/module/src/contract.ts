@@ -12,6 +12,7 @@ export const MESSAGE_KINDS = [
   'tool_result',
   'help_request',
   'tool_card',
+  'agent_card',
   'adapter_event',
   'sleep_event',
   'system',
@@ -19,10 +20,11 @@ export const MESSAGE_KINDS = [
 export const AGENT_STATUSES = ['idle', 'thinking', 'asleep', 'stopped'] as const;
 export const RUN_STATES = ['running', 'done', 'stopped', 'budget'] as const;
 export const TOOL_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export const PROPOSAL_STATUSES = ['pending', 'approved', 'rejected'] as const; // agent_proposal.status
 export const TODO_STATUSES = ['open', 'done'] as const;
 export const ADAPTER_STATUSES = ['candidate', 'adopted', 'rejected'] as const;
 export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event'] as const;
-export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'think'] as const;
+export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'propose_agent', 'think'] as const;
 export const SLEEP_TOOLS = ['read', 'todo', 'memory', 'dataset', 'train_spec', 'sleep', 'adapter'] as const; // Sleep REMi only (§7)
 export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS] as const; // no registry tool may take these names
 export const DEFAULT_CHANNELS = ['general', 'ops'] as const;
@@ -132,6 +134,22 @@ export const tool = table(
   },
 );
 
+export const agent_proposal = table(
+  { name: 'agent_proposal', ...pub },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    agentfile: t.string(),
+    node_id: t.u64(),
+    author_agent: t.u64(),
+    reason: t.string(),
+    status: t.string(),
+    reviewer: t.option(t.identity()),
+    review_note: t.string(),
+    agent_id: t.u64(),
+    ts: t.timestamp(),
+  },
+);
+
 export const memory = table(
   { name: 'memory', ...pub },
   { id: t.u64().primaryKey().autoInc(), agent_id: t.u64().index(), text: t.string(), ts: t.timestamp() },
@@ -203,6 +221,7 @@ const db = schema({
   agent,
   run,
   tool,
+  agent_proposal,
   memory,
   todo,
   dataset,

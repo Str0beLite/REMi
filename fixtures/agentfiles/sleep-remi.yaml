@@ -28,6 +28,6 @@ purpose: |
   /adapter adopt sre@1 --agents homelab-remi --weight 1
 channels: [general, ops]
 triggers: [mention, dm, sleep_event]
-tools: [say, note, think, read, todo, memory, dataset, train_spec, sleep, adapter]
+tools: [say, note, think, read, todo, memory, dataset, train_spec, sleep, adapter, propose_agent]
 budget: {turns: 40, minutes: 60}
 adapters: []
