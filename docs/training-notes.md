@@ -23,6 +23,9 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 **4. The base model doesn't follow our command format on its own; that's what a LoRA buys.**
 - Evidence: base 0/21 exact. It answers in prose with the right idea ("Check with: `df -h /tmp`") but never the `/sh …` line our grammar needs. Same system prompt in both cases.
 
+**4b. Without the adapter, the base model makes up answers it can't know; with it, it checks.**
+- Evidence (2026-11-08, M3 dry run): asked "Is /var/backups running out of space?", the base 4B said "Yes, /var/backups is running out of space." without looking. After adopting `sre@1` it answered `/sh df -h /var/backups`. That's the behaviour we want Sleep REMi to train for: run the check instead of guessing.
+
 **5. Train and serve with the same chat template, thinking off.**
 - Rule: render prompts with `enable_thinking=False` in training. vLLM serves with `--default-chat-template-kwargs '{"enable_thinking": false}'`. Put loss on assistant turns only: one prompt/completion pair per assistant turn.
 - Why: a mismatch between the training and serving templates silently costs accuracy.
@@ -56,3 +59,13 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 **12. Mixing adds ranks; past 64 it's cut back.**
 - Rule: a `cat` mix's rank is the sum of its adapters' ranks (16 + 32 → 48). vLLM's cap is 64, so bigger sums are cut to their best rank-64 approximation. It's exact when the adapters share directions, lossy otherwise. Prefer ranks that sum to ≤ 64 for adapters that will be mixed.
 - Evidence: the merge is done from the files with no base model, in under a second, and matches PEFT `add_weighted_adapter(cat)` exactly.
+
+## Running it
+
+**13. Training runs in a spawned subprocess, so anything that starts it needs a main guard.**
+- Rule: a script that calls `/sleep` or `cycle.run` must keep its top-level code under `if __name__ == "__main__":`. `python -m remi` already does.
+- Why: the spawned trainer re-imports the parent's main script. Without the guard, it re-runs the whole script and exits with code 1.
+- Evidence (2026-11-08): the first M3 dry run hit this. The cycle still woke everyone and reported "trainer exited with code 1", so the recovery path works for real.
+
+**14. The whole nightly loop is minutes on the 5070 Ti.**
+- Evidence: `/sleep` on 60 examples (30 steps, loss 1.85 → 0.001) took 2.1 min asleep, most of it the vLLM restart. Then `/adapter eval` on 10 held-out examples: 10/10 against base 0/10, STRONG GO (McNemar p = 0.002).

@@ -15,6 +15,9 @@ from remi import contract as C
 from remi.loop import Loop
 from remi.node import Node
 from remi.poller import Poller
+from remi.sleep import cycle
+from remi.sleep import tools as sleep_tools
+from remi.sleep.scheduler import Scheduler
 from remi.tools import registry
 
 
@@ -49,11 +52,17 @@ def main() -> None:
     node_id = node.register()
     print(f"node {node.name} registered as id {node_id}", flush=True)
     poller = Poller(node.db, node_id, waker(Loop(node.db)), store)
+    vllm = cycle.LocalVllm(open(store / "vllm.log", "ab")) if os.environ.get("REMI_SERVE") == "1" else None
+    if vllm:  # this runtime owns vLLM, so /sleep can stop and restart it (compose does this in #29)
+        vllm.start()
+    sleep_tools.attach(node, vllm)
+    scheduler = Scheduler(node)
     next_beat = time.monotonic() + beat_s
     try:
         while True:
             poller.poll()
             sync_tools(node)
+            scheduler.tick()
             if time.monotonic() >= next_beat:
                 node.heartbeat()
                 next_beat = time.monotonic() + beat_s
@@ -61,6 +70,8 @@ def main() -> None:
     except KeyboardInterrupt:
         pass
     finally:
+        if vllm:
+            vllm.stop()
         node.set_status("down")
         print(f"node {node.name} down", flush=True)
 
