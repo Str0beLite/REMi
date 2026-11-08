@@ -13,3 +13,4 @@ One line each: date, decision, why.
 - 2026-11-07: Adapters are named and versioned; each agent mixes them with weights, merged and hot-loaded into vLLM. No monolithic model.
 - 2026-11-07: Datasets and adapters live on the node's disk with metadata in SpacetimeDB; HF Hub sharing is a stretch goal.
 - 2026-11-07: Incidents, a second node, the LoRA library and external channels are extensions, not core.
+- Claude copy of grilling uses AskUserQuestion for each round (installer patches it with --claude).

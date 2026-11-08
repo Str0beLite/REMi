@@ -202,6 +202,33 @@ SKILL
   for d in "${DESTS[@]}"; do install_skill "$TMP/son-wtf" "$d"; done
 fi
 
+# Claude copy of grilling: ask every round through the AskUserQuestion dialog instead of plain text.
+# shortcut: anchors match the pinned mattpocock/skills commit; with --latest it may warn and leave the skill as-is.
+GRILL="$TARGET/.claude/skills/grilling/SKILL.md"
+if [ "$CLAUDE" = 1 ] && [ -f "$GRILL" ] && ! grep -q AskUserQuestion "$GRILL"; then
+  python3 - "$GRILL" <<'PY' && echo "  patched .claude/skills/grilling (AskUserQuestion)" || echo "WARN: grilling layout changed; AskUserQuestion patch skipped."
+import sys
+p = sys.argv[1]; s = open(p).read()
+start = "Ask the whole frontier in one round: number each question"
+end = "Word each question so \"yes\" accepts your recommended answer.\n"
+i, j = s.find(start), s.find(end)
+if i < 0 or j < i: sys.exit(1)
+new = """Ask the whole frontier in one round, then wait for the user's answers before the next round.
+
+**Always ask with the `AskUserQuestion` tool, never as plain text.** One call holds at most 4 questions; if the frontier is bigger, ask the 4 most foundational now and the rest next round.
+
+- Each question stands on its own: the user may only see the dialog, so include any context it needs.
+- `header`: a short chip label (max 12 chars), e.g. "Auth", "Data store".
+- `options`: 2-4 distinct choices. Put your recommendation **first** with " (Recommended)" at the end of its label, and use `description` for the trade-off of each. The user can always pick "Other" to answer in their own words.
+- `multiSelect: true` only when the choices aren't mutually exclusive.
+- Use `preview` when comparing concrete artifacts (code snippets, layouts, schemas).
+
+If the tool is unavailable or refused, fall back to plain text: number each question, give your recommended answer, and word it so "yes" accepts the recommendation.
+"""
+open(p, "w").write(s[:i] + new + s[j + len(end):])
+PY
+fi
+
 # Writes $2 between the kit markers in file $1: replaces an existing block, else appends.
 write_block() {
   local file="$1"
