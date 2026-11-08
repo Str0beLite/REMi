@@ -104,14 +104,19 @@ class MockDB:
             n.update(gpu=gpu, base_model=base_model)
             return
         self.insert("node", {"identity": ident(caller), "name": name, "gpu": gpu, "base_model": base_model,
-                             "status": "up", "last_seen": now()})
+                             "status": "up", "last_seen": now(), "stats": "{}"})
 
-    def heartbeat(self, caller, node_id, status):
+    def heartbeat(self, caller, node_id, status, stats="{}"):
         n = self.one("node", id=node_id)
         if not n or n["identity"] != ident(caller):
             raise SenderError("not this node")
         self.check(status, C.NODE_STATUSES, "status")
-        n.update(status=status, last_seen=now())
+        try:
+            if not isinstance(json.loads(stats), dict):
+                raise ValueError
+        except ValueError:
+            raise SenderError("stats must be a JSON object") from None
+        n.update(status=status, last_seen=now(), stats=stats)
 
     def create_channel(self, caller, name, kind, parent_id):
         self.check(kind, C.CHANNEL_KINDS, "kind")

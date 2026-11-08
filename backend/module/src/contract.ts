@@ -51,6 +51,7 @@ export const node = table(
     base_model: t.string(),
     status: t.string(),
     last_seen: t.timestamp(),
+    stats: t.string().default('{}'),
   },
 );
 

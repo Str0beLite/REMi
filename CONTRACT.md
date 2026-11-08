@@ -18,7 +18,8 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 - **Ids** are `u64`, auto-incremented, column name `id`. In JSON (HTTP API, Python) they are plain integers.
 - **Timestamps** are SpacetimeDB `Timestamp` (server time, `ctx.timestamp`), column name `ts` unless stated.
 - **Enums are strings**, not SpacetimeDB sum types, so the Python runtime can read and write them as plain JSON. Allowed values are the `*_KINDS` / `*_STATUSES` constants in `backend/module/src/contract.ts` and `backend/runtime/remi/contract.py` (kept identical; a test checks this). Reducers reject unknown values.
-- **JSON columns** (`meta`, `dry_run`, `train_stats`) are `string` holding a JSON object. `"{}"` when empty. Shapes in §6.
+- **JSON columns** (`meta`, `dry_run`, `train_stats`, `stats`) are `string` holding a JSON object. `"{}"` when empty. Shapes in §6 (`node.stats` in §3).
+- **Node stats** ride on the existing `heartbeat` (every 10 s); there is no separate stats reducer.
 - **Name + version keys** (`tool`, `adapter`): an extra unique string column `key` = `"<name>@<version>"`, since SpacetimeDB primary keys are single-column.
 - **Validation lives in reducers.** Every reducer validates its input and throws `SenderError("<reason>")` on bad input or missing permission. This is the trust boundary; clients may skip validation, the module may not.
 - **Callers.** A reducer call comes from a **user** (browser, identity in `user`) or a **node** (runtime, identity in `node.identity`). "admin" means `user.is_admin`. A node acts for any agent whose `agent.node_id` is that node.
@@ -30,7 +31,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | Table | Columns (name: type) | Notes |
 |---|---|---|
 | `user` | identity: Identity **pk**, nickname: string, is_admin: bool | |
-| `node` | id: u64 **pk autoInc**, identity: Identity **unique**, name: string **unique**, gpu: string, base_model: string, status: string, last_seen: Timestamp | status ∈ `NODE_STATUSES` = up, asleep, down. `base_model` = the HF id this node serves (§9) |
+| `node` | id: u64 **pk autoInc**, identity: Identity **unique**, name: string **unique**, gpu: string, base_model: string, status: string, last_seen: Timestamp, stats: string (JSON) | status ∈ `NODE_STATUSES` = up, asleep, down. `base_model` = the HF id this node serves (§9). `stats` = `"{}"` until the first report, then `{"vram_total_mb": n, "vram_used_mb": n, "vram_vllm_mb": n, "lora_slots": n, "loras": ["name@v" \| "mix-<hash>", ...]}` |
 | `channel` | id: u64 **pk autoInc**, name: string, kind: string, parent_id: u64 (0 = none), created_by: Identity, ts | kind ∈ `CHANNEL_KINDS` = public, thread, dm. Public names unique, lowercase `[a-z0-9-]{1,32}`. `#general` and `#ops` exist after `init`. |
 | `member` | id: u64 **pk autoInc**, channel_id: u64 **index**, member_kind: string, member_id: string | member_kind ∈ user, agent. member_id = identity hex for users, agent id as decimal string for agents |
 | `message` | id: u64 **pk autoInc**, channel_id: u64 **index**, author_kind: string, author_id: string, kind: string, body: string, meta: string (JSON), ts | author_kind ∈ user, agent, system. kind ∈ `MESSAGE_KINDS` (§6). body ≤ 16 000 chars |
@@ -54,7 +55,7 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `init` | — | module publish | creates `#general`, `#ops`, default settings |
 | `set_nickname` | nickname: string | anyone | upserts `user` (1–24 chars) |
 | `register_node` | name: string, gpu: string, base_model: string | admin (until §12 admin bootstrap is decided) | adds `node` with identity = caller, status up; re-registering the same name from the same identity updates gpu and base_model |
-| `heartbeat` | node_id: u64, status: string | that node | sets status + last_seen |
+| `heartbeat` | node_id: u64, status: string, stats: string | that node | sets status + last_seen; `stats` must be a JSON object, stored in `node.stats` |
 | `create_channel` | name: string, kind: string, parent_id: u64 | user or node | thread → parent must exist; dm → name is `dm-<a>-<b>` |
 | `join` / `leave` | channel_id: u64, member_kind: string, member_id: string | the member itself, its node, or admin | |
 | `post_message` | channel_id: u64, author_kind: string, author_id: string, kind: string, body: string, meta: string | users post only as themselves with kind `chat`; nodes post as their agents or `system` with any kind | validates meta JSON and kind |

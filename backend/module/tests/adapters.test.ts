@@ -21,7 +21,7 @@ function setup() {
     ctx.db.user.insert({ identity: id.admin, nickname: 'ryan', is_admin: true });
     ctx.db.user.insert({ identity: id.bob, nickname: 'bob', is_admin: false });
     const node = (identity: Identity, name: string, base: string) =>
-      ctx.db.node.insert({ id: 0n, identity, name, gpu: 'x', base_model: base, status: 'up', last_seen: ctx.timestamp });
+      ctx.db.node.insert({ id: 0n, identity, name, gpu: 'x', base_model: base, status: 'up', last_seen: ctx.timestamp, stats: '{}' });
     const a = node(id.nodeA, 'a', BASE);
     const b = node(id.nodeB, 'b', 'other-base');
     node(id.nodeC, 'c', BASE);

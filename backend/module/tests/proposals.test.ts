@@ -20,7 +20,7 @@ function setup() {
     ctx.db.user.insert({ identity: id.admin, nickname: 'ryan', is_admin: true });
     ctx.db.user.insert({ identity: id.bob, nickname: 'bob', is_admin: false });
     const node = (identity: Identity, name: string) =>
-      ctx.db.node.insert({ id: 0n, identity, name, gpu: 'x', base_model: 'm', status: 'up', last_seen: ctx.timestamp });
+      ctx.db.node.insert({ id: 0n, identity, name, gpu: 'x', base_model: 'm', status: 'up', last_seen: ctx.timestamp, stats: '{}' });
     const a = node(id.nodeA, 'a');
     const b = node(id.nodeB, 'b');
     const agent = (name: string, node_id: bigint, tools: string, prot = false) =>

@@ -27,7 +27,7 @@ function setup() {
     ctx.db.user.insert({ identity: id.bob, nickname: 'bob', is_admin: false });
     ctx.db.user.insert({ identity: id.carol, nickname: 'carol', is_admin: false });
     for (const [k, name] of [['nodeA', 'node-a'], ['nodeB', 'node-b']] as const)
-      ctx.db.node.insert({ id: 0n, identity: id[k], name, gpu: 'x', base_model: 'm', status: 'up', last_seen: ctx.timestamp });
+      ctx.db.node.insert({ id: 0n, identity: id[k], name, gpu: 'x', base_model: 'm', status: 'up', last_seen: ctx.timestamp, stats: '{}' });
   });
   const call = <A>(who: keyof typeof as, fn: (ctx: never, args: A) => void, args: A) =>
     h.withReducerTx(as[who], ctx => fn(ctx as never, args));

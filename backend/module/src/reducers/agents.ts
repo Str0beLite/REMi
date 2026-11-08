@@ -50,7 +50,7 @@ export const register_node = db.reducer(
     if (byName && !byName.identity.equals(ctx.sender)) throw new SenderError(`node ${name} belongs to another identity`);
     if (mine && mine.name !== name) throw new SenderError(`this identity is already node ${mine.name}`);
     if (mine) ctx.db.node.id.update({ ...mine, gpu, base_model, status: 'up', last_seen: ctx.timestamp });
-    else ctx.db.node.insert({ id: 0n, identity: ctx.sender, name, gpu, base_model, status: 'up', last_seen: ctx.timestamp });
+    else ctx.db.node.insert({ id: 0n, identity: ctx.sender, name, gpu, base_model, status: 'up', last_seen: ctx.timestamp, stats: '{}' });
   },
 );
 
