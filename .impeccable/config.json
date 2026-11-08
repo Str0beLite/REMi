@@ -11,6 +11,60 @@
         ],
         "createdAt": "2026-11-08T06:12:07.032Z",
         "reason": "Claude: .tbl wraps a table whose cells carry 10px/14px padding"
+      },
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:26.154Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:26.366Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:26.596Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:26.828Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
+      },
+      {
+        "rule": "skipped-heading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:27.060Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/*.html"
+        ],
+        "createdAt": "2026-11-08T06:42:27.288Z",
+        "reason": "Claude: throwaway decision-round sketches drawn as skeletons on the picker; the chosen direction is built and checked fresh"
       }
     ]
   }

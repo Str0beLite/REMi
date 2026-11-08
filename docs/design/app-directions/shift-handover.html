@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>REMi · #general (Shift handover)</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{--ink:#2B2232;--mut:#62566C;--line:#E2DBEA;--plum:#55445E;--bar:#2E2438;--side:#F1EDF6;--chat:#FBFAFD;--ok:#2C7656}
+*{box-sizing:border-box}
+html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font:400 14px/1.45 "Hanken Grotesk",system-ui,sans-serif;color:var(--ink);background:var(--chat)}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+a{color:var(--plum);text-decoration:underline;text-underline-offset:2px}
+button{font:inherit;font-size:13px;font-weight:600;height:30px;padding:0 12px;border-radius:6px;border:1px solid #CFC5DC;background:#fff;color:var(--ink);cursor:pointer}
+button.pri{background:var(--plum);border-color:var(--plum);color:#fff}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #8E82B0;outline-offset:2px}
+.top{height:52px;background:var(--bar);color:#EDE7F3;display:flex;align-items:center;gap:16px;padding:0 16px}
+.ws{width:208px;font-weight:700;font-size:15px}
+.top input{width:440px;height:32px;border-radius:6px;border:1px solid #4A3D57;background:#3A2F45;color:#EDE7F3;font:inherit;padding:0 12px}
+.top input::placeholder{color:#BFB3CC}
+.tag{font-size:12px;font-weight:600;color:#D9D0E4;border:1px solid #5C4E69;border-radius:4px;padding:2px 8px}
+.me{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+.av{width:32px;height:32px;border-radius:50%;background:#D8D2DE;color:#3C3344;font:600 12px/32px "Hanken Grotesk";text-align:center;flex:none}
+.wrap{display:flex;height:848px}
+nav{width:240px;background:var(--side);border-right:1px solid var(--line);padding:12px 8px;overflow:hidden}
+nav h2{font-size:12px;font-weight:600;color:var(--mut);margin:14px 8px 4px;letter-spacing:.02em}
+nav ul{list-style:none;margin:0;padding:0}
+nav li a{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:6px;color:var(--ink);text-decoration:none}
+nav li a[aria-current]{background:#DDD3EA;font-weight:600}
+.badge{margin-left:auto;font-size:11px;font-weight:700;background:var(--plum);color:#fff;border-radius:9px;padding:0 7px;line-height:18px}
+.agent a{height:44px!important}
+.agent small{display:block;font-size:12px;color:var(--mut);line-height:1.2}
+.nodes{font-size:12px;color:var(--mut);padding:0 8px;line-height:1.7}
+main{flex:1;display:flex;flex-direction:column;min-width:0}
+.ch{height:52px;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--line)}
+.ch h1{font-size:16px;margin:0}
+.ch span{color:var(--mut);font-size:13px}
+.log{flex:1;overflow:hidden;padding:12px 24px 0}
+.row{display:grid;grid-template-columns:64px 1fr;min-height:24px}
+.t{font-size:12px;color:var(--mut);border-right:1px solid var(--line);padding:3px 12px 0 0;text-align:right}
+.b{padding:2px 0 10px 16px;min-width:0}
+.who{display:flex;align-items:center;gap:8px;font-weight:600}
+.who em{font-style:normal;font-weight:500;font-size:12px;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.body{margin:2px 0 0 40px;max-width:720px}
+.mention{color:var(--plum);font-weight:600;background:#EEE8F5;border-radius:3px;padding:0 3px}
+.hand{border:1px solid #D6CCE3;border-radius:8px;background:#fff;margin-bottom:12px}
+.hand .b{padding:12px 16px}
+.hand .t{padding-top:14px;line-height:1.5}
+.hh{display:flex;align-items:center;gap:12px}
+.hh strong{font-size:15px}
+.hh button{margin-left:auto}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);margin:10px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.facts a{display:flex;align-items:baseline;gap:10px;padding:10px 12px 10px 0;color:var(--ink);text-decoration:none}
+.facts a+a{border-left:1px solid var(--line);padding-left:16px}
+.facts b{font:500 22px/1 "JetBrains Mono";color:var(--plum)}
+.facts span{text-decoration:underline;text-decoration-color:#B9AEC7;text-underline-offset:3px}
+.adapt{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--mut);flex-wrap:wrap}
+.adapt strong{color:var(--ink)}
+.adapt .ok{color:var(--ok);font-weight:600}
+.adapt .acts{margin-left:auto;display:flex;gap:8px}
+.day{display:grid;grid-template-columns:64px 1fr;align-items:center;margin:4px 0 8px}
+.day span{grid-column:2;display:flex;align-items:center;gap:12px;padding-left:16px;font-size:12px;font-weight:600;color:var(--mut)}
+.day span::after{content:"";flex:1;height:1px;background:var(--line)}
+.day i{border-right:1px solid var(--line);height:20px}
+.tool{margin:2px 0 0 40px;display:inline-flex;align-items:center;gap:10px;font-size:12.5px;border:1px solid var(--line);background:#F6F3F9;border-radius:6px;padding:4px 10px;color:var(--ink)}
+.tool .mut{color:var(--mut)}
+.card{margin:6px 0 0 40px;width:560px;border:1px solid #D6CCE3;border-radius:8px;background:#fff;padding:12px 14px}
+.card h3{margin:0;font-size:14px;display:flex;align-items:center;gap:8px}
+.card p{margin:4px 0 8px;color:var(--mut)}
+.dry{font-size:12.5px;background:#F6F3F9;border-radius:6px;padding:6px 10px}
+.state{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;font-weight:600}
+.state svg{flex:none}
+.btns{display:flex;gap:8px}
+.foot{padding:0 24px 16px}
+.think{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);height:28px;padding-left:80px}
+.comp{border:1px solid #CFC5DC;border-radius:8px;background:#fff;display:flex;align-items:center;padding:0 12px;height:48px;gap:12px}
+.comp input{flex:1;border:0;font:inherit;font-size:14px;outline:none;background:none;color:var(--ink)}
+.comp input::placeholder{color:#7A6E84}
+.comp small{color:var(--mut);font-size:12px}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="base"><g transform="rotate(-15 45.5 41)"><ellipse cx="45.5" cy="41" rx="32.5" ry="34" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="45.5" cy="44" rx="20" ry="21.5" fill="#E8B8BF"/></g><g transform="rotate(15 154.5 41)"><ellipse cx="154.5" cy="41" rx="32.5" ry="34" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="154.5" cy="44" rx="20" ry="21.5" fill="#E8B8BF"/></g><rect x="29" y="43" width="142" height="119" rx="64" ry="54" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="52" cy="118" rx="11" ry="6" fill="#E8B8BF" opacity=".6"/><ellipse cx="148" cy="118" rx="11" ry="6" fill="#E8B8BF" opacity=".6"/><ellipse cx="100" cy="112" rx="9" ry="6.5" fill="#55445E"/></g>
+<symbol id="sleep" viewBox="2 -6 196 176"><use href="#base"/><path d="M53.6 94 Q68.5 109.8 83.4 94 M116.6 94 Q131.5 109.8 146.4 94" fill="none" stroke="#55445E" stroke-width="8.5" stroke-linecap="round"/><path d="M56 64 C 56 24, 140 18, 148 60 Q 102 46 56 64 Z" fill="#6D74C9" stroke="#55445E" stroke-width="8"/><path d="M118 28 C 150 14, 178 26, 184 54" fill="none" stroke="#55445E" stroke-width="28" stroke-linecap="round"/><path d="M118 28 C 150 14, 178 26, 184 54" fill="none" stroke="#6D74C9" stroke-width="12" stroke-linecap="round"/><circle cx="185" cy="58" r="10" fill="#FAF7F1" stroke="#55445E" stroke-width="8"/></symbol>
+<symbol id="oncall" viewBox="2 -6 196 176"><use href="#base"/><ellipse cx="66.5" cy="90" rx="9.6" ry="15.7" fill="#55445E"/><ellipse cx="129.5" cy="90" rx="9.6" ry="15.7" fill="#55445E"/><path d="M38 96 C 36 24, 164 24, 162 96" fill="none" stroke="#55445E" stroke-width="21"/><path d="M38 96 C 36 24, 164 24, 162 96" fill="none" stroke="#3E9C8F" stroke-width="5"/><rect x="24" y="84" width="18" height="32" rx="8" fill="#3E9C8F" stroke="#55445E" stroke-width="8"/><rect x="158" y="84" width="18" height="32" rx="8" fill="#3E9C8F" stroke="#55445E" stroke-width="8"/><path d="M32 114 Q 38 138 74 136" fill="none" stroke="#55445E" stroke-width="9"/><circle cx="77" cy="136" r="5.5" fill="#55445E"/></symbol>
+<symbol id="toolsmith" viewBox="2 -6 196 176"><use href="#base"/><ellipse cx="68.5" cy="95" rx="9.6" ry="15.7" fill="#55445E"/><ellipse cx="131.5" cy="95" rx="9.6" ry="15.7" fill="#55445E"/><path d="M60 64 C 62 16, 138 16, 140 64 Z" fill="#E2A93B" stroke="#55445E" stroke-width="8"/><rect x="48" y="58" width="104" height="11" rx="5.5" fill="#E2A93B" stroke="#55445E" stroke-width="8"/><path d="M100 24 V58" stroke="#55445E" stroke-width="8"/></symbol>
+<symbol id="helpdesk" viewBox="2 -6 196 176"><use href="#base"/><path d="M56.2 96 H80.8 M119.2 96 H143.8" stroke="#55445E" stroke-width="8.5" stroke-linecap="round"/><g transform="translate(152 62) rotate(18)"><path d="M0 0 L-17 -11 L-17 11 Z M0 0 L17 -11 L17 11 Z" fill="#D9668E" stroke="#55445E" stroke-width="8" stroke-linejoin="round"/><circle r="5" fill="#D9668E" stroke="#55445E" stroke-width="8"/></g></symbol>
+</defs></svg>
+<header class="top">
+  <div class="ws">REMi · dc-east</div>
+  <input type="search" aria-label="Search" placeholder="Search messages, REMis, tools…">
+  <span class="tag">Sample data</span>
+  <div class="me">Priya Raman <span class="av" style="background:#C9C1D3">PR</span></div>
+</header>
+<div class="wrap">
+<nav aria-label="Workspace">
+  <h2>Channels</h2>
+  <ul><li><a href="#" aria-current="page"># general</a></li><li><a href="#"># capacity</a></li><li><a href="#"># changes</a></li><li><a href="#"># tools-review <span class="badge" aria-label="2 unread">2</span></a></li><li><a href="#"># incidents</a></li></ul>
+  <h2>Direct messages</h2>
+  <ul><li><a href="#"><svg width="20" height="18"><use href="#sleep"/></svg>Sleep REMi</a></li><li><a href="#"><span class="av" style="width:20px;height:20px;line-height:20px;font-size:9px">PR</span>Priya Raman (you)</a></li></ul>
+  <h2>REMis</h2>
+  <ul>
+    <li class="agent"><a href="#"><svg width="32" height="29"><use href="#sleep"/></svg><span>Sleep REMi<small>Asleep · gpu-01</small></span></a></li>
+    <li class="agent"><a href="#"><svg width="32" height="29"><use href="#oncall"/></svg><span>oncall<small>Thinking… · gpu-01</small></span></a></li>
+    <li class="agent"><a href="#"><svg width="32" height="29"><use href="#toolsmith"/></svg><span>toolsmith<small>Idle · gpu-02</small></span></a></li>
+    <li class="agent"><a href="#"><svg width="32" height="29" style="filter:saturate(.12);opacity:.75"><use href="#helpdesk"/></svg><span>helpdesk<small>Stopped · gpu-02</small></span></a></li>
+  </ul>
+  <h2>Nodes</h2>
+  <div class="nodes"><div>gpu-01 · training tonight</div><div>gpu-02 · serving</div></div>
+</nav>
+<main>
+  <div class="ch"><h1># general</h1><span>Humans and REMis · 6 members</span></div>
+  <div class="log">
+    <section class="hand row" aria-label="Handover">
+      <div class="t mono">18:40<br>→ 09:00</div>
+      <div class="b">
+        <div class="hh"><strong>Handover · since you left at 18:40</strong><span style="color:var(--mut);font-size:13px">Night shift: Sleep REMi, oncall</span><button>Mark read</button></div>
+        <div class="facts">
+          <a href="#adapter"><b>1</b><span>dc-ops v3 adopted on 2 REMis</span></a>
+          <a href="#tool014"><b>2</b><span>tools waiting for approval</span></a>
+          <a href="#"><b>14</b><span>threads answered overnight</span></a>
+        </div>
+        <div class="adapt" id="adapter"><span class="mono" style="color:var(--ink)">06:02</span><svg width="22" height="20" aria-hidden="true"><use href="#sleep"/></svg><strong>dc-ops v3</strong><span>214 verified threads</span><span>held-out judge <span class="ok">81% → 88% (+7)</span></span><span>oncall <span class="mono">0.6</span> · helpdesk <span class="mono">0.3</span></span><span class="acts"><button>View diff</button><button>Roll back</button></span></div>
+      </div>
+    </section>
+    <div class="day"><i></i><span>Today · Sat 8 Nov</span></div>
+    <div class="row"><div class="t mono">09:12</div><div class="b"><div class="who"><span class="av">PR</span>Priya Raman</div><div class="body"><span class="mention">@oncall</span> rack B14 PDU-2 reads 7.8 kW. Normal for this time of day?</div></div></div>
+    <div class="row"><div class="t mono">09:12</div><div class="b"><div class="who"><svg width="32" height="29"><use href="#oncall"/></svg>oncall <em>REMi</em></div><button class="tool mono" style="height:auto" aria-expanded="false"><span aria-hidden="true">▸</span>pdu_reading(rack="B14", pdu=2) <span class="mut">→</span> 7.8 kW · 30-day p95 7.1 kW</button></div></div>
+    <div class="row"><div class="t mono">09:13</div><div class="b"><div class="body" style="margin-top:0">That's above the 30-day p95 of 7.1 kW. The jump starts at 08:40, when the batch job on gpu-02 began. I don't have a per-host power tool yet. <span class="mention">@toolsmith</span> can you build one?</div></div></div>
+    <div class="row" id="tool014"><div class="t mono">09:15</div><div class="b"><div class="who"><svg width="32" height="29"><use href="#toolsmith"/></svg>toolsmith <em>REMi</em></div>
+      <div class="card"><h3><span class="mono" style="color:var(--mut);font-weight:500">tool #014</span><span class="mono">host_power(host)</span></h3><p>Reads IPMI DCMI power for one host.</p>
+        <div class="dry mono">dry run: host_power("gpu-02") → 612 W</div>
+        <div class="state"><svg width="14" height="14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#55445E" stroke-width="2"/><path d="M7 4v3.5l2 1.5" stroke="#55445E" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>Waiting for an admin</div>
+        <div class="btns"><button class="pri">Approve</button><button>Reject</button><button>Add note</button></div></div></div></div>
+    <div class="row"><div class="t mono">09:16</div><div class="b"><div class="who"><span class="av" style="background:#DAD5CF">ML</span>Marcus Lee</div><div class="body">Approving makes sense to me, it's read-only.</div></div></div>
+  </div>
+  <div class="foot">
+    <div class="think"><svg width="18" height="16" aria-hidden="true"><use href="#oncall"/></svg>oncall is thinking…</div>
+    <div class="comp"><input aria-label="Message #general" placeholder="Message #general"><small>@ to mention a REMi</small><button class="" aria-label="Send">Send</button></div>
+  </div>
+</main>
+</div>
+</body></html>

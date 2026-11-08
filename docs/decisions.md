@@ -31,3 +31,4 @@ One line each: date, decision, why.
 - 2026-11-07: Adapters attach only on the node that trained them (files are local); agents with adapters can't move. Relaxed with the LoRA library (extension 3).
 - 2026-11-07: New PCs join with an admin-set `node_join_code` passed to `register_node`; this settles the node half of the admin-bootstrap question.
 - 2026-11-08: Mascot direction is "Lavender & plum" (the ChatGPT spec palette, light + dark), on an SVG rig whose actions map to agent statuses and message kinds; mockups in docs/design/remi-character-studio.html.
+- 2026-11-08: Web app look is "Rack elevation": plum channel rail, chat centre, and a right Swarm rail drawing each node as a U-numbered rack with REMis as unit plates; sketch in docs/design/app-directions/rack-elevation.html.

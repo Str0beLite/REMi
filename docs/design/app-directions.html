@@ -1,0 +1,94 @@
+<title>REMi App Directions</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column of directions; each sketch rendered at its real 1440x900 and scaled to the column width. */
+:root { --bg:#F6F3F9; --surface:#FFFFFF; --ink:#2B2232; --muted:#62586D; --rule:#E2DCE7; --plum:#55445E; --tag:#EDE7F3;
+  --f:"Hanken Grotesk", system-ui, sans-serif; --mono:"JetBrains Mono", ui-monospace, monospace }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#16131A; --surface:#1F1B24; --ink:#EEE9F3; --muted:#ABA1B7; --rule:#2F2937; --plum:#C9B8E4; --tag:#2A2431; color-scheme:dark } }
+:root[data-theme="dark"] { --bg:#16131A; --surface:#1F1B24; --ink:#EEE9F3; --muted:#ABA1B7; --rule:#2F2937; --plum:#C9B8E4; --tag:#2A2431; color-scheme:dark }
+* { box-sizing:border-box }
+body { background:var(--bg); color:var(--ink); font:16px/1.55 var(--f); margin:0;
+  padding-left:max(16px, env(safe-area-inset-left, 0px)); padding-right:max(16px, env(safe-area-inset-right, 0px)); padding-block:40px 64px }
+.wrap { max-width:1200px; margin:0 auto; display:grid; gap:48px }
+h1, h2 { margin:0; text-wrap:balance; letter-spacing:-.02em }
+h1 { font-size:clamp(1.8rem, 4vw, 2.6rem); line-height:1.1 }
+h2 { font-size:1.5rem; line-height:1.2 }
+p { margin:0; max-width:70ch }
+header { display:grid; gap:10px }
+header p { color:var(--muted) }
+.dir { display:grid; gap:14px }
+.head { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline }
+.tag { font:500 .74rem/1 var(--mono); background:var(--tag); color:var(--plum); padding:5px 8px; border-radius:6px }
+.facts { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px 24px }
+.facts b { display:block; font-size:.8rem; color:var(--muted); font-weight:600 }
+.facts span { font-size:.95rem }
+.frame { position:relative; width:100%; aspect-ratio:1440 / 900; border:1px solid var(--rule); border-radius:12px; overflow:hidden; background:var(--surface) }
+.frame iframe { position:absolute; top:0; left:0; width:1440px; height:900px; border:0; transform-origin:0 0 }
+.open { font-weight:600; color:var(--plum); text-underline-offset:3px }
+@media (max-width:720px) { .facts { grid-template-columns:minmax(0, 1fr) } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>REMi app directions</h1>
+    <p>Four looks for the channel chat, all in Lavender &amp; plum with headgear avatars. Each sketch is the real 1440 × 900 desktop screen, scaled to fit. Content is sample data.</p>
+  </header>
+
+  <section class="dir">
+    <div class="head"><h2>Shift handover</h2><span class="tag">recommended</span></div>
+    <p>Every channel opens on the night shift's handover: what the agents learned and what is waiting on you.</p>
+    <div class="facts">
+      <div><b>Signature</b><span>Pinned "since you left at 18:40" strip; chat on a timestamp gutter like a shift log.</span></div>
+      <div><b>Shell</b><span>Plum top bar, lavender sidebar with channels and REMis, no right rail.</span></div>
+      <div><b>Risk</b><span>Closest to ordinary team chat; the handover strip carries the distinction.</span></div>
+    </div>
+    <div class="frame"><iframe src="app-directions/shift-handover.html" title="Shift handover sketch" loading="lazy" tabindex="-1"></iframe></div>
+    <a class="open" href="app-directions/shift-handover.html" target="_blank" rel="noopener">Open full size</a>
+  </section>
+
+  <section class="dir">
+    <div class="head"><h2>Rack elevation</h2><span class="tag">rolled direction</span></div>
+    <p>The swarm drawn the way engineers draw a data hall: every GPU machine a rack, every REMi a labelled unit.</p>
+    <div class="facts">
+      <div><b>Signature</b><span>Right "Swarm" rail: U-numbered racks, REMis as 2U plates, tonight's training as a band.</span></div>
+      <div><b>Shell</b><span>Deep plum channel rail, chat on lavender-white, rack rail on the right.</span></div>
+      <div><b>Risk</b><span>The rack rail must stay a clean list, not data center ornament.</span></div>
+    </div>
+    <div class="frame"><iframe src="app-directions/rack-elevation.html" title="Rack elevation sketch" loading="lazy" tabindex="-1"></iframe></div>
+    <a class="open" href="app-directions/rack-elevation.html" target="_blank" rel="noopener">Open full size</a>
+  </section>
+
+  <section class="dir">
+    <div class="head"><h2>Change board</h2><span class="tag">challenger</span></div>
+    <p>Agents as a live board ordered by time; anything that changed stays lit until someone has seen it.</p>
+    <div class="facts">
+      <div><b>Signature</b><span>One amber, only for unseen changes; tool and adapter cards as segmented passes.</span></div>
+      <div><b>Shell</b><span>Agent board and channels left, chat centre.</span></div>
+      <div><b>Risk</b><span>Reads as travel before ops if pushed any further.</span></div>
+    </div>
+    <div class="frame"><iframe src="app-directions/change-board.html" title="Change board sketch" loading="lazy" tabindex="-1"></iframe></div>
+    <a class="open" href="app-directions/change-board.html" target="_blank" rel="noopener">Open full size</a>
+  </section>
+
+  <section class="dir">
+    <div class="head"><h2>Category standard</h2><span class="tag">baseline</span></div>
+    <p>Team chat as the best tools ship it, played straight. The mascot heads are the only character.</p>
+    <div class="facts">
+      <div><b>Signature</b><span>None by design; status lives in each REMi's face plus text.</span></div>
+      <div><b>Shell</b><span>Sidebar, chat, members panel on white with a plum accent.</span></div>
+      <div><b>Risk</b><span>Indistinguishable from any chat tool.</span></div>
+    </div>
+    <div class="frame"><iframe src="app-directions/standard.html" title="Category standard sketch" loading="lazy" tabindex="-1"></iframe></div>
+    <a class="open" href="app-directions/standard.html" target="_blank" rel="noopener">Open full size</a>
+  </section>
+</div>
+
+<script>
+// Scale each fixed 1440x900 sketch to its frame's current width.
+const fit = () => document.querySelectorAll('.frame').forEach(f => {
+  f.querySelector('iframe').style.transform = `scale(${f.clientWidth / 1440})`;
+});
+new ResizeObserver(fit).observe(document.body);
+fit();
+</script>

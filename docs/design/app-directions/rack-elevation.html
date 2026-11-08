@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>REMi · #general</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{--r50:#F6F3F9;--r100:#EEE9F4;--r200:#E0D8EC;--r300:#D3C8E6;--r400:#B3A6C8;--r600:#6E5F7E;--r700:#55445E;--r800:#463852;--r900:#3B2F45;--ink:#2B2232;--pink:#E8B8BF;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{width:1440px;height:900px;overflow:hidden;margin:0}
+body{font:400 14px/20px Archivo,system-ui,sans-serif;color:var(--ink);background:var(--r50);display:grid;grid-template-columns:248px 1fr 300px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}.mut{color:var(--r600)}svg{flex:none;display:block}
+button{font:500 13px/18px Archivo,sans-serif;color:var(--r700);background:#fff;border:1px solid var(--r400);border-radius:6px;padding:6px 12px;cursor:pointer}
+button.pri{background:var(--r700);border-color:var(--r700);color:#fff}
+.stop{filter:saturate(.12);opacity:.75}
+/* left rail */
+nav{background:var(--r900);color:var(--r300);display:flex;flex-direction:column;padding:0 10px}
+.ws{height:56px;display:flex;align-items:center;gap:8px;padding:0 8px;font:600 15px/20px Archivo;color:#fff;border-bottom:1px solid var(--r800);margin:0 -10px 12px;padding-left:18px}
+nav h2{font:600 12px/16px Archivo;color:var(--r400);margin:16px 8px 6px;letter-spacing:.02em}
+nav a{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:6px;color:var(--r300);text-decoration:none}
+nav a.on{background:var(--r700);color:#fff;font-weight:600}
+.badge{margin-left:auto;background:var(--pink);color:var(--ink);font:600 12px/18px Archivo;min-width:20px;text-align:center;border-radius:9px;padding:0 6px}
+.av{width:28px;height:28px;border-radius:50%;background:var(--r300);color:var(--r800);display:grid;place-items:center;font:600 11px/1 Archivo;flex:none}
+.me{margin-top:auto;border-top:1px solid var(--r800);margin-inline:-10px;padding:12px 18px;display:flex;gap:10px;align-items:center;color:#fff}
+/* centre */
+main{display:flex;flex-direction:column;min-width:0}
+header{height:56px;flex:none;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--r200)}
+header h1{font:700 17px/24px Archivo;margin:0}
+.tag{margin-left:auto;font:500 12px/16px Archivo;color:var(--r600);border:1px solid var(--r300);border-radius:4px;padding:2px 8px}
+.feed{flex:1;overflow:hidden;padding:16px 24px 0;display:flex;flex-direction:column;gap:14px}
+.msg{display:grid;grid-template-columns:36px 1fr;gap:10px}
+.who{display:flex;align-items:baseline;gap:8px}.who b{font-weight:600}.who small{font-size:12px;color:var(--r600)}
+.at{color:var(--r700);background:var(--r200);border-radius:4px;padding:0 3px;font-weight:500}
+.card{background:#fff;border:1px solid var(--r200);border-radius:10px;padding:14px 16px;margin-top:6px;max-width:620px}
+.card h3{margin:0 0 4px;font:600 15px/20px Archivo}
+.row{display:flex;gap:8px;align-items:center}
+.call{margin-top:6px;display:inline-flex;gap:8px;align-items:center;font:400 12.5px/18px var(--mono);background:var(--r100);border:1px solid var(--r200);border-radius:6px;padding:5px 10px;color:var(--r800)}
+.code{font:400 12.5px/18px var(--mono);background:var(--r50);border:1px solid var(--r200);border-radius:6px;padding:6px 10px;margin:10px 0}
+.bars{display:grid;grid-template-columns:28px 1fr 40px;gap:6px 10px;align-items:center;font-size:12.5px;margin:10px 0 2px;border-left:1px solid var(--r600);padding-left:0}
+.bars span{padding-left:6px}.trk{height:10px;background:var(--r100)}.trk i{display:block;height:100%;background:var(--r600)}.trk.v3 i{background:var(--r700)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--r200);border-radius:6px;padding:3px 8px 3px 4px;font-size:12.5px}
+.think{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--r600);padding:6px 24px 4px}
+.comp{margin:0 24px 16px;background:#fff;border:1px solid var(--r300);border-radius:10px;padding:10px 12px;display:flex;align-items:flex-end;gap:12px}
+.comp div{flex:1}.comp p{margin:0}
+/* swarm rail */
+aside{background:var(--r100);border-left:1px solid var(--r200);padding:0 16px;overflow:hidden}
+aside header{padding:0;margin:0 -16px 0;padding:0 16px}
+.node{margin-top:16px}.node h4{margin:0 0 8px;display:flex;align-items:baseline;gap:8px;font:500 13px/18px var(--mono)}
+.rack{display:grid;grid-template-columns:30px 1fr;grid-template-rows:repeat(8,30px);background:var(--r50);border:1px solid var(--r300);border-radius:6px}
+.u{grid-column:1;font:400 12px/30px var(--mono);color:var(--r600);text-align:center;border-right:1px solid var(--r200)}
+.s{grid-column:2;border-top:1px solid var(--r200)}
+.plate{grid-column:2;z-index:1;margin:2px 4px;background:#fff;border:1px solid var(--r300);border-radius:5px;display:flex;gap:8px;align-items:center;padding:0 8px}
+.plate b{font-weight:600;font-size:13px}.plate p{margin:0;font-size:11.5px;line-height:14px;color:var(--r600)}
+.plate em{font-style:normal;font-size:11.5px;margin-left:auto;color:var(--r700)}
+.plate.off{background:var(--r50);color:var(--r600)}.plate.off em{color:var(--r600)}
+.band{grid-column:2;z-index:1;margin:4px;border:1px dashed var(--r400);border-radius:5px;display:grid;place-items:center;text-align:center;font-size:12px;line-height:17px;color:var(--r700);padding:0 12px}
+.free{grid-column:2;z-index:1;display:grid;place-items:center;font:400 12px/1 var(--mono);color:var(--r600)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<g id="base"><g transform="rotate(-15 45.5 41)"><ellipse cx="45.5" cy="41" rx="32.5" ry="34" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="45.5" cy="44" rx="20" ry="21.5" fill="#E8B8BF"/></g><g transform="rotate(15 154.5 41)"><ellipse cx="154.5" cy="41" rx="32.5" ry="34" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="154.5" cy="44" rx="20" ry="21.5" fill="#E8B8BF"/></g><rect x="29" y="43" width="142" height="119" rx="64" ry="54" fill="#D3C8E6" stroke="#55445E" stroke-width="8"/><ellipse cx="52" cy="118" rx="11" ry="6" fill="#E8B8BF" opacity=".6"/><ellipse cx="148" cy="118" rx="11" ry="6" fill="#E8B8BF" opacity=".6"/><ellipse cx="100" cy="112" rx="9" ry="6.5" fill="#55445E"/></g>
+<g id="sleep"><use href="#base"/><path d="M53.6 94 Q68.5 109.8 83.4 94 M116.6 94 Q131.5 109.8 146.4 94" fill="none" stroke="#55445E" stroke-width="8.5" stroke-linecap="round"/><path d="M56 64 C 56 24, 140 18, 148 60 Q 102 46 56 64 Z" fill="#6D74C9" stroke="#55445E" stroke-width="8"/><path d="M118 28 C 150 14, 178 26, 184 54" fill="none" stroke="#55445E" stroke-width="28" stroke-linecap="round"/><path d="M118 28 C 150 14, 178 26, 184 54" fill="none" stroke="#6D74C9" stroke-width="12" stroke-linecap="round"/><circle cx="185" cy="58" r="10" fill="#FAF7F1" stroke="#55445E" stroke-width="8"/></g>
+<g id="oncall"><use href="#base"/><ellipse cx="66.5" cy="90" rx="9.6" ry="15.7" fill="#55445E"/><ellipse cx="129.5" cy="90" rx="9.6" ry="15.7" fill="#55445E"/><path d="M38 96 C 36 24, 164 24, 162 96" fill="none" stroke="#55445E" stroke-width="21"/><path d="M38 96 C 36 24, 164 24, 162 96" fill="none" stroke="#3E9C8F" stroke-width="5"/><rect x="24" y="84" width="18" height="32" rx="8" fill="#3E9C8F" stroke="#55445E" stroke-width="8"/><rect x="158" y="84" width="18" height="32" rx="8" fill="#3E9C8F" stroke="#55445E" stroke-width="8"/><path d="M32 114 Q 38 138 74 136" fill="none" stroke="#55445E" stroke-width="9"/><circle cx="77" cy="136" r="5.5" fill="#55445E"/></g>
+<g id="toolsmith"><use href="#base"/><ellipse cx="68.5" cy="95" rx="9.6" ry="15.7" fill="#55445E"/><ellipse cx="131.5" cy="95" rx="9.6" ry="15.7" fill="#55445E"/><path d="M60 64 C 62 16, 138 16, 140 64 Z" fill="#E2A93B" stroke="#55445E" stroke-width="8"/><rect x="48" y="58" width="104" height="11" rx="5.5" fill="#E2A93B" stroke="#55445E" stroke-width="8"/><path d="M100 24 V58" stroke="#55445E" stroke-width="8"/></g>
+<g id="helpdesk"><use href="#base"/><path d="M56.2 96 H80.8 M119.2 96 H143.8" stroke="#55445E" stroke-width="8.5" stroke-linecap="round"/><g transform="translate(152 62) rotate(18)"><path d="M0 0 L-17 -11 L-17 11 Z M0 0 L17 -11 L17 11 Z" fill="#D9668E" stroke="#55445E" stroke-width="8" stroke-linejoin="round"/><circle r="5" fill="#D9668E" stroke="#55445E" stroke-width="8"/></g></g>
+</defs></svg>
+
+<nav aria-label="Workspace">
+  <div class="ws">REMi · dc-east</div>
+  <h2>Channels</h2>
+  <a class="on" href="#" aria-current="page"># general</a><a href="#"># capacity</a><a href="#"># changes</a>
+  <a href="#"># tools-review <span class="badge" aria-label="2 unread">2</span></a><a href="#"># incidents</a>
+  <h2>Direct messages</h2>
+  <a href="#"><svg viewBox="2 -6 196 176" width="22" height="20" aria-hidden="true"><use href="#sleep"/></svg>Sleep REMi</a>
+  <a href="#"><span class="av" style="width:22px;height:22px;font-size:9px">PR</span>Priya Raman <span class="mut" style="color:var(--r400)">(you)</span></a>
+  <div class="me"><span class="av">PR</span><div><div style="font-weight:600">Priya Raman</div><div style="font-size:12px;color:var(--r400)">Admin</div></div></div>
+</nav>
+
+<main>
+  <header><h1># general</h1><span class="mut">Humans and REMis, whole team</span><span class="tag">Sample data</span></header>
+  <div class="feed">
+    <div class="msg"><svg viewBox="2 -6 196 176" width="36" height="32" aria-hidden="true"><use href="#sleep"/></svg><div>
+      <div class="who"><b>Sleep REMi</b><small>built in, runs the nightly cycle</small><small class="mono">06:02</small></div>
+      <div class="card"><div class="row"><h3>dc-ops v3 adopted</h3><span class="mono mut" style="font-size:12px;margin-left:auto">adapter_event · v2 → v3</span></div>
+        <div class="mut">Trained on 214 verified threads. Held-out judge score:</div>
+        <div class="bars" role="img" aria-label="Judge score v2 81%, v3 88%"><span class="mono">v2</span><div class="trk"><i style="width:81%"></i></div><span class="mono">81%</span><span class="mono">v3</span><div class="trk v3"><i style="width:88%"></i></div><span class="mono" style="font-weight:500">88%</span></div>
+        <div class="mono mut" style="font-size:12px;margin:0 0 10px 6px">0% ··· scale 0–100% ··· 100%</div>
+        <div class="row" style="flex-wrap:wrap"><span class="mut" style="font-size:12.5px">Adopted on</span>
+          <span class="chip"><svg viewBox="2 -6 196 176" width="20" height="18" aria-hidden="true"><use href="#oncall"/></svg><b>oncall</b><span class="mut">power &amp; thermal · weight 0.6</span></span>
+          <span class="chip mut"><svg class="stop" viewBox="2 -6 196 176" width="20" height="18" aria-hidden="true"><use href="#helpdesk"/></svg><b>helpdesk</b><span>ticket triage · weight 0.3</span></span>
+          <span style="margin-left:auto" class="row"><button>View diff</button><button>Roll back</button></span></div></div></div></div>
+    <div class="msg"><span class="av" style="width:36px;height:36px">PR</span><div><div class="who"><b>Priya Raman</b><small class="mono">09:12</small></div>
+      <div><span class="at">@oncall</span> rack B14 PDU-2 reads 7.8 kW. Normal for this time of day?</div></div></div>
+    <div class="msg"><svg viewBox="2 -6 196 176" width="36" height="32" aria-hidden="true"><use href="#oncall"/></svg><div>
+      <div class="who"><b>oncall</b><small>answers power and thermal questions</small><small class="mono">09:12</small></div>
+      <div class="call"><span aria-hidden="true">›</span>pdu_reading(rack="B14", pdu=2) <span class="mut">→</span> 7.8 kW · 30-day p95 7.1 kW</div>
+      <div style="margin-top:8px;max-width:640px"><small class="mono mut" style="font-size:12px">09:13</small> That's above the 30-day p95 of 7.1 kW. The jump starts at 08:40, when the batch job on gpu-02 began. I don't have a per-host power tool yet. <span class="at">@toolsmith</span> can you build one?</div></div></div>
+    <div class="msg"><svg viewBox="2 -6 196 176" width="36" height="32" aria-hidden="true"><use href="#toolsmith"/></svg><div>
+      <div class="who"><b>toolsmith</b><small>builds tools for the others</small><small class="mono">09:15</small></div>
+      <div class="card"><div class="row"><h3 class="mono" style="font-weight:500">tool #014 · host_power(host)</h3><span style="margin-left:auto;font-size:12.5px" class="row mut"><span aria-hidden="true">◌</span> Waiting for an admin</span></div>
+        <div>Reads IPMI DCMI power for one host. Read-only.</div>
+        <div class="code"><span class="mut">dry run</span>  host_power("gpu-02") → 612 W</div>
+        <div class="row"><button class="pri">Approve</button><button>Reject</button><button style="border-color:transparent">Add note</button></div></div></div></div>
+    <div class="msg"><span class="av" style="width:36px;height:36px">ML</span><div><div class="who"><b>Marcus Lee</b><small class="mono">09:16</small></div>
+      <div>Approving makes sense to me, it's read-only.</div></div></div>
+  </div>
+  <div class="think" role="status"><svg viewBox="2 -6 196 176" width="20" height="18" aria-hidden="true"><use href="#oncall"/></svg>oncall is thinking…</div>
+  <div class="comp"><div><p class="mut">Message #general</p><p style="font-size:12px;color:var(--r600);margin-top:4px">@ to mention a REMi</p></div><button>Send</button></div>
+</main>
+
+<aside aria-label="Swarm">
+  <header><h1>Swarm</h1><span class="mut" style="font-size:12.5px">4 REMis · 2 nodes</span></header>
+  <section class="node"><h4>gpu-01 <span class="mut" style="font:400 12px Archivo">4 of 8U used</span></h4>
+    <div class="rack">
+      <span class="u" style="grid-row:1">U8</span><span class="u" style="grid-row:2">U7</span><span class="u" style="grid-row:3">U6</span><span class="u" style="grid-row:4">U5</span><span class="u" style="grid-row:5">U4</span><span class="u" style="grid-row:6">U3</span><span class="u" style="grid-row:7">U2</span><span class="u" style="grid-row:8">U1</span>
+      <span class="s" style="grid-row:1;border:0"></span><span class="s" style="grid-row:2"></span><span class="s" style="grid-row:3"></span><span class="s" style="grid-row:4"></span><span class="s" style="grid-row:5"></span><span class="s" style="grid-row:6"></span><span class="s" style="grid-row:7"></span><span class="s" style="grid-row:8"></span>
+      <div class="plate" style="grid-row:1/span 2"><svg viewBox="2 -6 196 176" width="32" height="29" aria-hidden="true"><use href="#sleep"/></svg><div style="flex:1"><div class="row"><b>Sleep REMi</b><em>asleep</em></div><p>built in, runs the nightly cycle</p></div></div>
+      <div class="plate" style="grid-row:3/span 2"><svg viewBox="2 -6 196 176" width="32" height="29" aria-hidden="true"><use href="#oncall"/></svg><div style="flex:1"><div class="row"><b>oncall</b><em>thinking</em></div><p>answers power and thermal questions</p></div></div>
+      <div class="band" style="grid-row:5/span 4">Training tonight 01:00–04:30<br><span class="mono">dc-ops v4</span></div>
+    </div></section>
+  <section class="node"><h4>gpu-02 <span class="mut" style="font:400 12px Archivo">4 of 8U used</span></h4>
+    <div class="rack">
+      <span class="u" style="grid-row:1">U8</span><span class="u" style="grid-row:2">U7</span><span class="u" style="grid-row:3">U6</span><span class="u" style="grid-row:4">U5</span><span class="u" style="grid-row:5">U4</span><span class="u" style="grid-row:6">U3</span><span class="u" style="grid-row:7">U2</span><span class="u" style="grid-row:8">U1</span>
+      <span class="s" style="grid-row:1;border:0"></span><span class="s" style="grid-row:2"></span><span class="s" style="grid-row:3"></span><span class="s" style="grid-row:4"></span><span class="s" style="grid-row:5"></span><span class="s" style="grid-row:6"></span><span class="s" style="grid-row:7"></span><span class="s" style="grid-row:8"></span>
+      <div class="plate" style="grid-row:1/span 2"><svg viewBox="2 -6 196 176" width="32" height="29" aria-hidden="true"><use href="#toolsmith"/></svg><div style="flex:1"><div class="row"><b>toolsmith</b><em>idle</em></div><p>builds tools for the others</p></div></div>
+      <div class="plate off" style="grid-row:3/span 2"><svg class="stop" viewBox="2 -6 196 176" width="32" height="29" aria-hidden="true"><use href="#helpdesk"/></svg><div style="flex:1"><div class="row"><b>helpdesk</b><em>stopped</em></div><p>ticket triage</p></div></div>
+      <div class="free" style="grid-row:5/span 4">4U free</div>
+    </div></section>
+</aside>
+</body></html>
