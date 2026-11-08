@@ -2,7 +2,7 @@
 
 Every lane builds against this file. It turns [docs/master-plan.md](docs/master-plan.md) §5–§9 into exact names and types. When this file and the plan disagree, this file wins.
 
-**Changing it:** only through a `lane:contract` issue whose PR Ryan merges (see the `lane-tasks` skill). Feature PRs never edit this file, `contract/`, `backend/module/src/contract.ts` or `backend/runtime/remi/contract.py`.
+**Changing it:** only through a `lane:contract` issue that a session Ryan runs commits to main and closes (see the `lane-tasks` skill). Lane work never edits this file, `contract/`, `backend/module/src/contract.ts` or `backend/runtime/remi/contract.py`.
 
 ## 1. Lanes and ownership
 
@@ -11,7 +11,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 | `lane:web` | `backend/module/` (except `src/contract.ts`), `frontend/` | TypeScript, npm |
 | `lane:core` | `backend/runtime/remi/` except the gpu paths below, `backend/sandbox/` | Python 3.12, uv |
 | `lane:gpu` | `backend/runtime/remi/serving/`, `backend/runtime/remi/sleep/`, `backend/runtime/remi/trainer/`, `backend/runtime/remi/mixer/`, `backend/runtime/store/` (gitignored data) | Python 3.12, uv, needs the 5070 Ti PC |
-| `lane:contract` | this file, `contract/`, `fixtures/`, `backend/module/src/contract.ts`, `backend/runtime/remi/contract.py`, `backend/runtime/remi/mocks/` | Ryan merges |
+| `lane:contract` | this file, `contract/`, `fixtures/`, `backend/module/src/contract.ts`, `backend/runtime/remi/contract.py`, `backend/runtime/remi/mocks/` | Ryan commits |
 
 ## 2. Conventions
 
@@ -163,7 +163,7 @@ These were left open on purpose (master-plan §14). Whoever needs one first open
 
 ## 13. Checks
 
-What CI runs (`.github/workflows/ci.yml`) and what every PR must pass locally first:
+What CI runs (`.github/workflows/ci.yml`) and what every push to main must pass locally first (lane work goes straight to main, no PRs):
 
 | Path | Command |
 |---|---|
@@ -171,4 +171,4 @@ What CI runs (`.github/workflows/ci.yml`) and what every PR must pass locally fi
 | `backend/runtime/` | `uv sync && uv run pytest` |
 | `frontend/` | `npm ci && npm run build && npm run lint` |
 
-GPU-only tests are marked `@pytest.mark.gpu` and skipped in CI; `lane:gpu` runs them on the PC with `uv run pytest -m gpu` and pastes the output in the PR.
+GPU-only tests are marked `@pytest.mark.gpu` and skipped in CI; `lane:gpu` runs them on the PC with `uv run pytest -m gpu` and pastes the output in the issue's closing comment.

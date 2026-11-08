@@ -14,7 +14,7 @@ Every build task is one GitHub issue that one session can finish in 1-3 hours. T
 | `lane:web` | SpacetimeDB module + React frontend (TypeScript) |
 | `lane:core` | Python runtime: stdb client, poller, agent loop, tools, sandbox, tool registry |
 | `lane:gpu` | vLLM serving, trainer, mixer, Sleep REMi and the sleep cycle (needs the 5070 Ti PC) |
-| `lane:contract` | A change to `CONTRACT.md` or the contract type files. Ryan merges these. |
+| `lane:contract` | A change to `CONTRACT.md` or the contract type files. Only a session Ryan runs commits these to main. |
 | `status:in-progress` | Claimed by a session. `/lane` skips it. |
 | `status:blocked` | Started, then stopped on a blocker. `/lane` picks it up again once its blockers close. |
 
@@ -71,4 +71,4 @@ Which lanes and files must follow the change.
 none
 ```
 
-Only Ryan merges contract PRs. After one merges, every lane rebases on main before its next PR.
+Only a session Ryan runs commits contract changes to main and closes the issue. After one lands, every lane rebases on main before its next push.
