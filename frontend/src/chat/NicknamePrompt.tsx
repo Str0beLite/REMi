@@ -37,13 +37,15 @@ export function NicknamePrompt() {
           placeholder="e.g. Priya…"
           autoFocus
           required
+          pattern=".*\S.*"
+          title="Use at least one letter or number"
         />
         {error && (
           <p className="form-error" role="alert">
             {error}
           </p>
         )}
-        <button type="submit" className="btn-primary" disabled={busy || !name.trim()}>
+        <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? 'Joining…' : 'Join'}
         </button>
       </form>
