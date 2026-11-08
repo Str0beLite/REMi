@@ -5,11 +5,11 @@ import { StatBars } from './StatBars';
 const widths = (html: string) => [...html.matchAll(/width:(\d+)%/g)].map(m => Number(m[1]));
 
 describe('StatBars', () => {
-  it('draws the better value as the longer bar, for loss too', () => {
+  it('draws each value as its own length on a shared scale', () => {
     const html = renderToStaticMarkup(
       <StatBars stats={{ heldoutBase: 0.2, heldoutCandidate: 0.9, lossFirst: 2, lossLast: 0.5 }} />,
     );
-    // held-out: base 20%, with it 90%; loss: before 2.0 -> 25%, after 0.5 -> 100%
-    expect(widths(html)).toEqual([20, 90, 25, 100]);
+    // unseen: base 20%, with it 90%; loss: before 2.0 -> 100%, after 0.5 -> 25%
+    expect(widths(html)).toEqual([20, 90, 100, 25]);
   });
 });
