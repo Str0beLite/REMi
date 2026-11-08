@@ -12,28 +12,23 @@ type Props = {
   top?: ReactNode; // onboarding notices above the feed
   channel: Channel;
   title: string;
-  parent?: Channel;
-  threads: readonly Channel[];
   messages: readonly Message[];
   users: readonly User[];
   agents: readonly Agent[];
   me: string;
   connected: boolean;
-  onOpen: (id: bigint) => void;
 };
 
 const GROUP_MS = 5 * 60 * 1000;
 
-export function ChatView({ top, channel, title, parent, threads, messages, users, agents, me, connected, onOpen }: Props) {
+export function ChatView({ top, channel, title, messages, users, agents, me, connected }: Props) {
   const post = useReducer(reducers.postMessage);
-  const createChannel = useReducer(reducers.createChannel);
   // One draft per channel, so switching channels doesn't carry half a message along.
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draftKey = String(channel.id);
   const draft = drafts[draftKey] ?? '';
   const setDraft = (v: string) => setDrafts(d => ({ ...d, [draftKey]: v }));
   const [error, setError] = useState('');
-  const [threadName, setThreadName] = useState<string | null>(null);
   const feed = useRef<HTMLOListElement>(null);
   const box = useRef<HTMLTextAreaElement>(null);
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
@@ -130,71 +125,8 @@ export function ChatView({ top, channel, title, parent, threads, messages, users
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) void send(e);
   }
 
-  async function newThread(e: FormEvent) {
-    e.preventDefault();
-    const name = (threadName ?? '').trim();
-    if (!name) return;
-    setError('');
-    try {
-      await createChannel({ name, kind: 'thread', parentId: channel.id });
-      setThreadName(null);
-    } catch (err) {
-      setError(`Thread not created: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  const canThread = channel.kind === 'public';
-
   return (
     <section className="chat" aria-label={title}>
-      {(parent || canThread) && (
-        <div className="chat-threads">
-          {parent && (
-            <button type="button" className="chip" onClick={() => onOpen(parent.id)}>
-              ← # {parent.name}
-            </button>
-          )}
-          {canThread && (
-            <>
-              <span className="chat-threads-label">Threads</span>
-              {threads.map(t => (
-                <button key={String(t.id)} type="button" className="chip" onClick={() => onOpen(t.id)}>
-                  {t.name}
-                </button>
-              ))}
-              {threadName === null ? (
-                <button type="button" className="chip chip-add" onClick={() => setThreadName('')}>
-                  New thread
-                </button>
-              ) : (
-                <form className="thread-form" onSubmit={newThread}>
-                  <label className="sr-only" htmlFor="thread-name">
-                    Thread name
-                  </label>
-                  <input
-                    id="thread-name"
-                    name="thread-name"
-                    autoComplete="off"
-                    maxLength={80}
-                    value={threadName}
-                    onChange={e => setThreadName(e.target.value)}
-                    placeholder="What's it about…"
-                    onKeyDown={e => e.key === 'Escape' && setThreadName(null)}
-                    autoFocus
-                  />
-                  <button type="submit" className="chip">
-                    Create
-                  </button>
-                  <button type="button" className="chip" onClick={() => setThreadName(null)}>
-                    Cancel
-                  </button>
-                </form>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
       {top}
       <div className="chat-feed-wrap">
       <ol

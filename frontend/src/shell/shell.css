@@ -220,6 +220,46 @@
   display: grid;
   gap: 2px;
 }
+/* a channel row: its + (new thread) shows on hover or keyboard focus, always on touch screens */
+.rail-row {
+  position: relative;
+}
+.rail-row-add {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin: 0;
+  opacity: 0;
+}
+.rail-row:hover .rail-row-add,
+.rail-row:focus-within .rail-row-add {
+  opacity: 1;
+}
+.rail-row:hover .rail-item,
+.rail-row:focus-within .rail-item {
+  padding-right: 32px;
+}
+@media (hover: none) {
+  .rail-row-add {
+    opacity: 1;
+  }
+  .rail-row .rail-item {
+    padding-right: 32px;
+  }
+}
+/* threads hang off their channel as a tree */
+.rail-threads {
+  margin: 2px 0 var(--space-1) 14px;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--rail-line);
+}
+.rail-threads .rail-item {
+  min-height: 28px;
+  font-size: var(--text-sm);
+}
+.rail-threads .rail-new {
+  margin: var(--space-1) 0;
+}
 .rail-item {
   width: 100%;
   min-height: 32px;
@@ -278,6 +318,30 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  color: #fff;
+}
+button.rail-me {
+  width: calc(100% + 2 * var(--space-2));
+  border: 0;
+  border-top: 1px solid var(--rail-line);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.rail-me:hover,
+button.rail-me[aria-current='page'] {
+  background: color-mix(in srgb, var(--rail-active) 55%, transparent);
+}
+.rail-me-name {
+  flex: 1;
+  min-width: 0;
+}
+.rail-me-gear {
+  flex: none;
+  color: var(--rail-muted);
+}
+button.rail-me:hover .rail-me-gear {
   color: #fff;
 }
 .rail-initials-me {

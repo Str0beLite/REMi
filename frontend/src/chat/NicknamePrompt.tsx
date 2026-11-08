@@ -52,7 +52,7 @@ export function NicknamePrompt({ workspace, adminLink }: { workspace: string; ad
           pattern=".*\S.*"
           title="Use at least one letter or number"
         />
-        <p className="nick-hint">People and REMis see this in chat. You can change it later in Config.</p>
+        <p className="nick-hint">People and REMis see this in chat. You can change it later in Settings.</p>
         {error && (
           <p className="form-error" role="alert">
             {error}

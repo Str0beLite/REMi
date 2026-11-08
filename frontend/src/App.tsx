@@ -25,7 +25,7 @@ const PANELS: { id: PanelId; label: string }[] = [
   { id: 'tools', label: 'Tools' },
   { id: 'adapters', label: 'Adapters' },
   { id: 'sleep', label: 'Sleep' },
-  { id: 'config', label: 'Config' },
+  { id: 'config', label: 'Settings' },
 ];
 const OTHER_PANELS = { agents: AgentsPanel, tools: ToolsPanel, adapters: AdaptersPanel, sleep: SleepPanel, config: ConfigPanel };
 
@@ -81,13 +81,14 @@ export default function App() {
 
   // A new channel gets its id from the module, so open it by name once its row arrives.
   const createChannel = useReducer(reducers.createChannel);
-  const [openNew, setOpenNew] = useState('');
+  // parentId 0n = a public channel; thread names can repeat, so the newest match wins
+  const [openNew, setOpenNew] = useState<{ name: string; parentId: bigint } | null>(null);
   useEffect(() => {
-    const c = openNew && publics.find(p => p.name === openNew);
+    const c = openNew && [...channels].reverse().find(p => p.kind === (openNew.parentId ? 'thread' : 'public') && p.parentId === openNew.parentId && p.name === openNew.name);
     if (!c) return;
-    setOpenNew('');
+    setOpenNew(null);
     go({ panel: 'chat', channelId: c.id });
-  }, [openNew, publics]);
+  }, [openNew, channels]);
 
   const claim = useAdminClaim(!!meRow);
   const [claimSeen, setClaimSeen] = useState(false);
@@ -109,21 +110,43 @@ export default function App() {
   }
 
   const unread = (id: bigint) => (active && id === active.id ? 0 : unreadIn(id, sortedMessages, lastSeen[String(id)] ?? 0n));
-  const title = !active ? '' : active.kind === 'dm' ? dmLabel(active, members, me, users, agents) : active.kind === 'thread' ? active.name : `# ${active.name}`;
+  const title = !active ? '' : active.kind === 'dm' ? dmLabel(active, members, me, users, agents) : active.kind === 'thread' ? `# ${channels.find(c => c.id === active.parentId)?.name ?? '?'} › ${active.name}` : `# ${active.name}`;
   const Other = panel === 'chat' ? null : OTHER_PANELS[panel];
 
   const rail = (
     <ChannelRail
       workspace={`REMi · ${STDB_DB}`}
-      channels={publics.map(c => ({ id: c.id, name: c.name, unread: unread(c.id) }))}
+      nav={
+        <ul className="rail-list rail-nav" aria-label="Console">
+          {PANELS.filter(p => p.id !== 'chat' && p.id !== 'config').map(p => (
+            <li key={p.id}>
+              <button type="button" className="rail-item" aria-current={panel === p.id ? 'page' : undefined} onClick={() => go({ panel: p.id, channelId: active?.id })}>
+                <span className="rail-label">{p.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      }
+      channels={publics.map(c => ({
+        id: c.id,
+        name: c.name,
+        unread: unread(c.id),
+        threads: channels.filter(t => t.kind === 'thread' && t.parentId === c.id).map(t => ({ id: t.id, name: t.name, unread: unread(t.id) })),
+      }))}
       dms={dms.map(c => ({ id: c.id, name: dmLabel(c, members, me, users, agents), unread: unread(c.id) }))}
-      activeId={panel === 'chat' ? (active?.kind === 'thread' ? active.parentId : active?.id) : undefined}
+      activeId={panel === 'chat' ? active?.id : undefined}
       onSelect={open}
       onCreate={async name => {
         await createChannel({ name, kind: 'public', parentId: 0n });
-        setOpenNew(name);
+        setOpenNew({ name, parentId: 0n });
+      }}
+      onCreateThread={async (parentId, name) => {
+        await createChannel({ name, kind: 'thread', parentId });
+        setOpenNew({ name, parentId });
       }}
       user={{ nickname: meRow.nickname, isAdmin: meRow.isAdmin }}
+      onOpenSettings={() => go({ panel: 'config', channelId: active?.id })}
+      settingsCurrent={panel === 'config'}
     />
   );
 
@@ -170,13 +193,6 @@ export default function App() {
             Reconnecting…
           </span>
         )}
-        <nav className="panel-tabs" aria-label="Panels">
-          {PANELS.map(p => (
-            <button key={p.id} type="button" aria-pressed={panel === p.id} onClick={() => go({ panel: p.id, channelId: active?.id })}>
-              {p.label}
-            </button>
-          ))}
-        </nav>
       </header>
       {Other ? (
         <Other />
@@ -198,14 +214,11 @@ export default function App() {
           }
           channel={active}
           title={title}
-          parent={active.kind === 'thread' ? channels.find(c => c.id === active.parentId) : undefined}
-          threads={channels.filter(c => c.kind === 'thread' && c.parentId === active.id)}
           messages={sortedMessages.filter(m => m.channelId === active.id)}
           users={users}
           agents={agents}
           me={me}
           connected={isActive}
-          onOpen={open}
         />
       ) : (
         <p className="app-status">No channels yet. The module creates #general and #ops when it is published.</p>

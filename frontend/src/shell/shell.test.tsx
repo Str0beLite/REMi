@@ -52,6 +52,36 @@ describe('ChannelRail', () => {
   });
 });
 
+describe('threads', () => {
+  it('nests threads under their channel, marks the active thread, and offers + per channel', () => {
+    const out = renderToStaticMarkup(
+      <ChannelRail
+        workspace="w"
+        channels={[{ id: 1n, name: 'general', threads: [{ id: 5n, name: 'gpu plans', unread: 3 }] }, { id: 2n, name: 'ops' }]}
+        dms={[]}
+        activeId={5n}
+        onSelect={() => {}}
+        onCreateThread={async () => {}}
+        user={{ nickname: 'A', isAdmin: false }}
+      />,
+    );
+    expect(out.match(/class="rail-list rail-threads"/g)).toHaveLength(1);
+    expect(out).toMatch(/# general.*rail-threads.*aria-current="page"[^>]*><span class="rail-label">gpu plans/);
+    expect(out).toContain('aria-label="3 unread"');
+    expect(out).toContain('aria-label="New thread in # general"');
+    expect(out).toContain('aria-label="New thread in # ops"');
+  });
+});
+
+describe('user row', () => {
+  it('is a Settings button only when settings can be opened', () => {
+    const base = { workspace: 'w', channels: [], dms: [], onSelect: () => {}, user: { nickname: 'A', isAdmin: false } };
+    expect(renderToStaticMarkup(<ChannelRail {...base} />)).not.toContain('Settings');
+    const out = renderToStaticMarkup(<ChannelRail {...base} onOpenSettings={() => {}} settingsCurrent />);
+    expect(out).toMatch(/<button type="button" class="rail-me" aria-current="page"[^>]*title="Settings"/);
+  });
+});
+
 describe('new channel', () => {
   it('turns what you type into a name the module accepts', () => {
     expect(channelSlug('  Capacity Planning! ')).toBe('capacity-planning');

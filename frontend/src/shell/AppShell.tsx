@@ -46,7 +46,7 @@ export function AppShell({ rail, main, swarm, title = 'REMi' }: Props) {
             setSwarmOpen(false);
           }}
         >
-          Channels
+          Menu
         </button>
         <span className="shell-bar-title">{title}</span>
         <button
@@ -62,7 +62,13 @@ export function AppShell({ rail, main, swarm, title = 'REMi' }: Props) {
           Swarm
         </button>
       </div>
-      <nav id="shell-rail" className="shell-rail" aria-label="Channels">
+      {/* picking a rail item navigates, so close the drawer; the + buttons and forms keep it open */}
+      <nav
+        id="shell-rail"
+        className="shell-rail"
+        aria-label="Channels"
+        onClick={e => (e.target as Element).closest('.rail-item, .rail-me') && setRailOpen(false)}
+      >
         {rail}
       </nav>
       <main id="shell-main" className="shell-main" tabIndex={-1}>
