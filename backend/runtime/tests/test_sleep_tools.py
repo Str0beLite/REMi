@@ -168,6 +168,10 @@ def test_adapter_eval_scores_candidate_vs_base(ctx, tmp_path, monkeypatch):
     monkeypatch.setattr(remi.llm, "chat", lambda msgs, model: f"/sh a{msgs[-1]['content'][1:]}" if model == "sre@2" else "prose")
     code, out = do(ctx, "/adapter eval sre@2 held-out")
     assert code == 0 and "candidate 20, base 0" in out and "STRONG GO" in out
+    [card] = [json.loads(c[6]) for c in ctx.db.calls if c[0] == "post_message" and c[4] == "adapter_event"]
+    assert card == {"key": "sre@2", "event": "evaluated", "dataset": "held-out", "n": 20, "candidate": 20, "base": 0,
+                    "diff": 100.0, "ci_lo": 100.0, "ci_hi": 100.0, "p": card["p"], "verdict": "STRONG GO"}
+    assert 0 < card["p"] < 0.001
 
 
 @pytest.mark.parametrize("cron, t, want", [

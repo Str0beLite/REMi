@@ -306,6 +306,11 @@ def _eval(ctx, name: str, version: int, data: str) -> str:
         if not cand[i] and len(misses) < 3:
             misses.append(f"  want {want[:80]!r}\n  got  {c[:80]!r}")
     r = paired(cand, base)
+    key, v = f"{name}@{version}", verdict(r)
+    _post_ops(ctx, "adapter_event", f"{key} on {data}: {v}", {  # the card people read (CONTRACT §6 evaluated)
+        "key": key, "event": "evaluated", "dataset": data, "n": len(rows), "candidate": sum(cand.values()),
+        "base": sum(base.values()), "diff": round(r["diff"], 1), "ci_lo": round(r["ci_lo"], 1),
+        "ci_hi": round(r["ci_hi"], 1), "p": float(f"{r['p_mcnemar']:.3g}"), "verdict": v})
     return (f"{name}@{version} on {data} ({len(rows)} examples, exact match): candidate {sum(cand.values())}, "
             f"base {sum(base.values())}; diff {r['diff']:+.1f} pts, 95% CI [{r['ci_lo']:+.1f}, {r['ci_hi']:+.1f}], "
             f"McNemar p={r['p_mcnemar']:.3g} -> {verdict(r)}" + ("\nmisses:\n" + "\n".join(misses) if misses else ""))
