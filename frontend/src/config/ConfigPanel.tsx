@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
 import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
+import { People } from './People';
 import './config.css';
 
 const nowMicros = () => BigInt(Date.now()) * 1000n;
@@ -170,6 +171,8 @@ export function ConfigPanel() {
           <p className="setting-hint">{isAdmin ? 'You are an admin.' : 'Only admins can change runtime settings.'}</p>
         </form>
       </section>
+
+      <People />
 
       <section>
         <h2>Nodes</h2>

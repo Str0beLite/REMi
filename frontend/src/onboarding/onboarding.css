@@ -1,0 +1,98 @@
+/* Get started checklist and the admin-claim notice: above the #general feed, never over it. */
+.gs,
+.claim-note {
+  flex: none;
+  margin: var(--space-3) var(--space-5) 0;
+  max-width: 640px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+.gs {
+  padding: var(--space-3) var(--space-4);
+}
+.gs-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.gs-head h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+.gs-count {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.gs-hide {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-color: transparent;
+  background: none;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+.gs-hide:hover {
+  color: var(--ink);
+}
+.gs-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.gs-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+.gs-check {
+  flex-shrink: 0;
+  color: var(--line-strong);
+}
+.gs-step.is-next .gs-check {
+  color: var(--accent);
+}
+.gs-check.is-done {
+  color: var(--status-idle);
+}
+.gs-step.is-done .gs-text {
+  color: var(--muted);
+}
+.gs-step.is-next .gs-text {
+  font-weight: 600;
+}
+.gs-text {
+  min-width: 0;
+}
+.gs-step button {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: var(--text-xs);
+}
+
+.claim-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+}
+.claim-note.is-failed {
+  border-color: var(--danger);
+}
+
+@media (max-width: 639px) {
+  .gs,
+  .claim-note {
+    margin-left: var(--space-3);
+    margin-right: var(--space-3);
+  }
+}

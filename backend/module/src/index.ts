@@ -8,6 +8,7 @@ export * from './reducers/agents';
 export * from './reducers/adapters';
 export * from './reducers/sleep';
 export * from './reducers/proposals';
+export * from './reducers/admin';
 
 export const init = db.init(ctx => {
   for (const name of DEFAULT_CHANNELS) {
@@ -21,4 +22,6 @@ export const init = db.init(ctx => {
     });
   }
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) ctx.db.setting.insert({ key, value });
+  // ctx.sender here is the identity that published the database: the workspace owner is its first admin.
+  ctx.db.user.insert({ identity: ctx.sender, nickname: 'owner', is_admin: true });
 });

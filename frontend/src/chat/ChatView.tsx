@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useReducer } from 'spacetimedb/react';
 import { reducers } from '../module_bindings';
 import type { Agent, Channel, Message, User } from '../module_bindings/types';
@@ -9,6 +9,7 @@ import { ToolRun } from './ToolRun';
 import { authorOf, feedItems, hexOf, mentionMatches, mentionQuery, mentionsName, purposeOf, type MentionOption } from './model';
 
 type Props = {
+  top?: ReactNode; // onboarding notices above the feed
   channel: Channel;
   title: string;
   parent?: Channel;
@@ -23,7 +24,7 @@ type Props = {
 
 const GROUP_MS = 5 * 60 * 1000;
 
-export function ChatView({ channel, title, parent, threads, messages, users, agents, me, connected, onOpen }: Props) {
+export function ChatView({ top, channel, title, parent, threads, messages, users, agents, me, connected, onOpen }: Props) {
   const post = useReducer(reducers.postMessage);
   const createChannel = useReducer(reducers.createChannel);
   // One draft per channel, so switching channels doesn't carry half a message along.
@@ -192,6 +193,7 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
         </div>
       )}
 
+      {top}
       <div className="chat-feed-wrap">
       <ol
         className="chat-feed"

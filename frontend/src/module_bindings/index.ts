@@ -34,8 +34,10 @@ import {
 } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AddAdminCodeReducer from "./add_admin_code_reducer";
 import AddMemoryReducer from "./add_memory_reducer";
 import AttachAdapterReducer from "./attach_adapter_reducer";
+import ClaimAdminReducer from "./claim_admin_reducer";
 import CreateAgentReducer from "./create_agent_reducer";
 import CreateChannelReducer from "./create_channel_reducer";
 import EditMemoryReducer from "./edit_memory_reducer";
@@ -294,8 +296,10 @@ const tablesSchema = __schema({
 
 /** The schema information for all reducers in this module. This is defined the same way as the reducers would have been defined in the server, except the body of the reducer is omitted in code generation. */
 const reducersSchema = __reducers(
+  __reducerSchema("add_admin_code", AddAdminCodeReducer),
   __reducerSchema("add_memory", AddMemoryReducer),
   __reducerSchema("attach_adapter", AttachAdapterReducer),
+  __reducerSchema("claim_admin", ClaimAdminReducer),
   __reducerSchema("create_agent", CreateAgentReducer),
   __reducerSchema("create_channel", CreateChannelReducer),
   __reducerSchema("edit_memory", EditMemoryReducer),

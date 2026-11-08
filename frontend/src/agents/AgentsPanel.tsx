@@ -22,7 +22,8 @@ export function AgentsPanel() {
   const updateAgentfile = useReducer(reducers.updateAgentfile);
   const stopAgent = useReducer(reducers.stopAgent);
   const rollbackAgent = useReducer(reducers.rollbackAgent);
-  const [selected, setSelected] = useState<bigint | 'new'>();
+  // #/agents/new (the Get started checklist) opens straight into a new Agentfile
+  const [selected, setSelected] = useState<bigint | 'new' | undefined>(() => (location.hash === '#/agents/new' ? 'new' : undefined));
   const [actionError, setActionError] = useState('');
   // Stop has no Resume in the UI, so it takes a second click to confirm.
   const [confirmStop, setConfirmStop] = useState<bigint>();

@@ -501,6 +501,26 @@ kbd {
   margin: 0 0 var(--space-3);
   color: var(--muted);
 }
+.nick-card .nick-workspace {
+  margin: -4px 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+.nick-card .nick-admin {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+.nick-card .nick-admin b {
+  display: block;
+  margin-bottom: 2px;
+}
+.nick-card .nick-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+}
 .nick-card label {
   font-size: var(--text-sm);
   font-weight: 600;

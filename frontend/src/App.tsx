@@ -13,6 +13,9 @@ import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
 import { readRoute, writeRoute, type PanelId, type Route } from './route';
 import { confirmLeave } from './unsaved';
+import { useAdminClaim } from './admin/claim';
+import { ClaimNotice, GetStarted } from './onboarding/GetStarted';
+import { getStartedSteps } from './onboarding/steps';
 import './chat/chat.css';
 
 const PANELS: { id: PanelId; label: string }[] = [
@@ -75,6 +78,9 @@ export default function App() {
     setLastSeen(s => ({ ...s, ...(prev !== undefined ? { [String(prev)]: newest(prev) } : {}), [String(shownId)]: newest(shownId) }));
   }, [shownId]);
 
+  const claim = useAdminClaim(!!meRow);
+  const [claimSeen, setClaimSeen] = useState(false);
+
   if (!identity || !usersReady) {
     return (
       <p className="app-status" role="status">
@@ -82,7 +88,7 @@ export default function App() {
       </p>
     );
   }
-  if (!meRow) return <NicknamePrompt />;
+  if (!meRow) return <NicknamePrompt workspace={STDB_DB} adminLink={claim.state === 'pending'} />;
 
   const general = publics.find(c => c.name === 'general') ?? publics[0];
   const active = channels.find(c => c.id === activeId) ?? general;
@@ -153,6 +159,20 @@ export default function App() {
         <Other />
       ) : active ? (
         <ChatView
+          top={
+            <>
+              {!claimSeen && <ClaimNotice claim={claim} workspace={STDB_DB} isAdmin={meRow.isAdmin} onDismiss={() => setClaimSeen(true)} />}
+              {active.id === general?.id && (
+                <GetStarted
+                  workspace={STDB_DB}
+                  steps={getStartedSteps(nodes, agents, messages)}
+                  onCreateRemi={() => {
+                    if (confirmLeave()) location.hash = '#/agents/new';
+                  }}
+                />
+              )}
+            </>
+          }
           channel={active}
           title={title}
           parent={active.kind === 'thread' ? channels.find(c => c.id === active.parentId) : undefined}

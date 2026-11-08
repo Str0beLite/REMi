@@ -6,8 +6,10 @@
 import { type Infer as __Infer } from "spacetimedb";
 
 // Import all reducer arg schemas
+import AddAdminCodeReducer from "../add_admin_code_reducer";
 import AddMemoryReducer from "../add_memory_reducer";
 import AttachAdapterReducer from "../attach_adapter_reducer";
+import ClaimAdminReducer from "../claim_admin_reducer";
 import CreateAgentReducer from "../create_agent_reducer";
 import CreateChannelReducer from "../create_channel_reducer";
 import EditMemoryReducer from "../edit_memory_reducer";
@@ -36,8 +38,10 @@ import TodoAddReducer from "../todo_add_reducer";
 import TodoDoneReducer from "../todo_done_reducer";
 import UpdateAgentfileReducer from "../update_agentfile_reducer";
 
+export type AddAdminCodeParams = __Infer<typeof AddAdminCodeReducer>;
 export type AddMemoryParams = __Infer<typeof AddMemoryReducer>;
 export type AttachAdapterParams = __Infer<typeof AttachAdapterReducer>;
+export type ClaimAdminParams = __Infer<typeof ClaimAdminReducer>;
 export type CreateAgentParams = __Infer<typeof CreateAgentReducer>;
 export type CreateChannelParams = __Infer<typeof CreateChannelReducer>;
 export type EditMemoryParams = __Infer<typeof EditMemoryReducer>;

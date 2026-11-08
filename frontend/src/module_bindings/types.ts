@@ -28,6 +28,11 @@ export const Adapter = __t.object("Adapter", {
 });
 export type Adapter = __Infer<typeof Adapter>;
 
+export const AdminCode = __t.object("AdminCode", {
+  code: __t.string(),
+});
+export type AdminCode = __Infer<typeof AdminCode>;
+
 export const Agent = __t.object("Agent", {
   id: __t.u64(),
   name: __t.string(),
