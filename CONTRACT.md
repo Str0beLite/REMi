@@ -27,7 +27,7 @@ Every lane builds against this file. It turns [docs/master-plan.md](docs/master-
 
 ## 3. Tables
 
-All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code` and `mcp_server_secret`, which are private (`public: false`) so subscribers can't read claim codes or MCP keys. Only the database owner reads private tables (HTTP SQL with the owner's token).
+All tables are `public: true` (the UI subscribes to everything; there is no real auth beyond nickname + admin), except `admin_code`, `mcp_server_secret` and `blob_chunk`, which are private (`public: false`) so subscribers can't read claim codes, MCP keys or file contents. Only the database owner reads private tables (HTTP SQL with the owner's token).
 
 | Table | Columns (name: type) | Notes |
 |---|---|---|
@@ -36,7 +36,7 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `channel` | id: u64 **pk autoInc**, name: string, kind: string, parent_id: u64 (0 = none), created_by: Identity, ts | kind ∈ `CHANNEL_KINDS` = public, thread, dm. Public names unique, lowercase `[a-z0-9-]{1,32}`. `#general` and `#ops` exist after `init`. |
 | `member` | id: u64 **pk autoInc**, channel_id: u64 **index**, member_kind: string, member_id: string | member_kind ∈ user, agent. member_id = identity hex for users, agent id as decimal string for agents |
 | `message` | id: u64 **pk autoInc**, channel_id: u64 **index**, author_kind: string, author_id: string, kind: string, body: string, meta: string (JSON), ts | author_kind ∈ user, agent, system. kind ∈ `MESSAGE_KINDS` (§6). body ≤ 16 000 chars |
-| `agent` | id: u64 **pk autoInc**, name: string **unique**, agentfile: string (YAML), status: string, node_id: u64, owner: Identity, protected: bool | status ∈ `AGENT_STATUSES` = idle, thinking, asleep, stopped. name = Agentfile `name` |
+| `agent` | id: u64 **pk autoInc**, name: string **unique**, agentfile: string (YAML), status: string, node_id: u64, owner: Identity, protected: bool | status ∈ `AGENT_STATUSES` = idle, thinking, asleep, stopped, moving. name = Agentfile `name`. A node runs only agents whose `node_id` is its own and whose status isn't `moving` |
 | `run` | id: u64 **pk autoInc**, agent_id: u64 **index**, channel_id: u64, trigger_msg_id: u64, turns: u32, started: Timestamp, state: string | state ∈ `RUN_STATES` = running, done, stopped, budget |
 | `tool` | id: u64 **pk autoInc**, key: string **unique**, name: string, version: u32, code: string, docs: string, status: string, author_agent: u64, dry_run: string (JSON), reviewer: Identity?, review_note: string, ts | status ∈ `TOOL_STATUSES` = pending, approved, rejected. name `[a-z][a-z0-9_]{1,31}`, not a built-in command |
 | `agent_proposal` | id: u64 **pk autoInc**, agentfile: string (YAML), node_id: u64, author_agent: u64, reason: string, status: string, reviewer: Identity?, review_note: string, agent_id: u64 (0 until approved), ts | status ∈ `PROPOSAL_STATUSES` = pending, approved, rejected |
@@ -48,6 +48,10 @@ All tables are `public: true` (the UI subscribes to everything; there is no real
 | `setting` | key: string **pk**, value: string | defaults after `init`: `sleep_cron`=`0 3 * * *`, `max_train_minutes`=`30`, `last_sleep_ts`=`0` |
 | `admin_code` | code: string **pk** | **private** (`public: false`). One-time admin claim codes: `add_admin_code` inserts, `claim_admin` consumes |
 | `mcp_server` | name: string **pk**, host: string, added_by: string, updated_at: Timestamp | a remote MCP server agents may use (#72). `host` = the URL's host, for display; `added_by` = the admin's nickname |
+| `migration` | id: u64 **pk autoInc**, agent_id: u64 **index**, from_node: u64, to_node: u64, state: string, note: string, ts: Timestamp | moving an agent to another node (#76). state ∈ `MIGRATION_STATES` = uploading, ready, done, failed |
+| `adapter_copy` | id: u64 **pk autoInc**, key: string **index**, node_id: u64 | a node holding a verified copy of adapter `key`'s files, besides the node that trained it (`adapter.node_id`) |
+| `blob_chunk` | id: u64 **pk autoInc**, blob: string **index**, seq: u32, data: string | **private**. File transport between nodes: `data` is base64, ≤ 262 144 chars. Blob names: `mig:<migration id>:<name>@<v>` (a tarred adapter dir) and `file:<nonce>:<name>` (a file being sent; the sender picks a random nonce) |
+| `file_transfer` | id: u64 **pk autoInc**, blob: string, name: string, size: u64, sha256: string, chunks: u32, from_agent: u64, to_agent: u64, channel_id: u64, note: string, state: string, ts: Timestamp | a file one agent sent another, on any node (#77). state ∈ `TRANSFER_STATES` = sent, delivered, failed; content in `blob_chunk` under `blob` until delivered |
 | `mcp_server_secret` | name: string **pk**, url: string, headers: string (JSON object) | **private**. The server's URL and request headers (API keys); the node reads it with the owner's token (`remi up` gives the node that token) |
 
 ## 4. Reducers
@@ -79,7 +83,7 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `register_dataset` | name: string, node_id: u64, n_examples: u32, sha256: string, description: string, created_by: string | that node | upsert by name |
 | `register_adapter` | name: string, version: u32, node_id: u64, base: string, description: string, sha256: string, size: u64, train_stats: string, parent_version: u32, dataset_names: string | that node | status always `candidate`; `base` must equal that node's `base_model` |
 | `set_adapter_status` | key: string, status: string | admin, or the node of a protected agent (Sleep REMi) | |
-| `attach_adapter` | agent_id: u64, name: string, version: u32, weight: f32 | admin, or the node of a protected agent; **never onto a protected agent unless caller is admin** | rewrites the Agentfile `adapters` list (weight 0 removes it), writes `config_history`; adapter must be `adopted`, and `adapter.base` must equal the `base_model` of the agent's node (LoRAs don't transfer between bases) |
+| `attach_adapter` | agent_id: u64, name: string, version: u32, weight: f32 | admin, or the node of a protected agent; **never onto a protected agent unless caller is admin** | rewrites the Agentfile `adapters` list (weight 0 removes it), writes `config_history`; adapter must be `adopted`, `adapter.base` must equal the `base_model` of the agent's node (LoRAs don't transfer between bases), and its files must be on the agent's node (`adapter.node_id`, or an `adapter_copy` row for that node) |
 | `run_start` | agent_id: u64, channel_id: u64, trigger_msg_id: u64 | its node | refuses if a run is already `running` for that agent+channel |
 | `run_turn` | run_id: u64 | its node | turns += 1 |
 | `run_end` | run_id: u64, state: string | its node | |
@@ -88,6 +92,14 @@ Argument order below is the HTTP call order (§8). `who` = who may call it; anyt
 | `claim_admin` | code: string | any caller with a `user` row | code must exist in `admin_code`; deletes it (single use) and sets the caller's `user.is_admin = true` |
 | `set_mcp_server` | name: string, url: string, headers: string | admin | `name` matches `[a-z0-9-]{2,32}`; `url` starts with `https://` (remote only), ≤ 2 000 chars; `headers` is a JSON object of string → string, ≤ 4 000 chars (`{}` allowed). Upserts `mcp_server` (host from the URL, added_by = caller's nickname, updated_at = now) and `mcp_server_secret` |
 | `remove_mcp_server` | name: string | admin | deletes both rows; error if missing |
+| `move_agent` | agent_id: u64, node_id: u64, by_agent: u64 | by_agent 0: the agent's owner or an admin (a protected agent: admin only). by_agent ≠ 0 (`/migrate`): the node of `by_agent`, whose Agentfile lists `migrate`; it may move itself or any unprotected agent | refused if the agent is `moving`, or `thinking` unless it is `by_agent` (an agent moving itself mid-run), the target is its current node, the target isn't `up`, or the two nodes' `base_model` differ (LoRAs only work on their base). Sets status `moving`, inserts `migration` {from_node, to_node, state uploading}, posts a `system` message in `#ops` |
+| `put_blob_chunk` | blob: string, seq: u32, data: string | a node | `blob` ≤ 200 chars, starts `mig:` or `file:`; for `mig:<id>:` the caller must be that migration's from_node and its state `uploading`; `data` ≤ 262 144 chars. A repeated (blob, seq) replaces the old chunk |
+| `migration_ready` | id: u64 | its from_node | uploading → ready |
+| `finish_migration` | id: u64 | its to_node | ready → done, in one transaction: an `adapter_copy` {key, to_node} for each adapter in the agent's Agentfile whose files the target lacked; `agent.node_id = to_node`, status `idle`; deletes the blobs `mig:<id>:*`; writes `config_history` and a `system` message in `#ops` |
+| `fail_migration` | id: u64, note: string | either node of it, or an admin | uploading/ready → failed with `note`; the agent goes back to `idle` on from_node; deletes the blobs `mig:<id>:*` |
+| `send_file` | blob: string, name: string, size: u64, sha256: string, chunks: u32, from_agent: u64, to_agent: u64, channel_id: u64, note: string | from_agent's node | `blob` starts `file:`; name `[A-Za-z0-9._-]{1,128}`; size ≤ 52 428 800 (50 MB); `chunks` rows exist for `blob` with seq 0..chunks-1; to_agent exists and isn't from_agent. Inserts `file_transfer` {state sent} |
+| `file_delivered` | id: u64 | to_agent's node | sent → delivered; deletes the blob; posts a `system` `chat` message in `channel_id`: `@<to> <from> sent you /shared/<name> (<size>)` plus ` — <note>` if any, which wakes the recipient by mention |
+| `file_failed` | id: u64, note: string | to_agent's node, or an admin | sent → failed; deletes the blob; posts a `system` `chat` message in `channel_id`: `@<from> sending <name> to <to> failed: <note>` |
 | `request_sleep` | — | admin | posts a `system`-authored `sleep_event` with meta `{"phase":"night"}` and body `Sleep now requested by <nickname>` in `#ops`; this is the console's "Sleep now" button and wakes Sleep REMi exactly like the nightly schedule |
 
 Extension 1 (`report_incident`, `take`, `handoff`) is not in this contract yet; it comes as a `lane:contract` issue when the core demos.
@@ -102,7 +114,7 @@ YAML stored in `agent.agentfile`. The schema is [contract/agentfile.schema.json]
 | `purpose` | string | 1–4 000 chars; becomes the system prompt |
 | `channels` | string[] | public channel names, without `#` |
 | `triggers` | string[] | ⊆ `mention`, `dm`, `every_message`, `sleep_event` (wakes on `sleep_event` messages with phase `night`; meant for Sleep REMi), `incident` (wakes on `incident` messages, any severity, in a channel the agent is a member of) |
-| `tools` | string[] | built-ins (§7), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
+| `tools` | string[] | built-ins (§7, incl. `send` and `migrate`), Sleep REMi's commands (§7), `registry:<name>`, `registry:*`, `mcp:<server>/<tool>` or `mcp:<server>/*` (`<server>` = `[a-z0-9-]{2,32}`, `<tool>` = `[A-Za-z0-9_.-]{1,64}`) |
 | `budget` | `{turns: int 1–50, minutes: int 1–60}` | |
 | `adapters` | `{name, version: int ≥1, weight: number 0–2}`[] | `[]` = base model |
 | `look` | `{headgear: string, tint: string}` | optional. headgear ∈ `HEADGEAR` = none, nightcap, headset, hardhat, bow; tint = `#rrggbb`. Missing → `{headgear: "none", tint: <derived from name>}`. Read by the UI avatar; the runtime ignores it |
@@ -137,6 +149,8 @@ The model's turn output is either plain text (posted as `chat`, ends the run) or
 /propose_agent <reason>              followed by a ```yaml fenced block (the Agentfile)
 /think <question>                    one extra call with thinking on (temperature 0.6, the agent's own adapters); returns the conclusion, capped at 4 000 chars
 /mcp <server>/<tool> [<json object>]   a tool on a remote MCP server (streamable HTTP, `mcp_server_secret`); args default to {}. Needs mcp:<server>/<tool> or mcp:<server>/* in the Agentfile. Output = the result's text content joined, capped at 4 000 chars; isError → exit 1; 60 s timeout
+/send <path> @<agent> [-- <note>]    send a file from your sandbox to another REMi on any node (#77), max 50 MB. It lands in their sandbox at /shared/<file name> (an existing file of that name is replaced) and they're @mentioned in this channel, so they can sort it where it belongs
+/migrate <agent> <node>              move a REMi (yourself or another unprotected one, by name, `@` optional) to another node (#76): its Agentfile, LoRAs and memories go; its sandbox stays. Same base model only. Moving yourself ends this run once the move starts
 /<registry-tool> <args>              an approved tool, run in the sandbox as /tools/bin/<name> <args>
 ```
 
@@ -168,6 +182,20 @@ Sleep REMi only (each must be in the Agentfile's tools; #52):
 - Poll once per second per node: `SELECT * FROM message WHERE id > {last_id}`.
 - JSON encodings in SQL rows (checked against a real server, SpacetimeDB 2.14.1, #36): u64 as a plain number; Identity and Timestamp are products, so rows encode them as one-element arrays: Identity as `["0x…"]` (the hex string), Timestamp as `[n]` (micros since the Unix epoch). `remi.mocks.stdb` emits the same.
 
+### Moving an agent (#76)
+
+Agents are the brain (Agentfile, LoRAs) plus their memories. Memories, todos and messages are already in SpacetimeDB; only LoRA files travel, through `blob_chunk`. A node's sandbox and files never move.
+
+- The from_node sees a `migration` {uploading} for one of its agents. It drops that agent's worker (finishing the current turn), tars each adapter in the agent's Agentfile (`adapters/<name>/<v>/`) that the to_node doesn't hold, uploads each as blob `mig:<id>:<name>@<v>` (base64 chunks, seq from 0), then calls `migration_ready`.
+- The to_node sees {ready}. For each blob it reads `SELECT * FROM blob_chunk WHERE blob = '<blob>'`, joins the chunks in seq order, untars into its store, and checks `adapter_model.safetensors` against `adapter.sha256`. Then it calls `finish_migration`. Any error → `fail_migration(id, reason)`; nothing else changes.
+- Reading `blob_chunk` needs the owner's token, like `mcp_server_secret`.
+- `/migrate` calls `move_agent(agent, node, by_agent = the caller)` from the caller's node. When an agent moves itself, the loop ends that run as soon as it is `moving`.
+
+### Sending a file (#77)
+
+- `/send`: the sender's node copies the file out of the sender's sandbox, uploads it as blob `file:<nonce>:<name>`, then calls `send_file`.
+- The to_agent's node sees a `file_transfer` {sent} for one of its agents. It downloads the chunks, checks sha256, copies the file into that agent's sandbox at `/shared/<name>`, then calls `file_delivered` (which notifies the recipient). Any error → `file_failed(id, reason)`, which notifies the sender.
+
 ### Local incident intake
 
 Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = off) so a local app (e.g. a GPU temperature check) can raise an alert. Localhost only, no auth (same reasoning as vLLM's LoRA API).
@@ -193,7 +221,7 @@ Each runtime listens on `127.0.0.1:REMI_INCIDENT_PORT` (default `7077`, `0` = of
 
 ## 11. Mocks and fixtures
 
-- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code` and `mcp_server_secret` are private, so `/sql` refuses them.
+- `python -m remi.mocks.stdb --port 3999`: in-memory SpacetimeDB HTTP API (§8). Implements `/call` for the reducers core needs first (`set_nickname`, `request_sleep`, `add_admin_code`, `claim_admin`, `register_node`, `heartbeat`, `create_channel`, `join`, `post_message`, `create_agent`, `set_agent_status`, `run_start`, `run_turn`, `run_end`, `add_memory`) with the §4 validation that matters for those, and `/sql` for `SELECT * FROM <table> [WHERE <col> > <int>]`. Unknown reducers return 400 `unknown reducer`. `--owner <token>` plays the publisher: `init` makes that identity the `owner` admin. `admin_code`, `mcp_server_secret` and `blob_chunk` are private, so `/sql` refuses them.
 - `python -m remi.mocks.vllm --port 8999`: OpenAI-compatible `/v1/chat/completions`, `/v1/models`, `/v1/load_lora_adapter`, `/v1/unload_lora_adapter`. Replies come from a script you `POST /mock/script` (a JSON list of strings, consumed in order), else `"ok"`. `GET /mock/requests` returns every request received.
 - `fixtures/agentfiles/*.yaml` (valid examples incl. Sleep REMi), `fixtures/agentfiles/invalid/*.yaml`, `fixtures/dataset.jsonl` (60 valid examples), `fixtures/train_spec.json`.
 

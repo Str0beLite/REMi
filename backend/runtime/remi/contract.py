@@ -26,7 +26,9 @@ MESSAGE_KINDS = (
     "tool_card", "agent_card", "adapter_event", "sleep_event", "system",
     "incident",
 )
-AGENT_STATUSES = ("idle", "thinking", "asleep", "stopped")
+AGENT_STATUSES = ("idle", "thinking", "asleep", "stopped", "moving")
+MIGRATION_STATES = ("uploading", "ready", "done", "failed")  # migration.state (#76)
+TRANSFER_STATES = ("sent", "delivered", "failed")  # file_transfer.state (#77)
 RUN_STATES = ("running", "done", "stopped", "budget")
 TOOL_STATUSES = ("pending", "approved", "rejected")
 PROPOSAL_STATUSES = ("pending", "approved", "rejected")  # agent_proposal.status
@@ -34,7 +36,7 @@ TODO_STATUSES = ("open", "done")
 ADAPTER_STATUSES = ("candidate", "adopted", "rejected")
 TRIGGERS = ("mention", "dm", "every_message", "sleep_event", "incident")
 INCIDENT_SEVERITIES = ("warning", "critical", "resolved")  # incident meta.severity (§6)
-BUILTIN_TOOLS = ("sh", "fetch", "say", "note", "propose_tool", "propose_agent", "think")
+BUILTIN_TOOLS = ("sh", "fetch", "say", "note", "propose_tool", "propose_agent", "think", "send", "migrate")
 SLEEP_TOOLS = ("read", "todo", "memory", "dataset", "train_spec", "sleep", "adapter")  # Sleep REMi only (§7)
 RESERVED_TOOLS = BUILTIN_TOOLS + SLEEP_TOOLS + ("mcp",)  # no registry tool may take these names; /mcp is §7's MCP call
 DEFAULT_CHANNELS = ("general", "ops")

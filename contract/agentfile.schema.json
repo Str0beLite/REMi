@@ -58,6 +58,8 @@
               "propose_tool",
               "propose_agent",
               "think",
+              "send",
+              "migrate",
               "read",
               "todo",
               "memory",

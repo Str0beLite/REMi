@@ -18,7 +18,9 @@ export const MESSAGE_KINDS = [
   'system',
   'incident',
 ] as const;
-export const AGENT_STATUSES = ['idle', 'thinking', 'asleep', 'stopped'] as const;
+export const AGENT_STATUSES = ['idle', 'thinking', 'asleep', 'stopped', 'moving'] as const;
+export const MIGRATION_STATES = ['uploading', 'ready', 'done', 'failed'] as const; // migration.state (#76)
+export const TRANSFER_STATES = ['sent', 'delivered', 'failed'] as const; // file_transfer.state (#77)
 export const RUN_STATES = ['running', 'done', 'stopped', 'budget'] as const;
 export const TOOL_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const PROPOSAL_STATUSES = ['pending', 'approved', 'rejected'] as const; // agent_proposal.status
@@ -26,7 +28,7 @@ export const TODO_STATUSES = ['open', 'done'] as const;
 export const ADAPTER_STATUSES = ['candidate', 'adopted', 'rejected'] as const;
 export const TRIGGERS = ['mention', 'dm', 'every_message', 'sleep_event', 'incident'] as const;
 export const INCIDENT_SEVERITIES = ['warning', 'critical', 'resolved'] as const; // incident meta.severity (§6)
-export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'propose_agent', 'think'] as const;
+export const BUILTIN_TOOLS = ['sh', 'fetch', 'say', 'note', 'propose_tool', 'propose_agent', 'think', 'send', 'migrate'] as const;
 export const SLEEP_TOOLS = ['read', 'todo', 'memory', 'dataset', 'train_spec', 'sleep', 'adapter'] as const; // Sleep REMi only (§7)
 export const RESERVED_TOOLS = [...BUILTIN_TOOLS, ...SLEEP_TOOLS, 'mcp'] as const; // no registry tool may take these names
 export const DEFAULT_CHANNELS = ['general', 'ops'] as const;
@@ -229,6 +231,45 @@ export const mcp_server_secret = table(
   { name: t.string().primaryKey(), url: t.string(), headers: t.string() },
 );
 
+// Moving an agent between nodes (§3, #76) and files shared across nodes (#77). File bytes travel in the private blob_chunk.
+export const migration = table(
+  { name: 'migration', ...pub },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    agent_id: t.u64().index(),
+    from_node: t.u64(),
+    to_node: t.u64(),
+    state: t.string(),
+    note: t.string(),
+    ts: t.timestamp(),
+  },
+);
+export const adapter_copy = table(
+  { name: 'adapter_copy', ...pub },
+  { id: t.u64().primaryKey().autoInc(), key: t.string().index(), node_id: t.u64() },
+);
+export const blob_chunk = table(
+  { name: 'blob_chunk', public: false },
+  { id: t.u64().primaryKey().autoInc(), blob: t.string().index(), seq: t.u32(), data: t.string() },
+);
+export const file_transfer = table(
+  { name: 'file_transfer', ...pub },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    blob: t.string(),
+    name: t.string(),
+    size: t.u64(),
+    sha256: t.string(),
+    chunks: t.u32(),
+    from_agent: t.u64(),
+    to_agent: t.u64(),
+    channel_id: t.u64(),
+    note: t.string(),
+    state: t.string(),
+    ts: t.timestamp(),
+  },
+);
+
 const db = schema({
   user,
   node,
@@ -248,6 +289,10 @@ const db = schema({
   admin_code,
   mcp_server,
   mcp_server_secret,
+  migration,
+  adapter_copy,
+  blob_chunk,
+  file_transfer,
 });
 
 export default db;

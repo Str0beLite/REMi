@@ -20,8 +20,8 @@ from remi import contract as C
 
 TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "agent_proposal", "memory",
           "todo", "dataset", "adapter", "config_history", "setting", "admin_code",
-          "mcp_server", "mcp_server_secret")
-PRIVATE = ("admin_code", "mcp_server_secret")  # §3: not readable through /sql
+          "mcp_server", "mcp_server_secret", "migration", "adapter_copy", "blob_chunk", "file_transfer")
+PRIVATE = ("admin_code", "mcp_server_secret", "blob_chunk")  # §3: not readable through /sql
 ADMIN_CODE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*>\s*(\d+))?\s*;?\s*$", re.I)
 PUBLIC_NAME = re.compile(r"^[a-z0-9-]{1,32}$")
