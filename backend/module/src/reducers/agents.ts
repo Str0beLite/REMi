@@ -3,7 +3,7 @@
 import { SenderError, t } from 'spacetimedb/server';
 import db, { AGENT_STATUSES, NODE_STATUSES } from '../contract';
 import { parseAgentfile } from '../agentfile';
-import { insertAgent, logHistory, nameFree, syncChannels, type Ctx } from '../agentOps';
+import { insertAgent, logHistory, nameFree, requireJsonObject, syncChannels, type Ctx } from '../agentOps';
 
 type AgentRow = NonNullable<ReturnType<Ctx['db']['agent']['id']['find']>>;
 
@@ -54,11 +54,12 @@ export const register_node = db.reducer(
   },
 );
 
-export const heartbeat = db.reducer({ node_id: t.u64(), status: t.string() }, (ctx, { node_id, status }) => {
+export const heartbeat = db.reducer({ node_id: t.u64(), status: t.string(), stats: t.string() }, (ctx, { node_id, status, stats }) => {
   const n = nodeOrThrow(ctx, node_id);
   if (!n.identity.equals(ctx.sender)) throw new SenderError('only that node can heartbeat');
   oneOf(status, NODE_STATUSES, 'node status');
-  ctx.db.node.id.update({ ...n, status, last_seen: ctx.timestamp });
+  requireJsonObject(stats, 'stats');
+  ctx.db.node.id.update({ ...n, status, last_seen: ctx.timestamp, stats });
 });
 
 export const create_agent = db.reducer({ agentfile: t.string(), node_id: t.u64() }, (ctx, { agentfile, node_id }) => {

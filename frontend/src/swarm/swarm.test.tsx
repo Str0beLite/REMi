@@ -1,45 +1,81 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { SwarmRail } from './SwarmRail';
-import { SAMPLE, activityByAgent, ago, trainingByNode, type SwarmAgent } from './swarmData';
+import { SAMPLE, activityByAgent, ago, equipmentOf, modelName, parseStats, skillLabel, slotLabel, trainingByNode } from './swarmData';
 
 const html = (props: Parameters<typeof SwarmRail>[0]) => renderToStaticMarkup(<SwarmRail {...props} />);
 
 describe('SwarmRail', () => {
-  it('draws one 8U rack per node with each REMi as a plate showing name, purpose and status text', () => {
+  it('groups REMis under their node with name, status text and skills', () => {
     const out = html(SAMPLE);
-    expect(out.match(/class="rack"/g)).toHaveLength(2);
-    expect(out).toContain('gpu-01: 4 of 8U used');
+    expect(out.match(/class="node is-/g)).toHaveLength(2);
     for (const a of SAMPLE.agents) {
-      expect(out).toContain(`<b>${a.name}</b>`);
-      expect(out).toContain(a.purpose);
-      expect(out).toContain(`status-${a.status}">${a.status}<`);
+      expect(out).toContain(a.name);
+      expect(out).toContain(`remi-status status-${a.status}">${a.status}<`);
     }
-    expect(out).toContain('>U8<');
-    expect(out).toContain('>U1<');
+    expect(out).toMatch(/oncall[^]*dc-ops v2/);
+    expect(out).toMatch(/sleep-remi[^]*base model/);
   });
 
-  it('prints a stopped REMi grey', () => {
-    expect(html(SAMPLE)).toMatch(/rack-plate is-stopped[^]*helpdesk/);
-  });
-
-  it('shows a training band on the node whose latest sleep_event is training, free slots elsewhere', () => {
+  it("draws a node's memory and LoRA slots from its stats, and says so when it has none", () => {
     const out = html(SAMPLE);
-    expect(out).toContain('rack-band');
-    expect(out).toContain('dc-ops-v4');
-    expect(out).toContain('step 120');
-    expect(out).toContain('4U free');
+    expect(out).toContain('13.8 / 15.9 GB');
+    expect(out).toContain('1/4');
+    expect(out.match(/class="slot is-empty"/g)).toHaveLength(3);
+    expect(out).toContain('no stats yet');
   });
 
-  it('grows the rack past 8U when more than four REMis share a node', () => {
-    const agents: SwarmAgent[] = Array.from({ length: 5 }, (_, i) => ({
-      id: BigInt(i + 1), name: `r${i}`, status: 'idle', node_id: 1n, purpose: 'p', protected: false,
-    }));
-    expect(html({ nodes: [SAMPLE.nodes[0]], agents })).toContain('gpu-01: 10 of 10U used');
+  it('marks a stopped REMi, and shows the training line on the node that is training', () => {
+    const out = html(SAMPLE);
+    expect(out).toMatch(/remi-row is-stopped[^]*helpdesk/);
+    expect(out).toContain('Training dc-ops-v4');
+    expect(out).toContain('step 120');
+  });
+
+  it('keeps tools and activity out of the closed rows', () => {
+    const out = html(SAMPLE);
+    expect(out).not.toContain('/registry:host_power');
+    expect(out).toContain('aria-expanded="false"');
   });
 
   it('explains how to add a node when the swarm is empty', () => {
     expect(html({ nodes: [], agents: [] })).toContain('remi up');
+  });
+});
+
+describe('stats and skills', () => {
+  it('parses node stats and rejects {} or malformed ones', () => {
+    expect(parseStats('{}')).toBeUndefined();
+    expect(parseStats('nope')).toBeUndefined();
+    expect(parseStats('{"vram_total_mb":"x","vram_used_mb":1,"vram_vllm_mb":1,"lora_slots":4}')).toBeUndefined();
+    expect(parseStats(SAMPLE.nodes[0].stats)).toMatchObject({ lora_slots: 4, loras: ['dc-ops@2'] });
+  });
+
+  it('names skills and slots in words', () => {
+    expect(skillLabel([])).toBe('base model');
+    expect(skillLabel([{ name: 'dc-ops', version: 2, weight: 1 }, { name: 'x', version: 1, weight: 0 }])).toBe('dc-ops v2');
+    expect(skillLabel([{ name: 'dc-ops', version: 2, weight: 0.7 }, { name: 'net', version: 1, weight: 0.3 }])).toBe('dc-ops v2 70% + net v1 30%');
+    expect(slotLabel('dc-ops@2', []).short).toBe('dc-ops v2');
+    const capacity = { ...SAMPLE.agents[1], adapters: [{ name: 'dc-ops', version: 2, weight: 0.7 }, { name: 'net', version: 1, weight: 0.3 }] };
+    expect(slotLabel('mix-150860105191', [capacity]).short).toBe('dc-ops + net');
+    expect(slotLabel('mix-150860105191', []).short).toBe('mix 150860');
+  });
+
+  it('computes vLLM LoRA names exactly like remi.contract.model_name()', async () => {
+    // reference values from the Python implementation
+    expect(await modelName([])).toBeUndefined();
+    expect(await modelName([{ name: 'dc-ops', version: 2, weight: 1 }, { name: 'x', version: 1, weight: 0 }])).toBe('dc-ops@2');
+    expect(await modelName([{ name: 'dc-ops', version: 2, weight: 0.7 }, { name: 'net', version: 1, weight: 0.3 }])).toBe('mix-150860105191');
+    expect(await modelName([{ name: 'net', version: 1, weight: 1 }, { name: 'dc-ops', version: 2, weight: 1 }])).toBe('mix-7eaedfa3bc61');
+    expect(await modelName([{ name: 'a', version: 1, weight: 0.333 }])).toBe('mix-8c421cec26c7');
+  });
+
+  it("reads a REMi's adapters and tools from its Agentfile, leniently", () => {
+    expect(equipmentOf('name: a\ntools: [say, sh]\nadapters:\n  - {name: dc-ops, version: 2, weight: 1}\n')).toEqual({
+      tools: ['say', 'sh'],
+      adapters: [{ name: 'dc-ops', version: 2, weight: 1 }],
+    });
+    expect(equipmentOf('name: [')).toEqual({ adapters: [], tools: [] });
   });
 });
 
@@ -49,17 +85,14 @@ describe('SwarmRail: every agent, and what it is doing', () => {
   it('lists REMis whose node is missing under "Not placed", even with no nodes', () => {
     const out = html({ nodes: [], agents: SAMPLE.agents });
     expect(out).toContain('Not placed');
-    for (const a of SAMPLE.agents) expect(out).toContain(`<b>${a.name}</b>`);
+    for (const a of SAMPLE.agents) expect(out).toContain(a.name);
   });
 
   it('shows status counts, the last action with its channel, and flags help requests', () => {
     const out = html({ ...SAMPLE, channels, onOpenChannel: () => {} });
     expect(out).toContain('1 needs help');
     expect(out).toContain('</i>1 thinking</span>');
-    expect(out).toContain('ran ipmitool');
-    expect(out).toContain('ran ipmitool in #ops');
-    expect(out).toMatch(/rack-plate needs-help[^]*toolsmith/);
-    expect(out).toContain('title="Open #ops"');
+    expect(out).toMatch(/remi-row needs-help[^]*toolsmith[^]*needs help/);
   });
 });
 

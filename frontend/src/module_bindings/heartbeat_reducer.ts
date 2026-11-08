@@ -13,4 +13,5 @@ import {
 export default {
   nodeId: __t.u64(),
   status: __t.string(),
+  stats: __t.string(),
 };

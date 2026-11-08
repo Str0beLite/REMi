@@ -119,6 +119,7 @@ export const Node = __t.object("Node", {
   baseModel: __t.string(),
   status: __t.string(),
   lastSeen: __t.timestamp(),
+  stats: __t.string(),
 });
 export type Node = __Infer<typeof Node>;
 

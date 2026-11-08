@@ -18,4 +18,5 @@ export default __t.row({
   baseModel: __t.string().name("base_model"),
   status: __t.string(),
   lastSeen: __t.timestamp().name("last_seen"),
+  stats: __t.string(),
 });

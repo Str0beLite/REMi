@@ -46,3 +46,13 @@ export function insertAgent(ctx: Ctx, af: Agentfile, text: string, nodeId: bigin
   syncChannels(ctx, a.id, af);
   return a;
 }
+
+export function requireJsonObject(text: string, what: string) {
+  let v: unknown;
+  try {
+    v = JSON.parse(text);
+  } catch {
+    throw new SenderError(`${what} is not valid JSON`);
+  }
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new SenderError(`${what} must be a JSON object`);
+}

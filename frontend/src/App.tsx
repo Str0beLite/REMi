@@ -4,6 +4,7 @@ import { tables } from './module_bindings';
 import { AppShell } from './shell/AppShell';
 import { ChannelRail } from './shell/ChannelRail';
 import { SwarmRail } from './swarm/SwarmRail';
+import { equipmentOf } from './swarm/swarmData';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
 import { NicknamePrompt } from './chat/NicknamePrompt';
@@ -107,7 +108,7 @@ export default function App() {
 
   const swarm = (
     <SwarmRail
-      nodes={nodes.map(n => ({ id: n.id, name: n.name, gpu: n.gpu, status: n.status }))}
+      nodes={nodes.map(n => ({ id: n.id, name: n.name, gpu: n.gpu, status: n.status, base_model: n.baseModel, stats: n.stats }))}
       agents={agents.map(a => ({
         id: a.id,
         name: a.name,
@@ -115,6 +116,7 @@ export default function App() {
         node_id: a.nodeId,
         purpose: purposeOf(a.agentfile),
         protected: a.protected,
+        ...equipmentOf(a.agentfile),
       }))}
       messages={sortedMessages.map(m => ({
         id: m.id,

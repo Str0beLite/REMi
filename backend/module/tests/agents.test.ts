@@ -58,10 +58,14 @@ describe('register_node and heartbeat', () => {
   });
   it('lets only the node itself heartbeat, with a known status', () => {
     const w = setup();
-    w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'asleep' });
-    expect(w.h.db.node.id.find(1n)?.status).toBe('asleep');
-    expect(() => w.call('nodeB', mod.heartbeat, { node_id: 1n, status: 'up' })).toThrow(/only that node/);
-    expect(() => w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'napping' })).toThrow(/node status/);
+    expect(w.h.db.node.id.find(1n)?.stats).toBe('{}');
+    const stats = '{"vram_total_mb": 24576, "vram_used_mb": 20000, "vram_vllm_mb": 18000, "lora_slots": 4, "loras": ["dc-ops@2"]}';
+    w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'asleep', stats });
+    expect(w.h.db.node.id.find(1n)).toMatchObject({ status: 'asleep', stats });
+    expect(() => w.call('nodeB', mod.heartbeat, { node_id: 1n, status: 'up', stats: '{}' })).toThrow(/only that node/);
+    expect(() => w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'napping', stats: '{}' })).toThrow(/node status/);
+    expect(() => w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'up', stats: 'nope' })).toThrow(/stats is not valid JSON/);
+    expect(() => w.call('nodeA', mod.heartbeat, { node_id: 1n, status: 'up', stats: '[1]' })).toThrow(/stats must be a JSON object/);
   });
 });
 

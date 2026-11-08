@@ -3,6 +3,7 @@ import { SenderError, t, type InferSchema, type ReducerCtx } from 'spacetimedb/s
 import { stringify } from 'yaml';
 import db, { ADAPTER_STATUSES } from '../contract';
 import { parseAgentfile } from '../agentfile';
+import { requireJsonObject } from '../agentOps';
 
 type Ctx = ReducerCtx<InferSchema<typeof db>>;
 
@@ -23,16 +24,6 @@ function requireThatNode(ctx: Ctx, nodeId: bigint) {
   if (!n) throw new SenderError(`no node ${nodeId}`);
   if (!n.identity.equals(ctx.sender)) throw new SenderError(`only node ${nodeId} can register this`);
   return n;
-}
-
-function requireJsonObject(text: string, what: string) {
-  let v: unknown;
-  try {
-    v = JSON.parse(text);
-  } catch {
-    throw new SenderError(`${what} is not valid JSON`);
-  }
-  if (typeof v !== 'object' || v === null || Array.isArray(v)) throw new SenderError(`${what} must be a JSON object`);
 }
 
 export const register_dataset = db.reducer(
