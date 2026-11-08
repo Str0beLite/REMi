@@ -19,6 +19,8 @@
 }
 .shell-main {
   grid-area: main;
+  /* panels lay out by the space they actually get, not the window width (both rails eat ~550px) */
+  container: main / inline-size;
   min-width: 0;
   min-height: 0;
   display: flex;

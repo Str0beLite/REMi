@@ -282,7 +282,7 @@
   margin-left: auto;
 }
 
-@media (max-width: 899px) {
+@container main (max-width: 700px) {
   .agents {
     grid-template-columns: minmax(0, 1fr);
     overflow-y: auto;
