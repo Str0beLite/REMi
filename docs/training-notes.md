@@ -109,3 +109,9 @@ Setup for all numbers: Nemotron 3 Nano 4B BF16, RTX 5070 Ti 16 GB (WSL2), vLLM 0
 
 **24. After training, vLLM can fail to come back on a hybrid Mamba model: pin `--max-num-seqs`.**
 - Evidence: `max_num_seqs (256) exceeds available Mamba cache blocks (252)`. The trainer leaves slightly less VRAM free (3.76 vs 3.84 GiB of KV), and Mamba needs one cache block per sequence. `--max-num-seqs 64` fixes it; a node never runs 64 sequences at once.
+
+## Reasoning (CoT) adapters
+
+**25. Training on someone else's short worked solutions makes the model think less, and get more wrong.**
+- Evidence (#61 lab, 2026-11-08, `experiments/cot_gsm8k.py`): `gsm8k-cot@1`, LoRA rank 16, lr 2e-4, 1 epoch on 400 GSM8K worked solutions as `reasoning` (100 steps, 98 s, loss 1.22 → 0.71). Then 100 GSM8K test questions with `/think` decoding (thinking on, temperature 0.6): base **90/100**, adapter **76/100**, −14 points, 95% CI [−24, −4], McNemar p = 0.009 → **NO-GO**. Mean trace length fell from 458 to 214 characters. The human-written steps are terser than the model's own reasoning, and the adapter copied that brevity. Raw numbers: `docs/results/cot-gsm8k.json`.
+- Rule: don't train `reasoning` on traces written in a different style than the model's own. Use traces the model (or a bigger model) wrote that a check confirmed: keep the length and style it reasons best in, and change only what it reasons about. Until a CoT adapter beats base on the paired test, `/think` stays on the base model or on adapters trained without `reasoning`.
