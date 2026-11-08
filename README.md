@@ -14,13 +14,11 @@ Local agents never get better at your work: every lesson has to be stuffed back 
 
 ## Run it yourself
 
-You need an NVIDIA GPU with 16 GB+ and Docker (Windows: WSL2 + Docker Desktop; Linux: Docker + NVIDIA Container Toolkit). From a WSL2 / Linux shell:
+You need an NVIDIA GPU with 16 GB+ and its driver (on Windows also WSL2: `wsl --install`). From a WSL2 / Linux shell:
 
 ```bash
 git clone https://github.com/Str0beLite/REMi && cd REMi
-cp .env.example .env    # SpacetimeDB URL, database and admin token
-scripts/remi doctor     # checks the prerequisites
-scripts/remi up         # starts the node in the background
+scripts/remi up    # installs Docker + the NVIDIA Container Toolkit if missing, asks for the SpacetimeDB token, starts the node
 ```
 
 Then open the console and chat with a REMi in `#general`. Details and troubleshooting: [node-setup.md](docs/node-setup.md).

@@ -1,12 +1,11 @@
 # A REMi node: `scripts/remi up`. Settings come from .env (copy .env.example).
+name: remi  # stable volume names, whatever the checkout folder is called
 services:
   node:
     build: { context: ., dockerfile: backend/runtime/Dockerfile }
     image: remi-node
     restart: unless-stopped
-    env_file: .env
-    environment:
-      REMI_NODE_NAME: ${REMI_NODE_NAME:-node}
+    env_file: .env  # written by scripts/remi install
     gpus: all
     ipc: host  # PyTorch/vLLM shared memory
     extra_hosts: ["host.docker.internal:host-gateway"]  # Linux: reach a SpacetimeDB on the host like Docker Desktop does

@@ -6,22 +6,25 @@ A REMi node is one container: the official vLLM image plus the runtime and train
 
 | OS | Needs |
 |---|---|
-| Windows 11 | WSL2, Docker Desktop with the WSL2 backend, NVIDIA driver (Game Ready / Studio, any recent one) |
-| Linux | Docker Engine with compose v2, NVIDIA driver, [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) |
+| Windows 10/11 | WSL2 (`wsl --install` in PowerShell, then reboot) and the NVIDIA driver installed on Windows |
+| Linux (apt or dnf) | The NVIDIA driver |
 
-GPU: 16 GB VRAM or more (vLLM takes 85% of it). Run the commands from a WSL2 / Linux shell.
+GPU: 16 GB VRAM or more (vLLM takes 85% of it). Run the commands from a WSL2 / Linux shell with sudo.
+
+`scripts/remi up` installs everything else it finds missing: Docker Engine (get.docker.com) and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html). It writes `.env` with this machine's name and GPU, and asks once for the SpacetimeDB admin token. Docker Desktop also works if it's already there; it isn't needed.
 
 ## Run
 
 ```bash
 git clone https://github.com/Str0beLite/REMi && cd REMi
-cp .env.example .env          # set STDB_URL, STDB_DB, STDB_TOKEN (admin), REMI_NODE_NAME
-scripts/remi doctor           # checks each prerequisite and prints the fix
-scripts/remi up               # builds and starts; survives reboots (restart: unless-stopped)
+scripts/remi up               # installs what's missing, builds, starts; survives reboots (restart: unless-stopped)
 scripts/remi status           # vllm: ready after the first model download (~8 GB, a few minutes)
 scripts/remi logs             # follow the node
 scripts/remi down
+scripts/remi doctor           # checks only, changes nothing
 ```
+
+Point it at another SpacetimeDB by editing `.env` (`STDB_URL`, `STDB_DB`; see `.env.example`), then `scripts/remi up` again.
 
 Model weights live in the `hf-cache` volume and datasets/adapters in `store`, so both survive `down`/`up`.
 
@@ -35,6 +38,7 @@ Recorded 2026-11-08 from the working box (RTX 5070 Ti 16 GB, sm_120):
 
 ## Troubleshooting
 
-- `doctor` says no GPU in containers on Linux/WSL with Docker Engine: install the NVIDIA Container Toolkit, then `sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker`.
+- "no NVIDIA GPU driver" in WSL: the driver goes on Windows, not inside WSL; install it there and reopen the WSL shell.
+- After the Docker install, plain `docker` needs a new login (docker group); `scripts/remi` uses sudo until then.
 - vLLM fails to start with out-of-memory: another process holds VRAM (`nvidia-smi`); stop it, then `scripts/remi up`.
 - A SpacetimeDB on the host (not Maincloud): `STDB_URL=http://host.docker.internal:3000`.

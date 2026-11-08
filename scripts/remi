@@ -1,31 +1,112 @@
 #!/usr/bin/env bash
-# remi doctor | up | down | status | logs   — run a REMi node in Docker (docs/node-setup.md)
+# remi install | up | down | status | logs | doctor   — run a REMi node in Docker (docs/node-setup.md)
+# `up` installs what's missing first (Docker Engine, NVIDIA Container Toolkit), so a fresh WSL2/Linux box just works.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-dc() { docker compose "$@"; }
+SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+say() { printf '\033[1mremi:\033[0m %s\n' "$*"; }
+die() { printf '\033[1;31mremi:\033[0m %s\n' "$*" >&2; exit 1; }
 
-doctor() {
+D="docker"  # becomes "sudo docker" when we just joined the docker group (it applies from the next login)
+pick_docker() { docker info >/dev/null 2>&1 || { $SUDO docker info >/dev/null 2>&1 && D="$SUDO docker"; }; }
+desktop() { $D info --format '{{.OperatingSystem}}' 2>/dev/null | grep -q "Docker Desktop"; }
+gpu_ok() { $D run --rm --gpus all ubuntu:24.04 nvidia-smi -L >/tmp/remi-gpu.txt 2>&1; }
+restart_docker() { $SUDO systemctl restart docker 2>/dev/null || $SUDO service docker restart; }
+
+install_docker() {
+  say "installing Docker Engine (get.docker.com)"
+  curl -fsSL https://get.docker.com | $SUDO sh || die "Docker install failed"
+  [ -n "$SUDO" ] && $SUDO usermod -aG docker "$USER"
+  $SUDO systemctl enable --now docker 2>/dev/null || $SUDO service docker start
+}
+
+install_toolkit() {
+  say "installing the NVIDIA Container Toolkit"
+  local key=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg base=https://nvidia.github.io/libnvidia-container
+  if command -v apt-get >/dev/null; then
+    curl -fsSL $base/gpgkey | $SUDO gpg --batch --yes --dearmor -o $key
+    curl -fsSL $base/stable/deb/nvidia-container-toolkit.list | sed "s#deb https://#deb [signed-by=$key] https://#g" \
+      | $SUDO tee /etc/apt/sources.list.d/nvidia-container-toolkit.list >/dev/null
+    $SUDO apt-get update -qq && $SUDO DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nvidia-container-toolkit
+  elif command -v dnf >/dev/null; then
+    curl -fsSL $base/stable/rpm/nvidia-container-toolkit.repo | $SUDO tee /etc/yum.repos.d/nvidia-container-toolkit.repo >/dev/null
+    $SUDO dnf install -y -q nvidia-container-toolkit
+  else
+    die "no apt or dnf: install the NVIDIA Container Toolkit by hand (docs/node-setup.md)"
+  fi || die "NVIDIA Container Toolkit install failed"
+  $SUDO nvidia-ctk runtime configure --runtime=docker && restart_docker
+}
+
+make_env() {
+  [ -f .env ] && return
+  cp .env.example .env
+  sed -i "s/^REMI_NODE_NAME=.*/REMI_NODE_NAME=$(hostname -s | tr 'A-Z_' 'a-z-')/" .env
+  local gpu; gpu=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)
+  [ -n "$gpu" ] && sed -i "s/^REMI_GPU=.*/REMI_GPU=$gpu/" .env
+  say "wrote .env for this machine"
+}
+
+ask_token() {
+  grep -q '^STDB_TOKEN=.\+' .env && return
+  local cli=~/.config/spacetime/cli.toml t=""
+  [ -t 0 ] || die "set STDB_TOKEN in .env: spacetimedb_token from $cli of an admin of the database"
+  if [ -f "$cli" ] && grep -q '^spacetimedb_token' "$cli"; then
+    local yn; read -rp "Use this machine's spacetime CLI login as the node's identity (it must be a database admin)? [Y/n] " yn
+    [[ "$yn" =~ ^[Nn] ]] || t=$(sed -n 's/^spacetimedb_token *= *"\(.*\)"/\1/p' "$cli")
+  fi
+  if [ -z "$t" ]; then
+    say "paste the admin's spacetimedb_token (the line in $cli on the machine that published the module)"
+    read -rsp "SpacetimeDB admin token: " t; echo
+  fi
+  [ -n "$t" ] || die "no token given"
+  [ "$(tr -cd . <<<"$t" | wc -c)" = 2 ] || die "that isn't a single token (expected one JWT: xxx.yyy.zzz)"
+  sed -i "s|^STDB_TOKEN=.*|STDB_TOKEN=$t|" .env
+}
+
+install() {
+  command -v nvidia-smi >/dev/null && nvidia-smi -L >/dev/null 2>&1 \
+    || die "no NVIDIA GPU driver. Windows: install the NVIDIA driver on Windows (not in WSL), then reopen WSL. Linux: install the driver (e.g. sudo ubuntu-drivers install) and reboot."
+  command -v curl >/dev/null || { $SUDO apt-get install -y -qq curl 2>/dev/null || $SUDO dnf install -y -q curl; }
+  pick_docker
+  if ! $D info >/dev/null 2>&1; then
+    command -v docker >/dev/null || install_docker
+    $SUDO systemctl start docker 2>/dev/null || $SUDO service docker start
+    pick_docker
+    $D info >/dev/null 2>&1 || die "Docker is installed but not running: sudo systemctl start docker"
+  fi
+  $D compose version >/dev/null 2>&1 || die "docker compose v2 missing: re-run the Docker install (get.docker.com) or update Docker"
+  if ! gpu_ok; then
+    desktop && die "Docker Desktop can't see the GPU: update the NVIDIA driver and use the WSL2 backend (Settings > General)"
+    install_toolkit
+    gpu_ok || die "GPU still not visible in containers: $(tail -1 /tmp/remi-gpu.txt)"
+  fi
+  say "GPU in containers: $(head -1 /tmp/remi-gpu.txt)"
+  make_env
+  ask_token
+}
+
+doctor() {  # check only, changes nothing
   local bad=0
   ok()   { printf '  ok    %s\n' "$1"; }
-  fail() { printf '  FAIL  %s\n        fix: %s\n' "$1" "$2"; bad=1; }
-  command -v docker >/dev/null && ok "docker CLI" || fail "docker CLI" "install Docker Desktop (Windows: WSL2 backend) or Docker Engine (Linux)"
-  docker info >/dev/null 2>&1 && ok "docker daemon running" || fail "docker daemon" "start Docker Desktop, or: sudo systemctl start docker"
-  docker compose version >/dev/null 2>&1 && ok "docker compose v2" || fail "docker compose" "update Docker (compose v2 ships with it)"
-  if docker run --rm --gpus all ubuntu:24.04 nvidia-smi -L >/tmp/remi-gpu.txt 2>&1; then ok "GPU in containers: $(head -1 /tmp/remi-gpu.txt)"
-  else fail "GPU in containers" "install the NVIDIA driver; Linux: also the NVIDIA Container Toolkit (docs/node-setup.md)"; fi
-  if [ ! -f .env ]; then fail ".env" "cp .env.example .env and fill it in"
-  elif ! grep -q '^STDB_TOKEN=.\+' .env; then fail "STDB_TOKEN in .env" "spacetime login show --token (an admin identity)"
-  else ok ".env"; fi
+  fail() { printf '  FAIL  %s\n' "$1"; bad=1; }
+  pick_docker
+  nvidia-smi -L >/dev/null 2>&1 && ok "NVIDIA driver" || fail "NVIDIA driver (install it; Windows: on Windows, not in WSL)"
+  $D info >/dev/null 2>&1 && ok "docker running" || fail "docker (scripts/remi install)"
+  $D compose version >/dev/null 2>&1 && ok "docker compose v2" || fail "docker compose v2 (scripts/remi install)"
+  gpu_ok && ok "GPU in containers: $(head -1 /tmp/remi-gpu.txt)" || fail "GPU in containers (scripts/remi install)"
+  [ -f .env ] && grep -q '^STDB_TOKEN=.\+' .env && ok ".env with STDB_TOKEN" || fail ".env / STDB_TOKEN (scripts/remi install)"
   return $bad
 }
 
 case "${1:-}" in
-  doctor) doctor ;;
-  up)     doctor && dc up -d --build && echo "Starting. vLLM takes a few minutes the first time (model download): scripts/remi status" ;;
-  down)   dc down ;;
-  status) dc ps
-          dc exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
-            || echo "node: not running" ;;
-  logs)   dc logs -f --tail 100 node ;;
-  *)      echo "usage: scripts/remi doctor | up | down | status | logs" >&2; exit 2 ;;
+  install) install && say "ready: scripts/remi up" ;;
+  up)      install && $D compose up -d --build \
+             && say "starting. vLLM takes a few minutes the first time (model download): scripts/remi status" ;;
+  down)    pick_docker; $D compose down ;;
+  status)  pick_docker; $D compose ps
+           $D compose exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
+             || echo "node: not running" ;;
+  logs)    pick_docker; $D compose logs -f --tail 100 node ;;
+  doctor)  doctor ;;
+  *)       echo "usage: scripts/remi install | up | down | status | logs | doctor" >&2; exit 2 ;;
 esac
