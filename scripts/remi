@@ -100,12 +100,16 @@ doctor() {  # check only, changes nothing
 
 case "${1:-}" in
   install) install && say "ready: scripts/remi up" ;;
-  up)      install && $D compose up -d --build \
-             && say "starting. vLLM takes a few minutes the first time (model download): scripts/remi status" ;;
+  up)      install && $D compose build \
+             && say "downloading the model (once, ~8 GB; cached in the hf-cache volume)" \
+             && $D compose run --rm --no-deps --entrypoint hf node download "$(sed -n 's/^BASE_MODEL=//p' .env | grep . || echo nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16)" >/dev/null \
+             && $D compose up -d \
+             && say "starting. vLLM takes 1-4 minutes to warm up: scripts/remi status" ;;
   down)    pick_docker; $D compose down ;;
   status)  pick_docker; $D compose ps
            $D compose exec -T node python3 -c "from remi.serving.launch import ready; print('vllm: ready' if ready() else 'vllm: starting')" 2>/dev/null \
-             || echo "node: not running" ;;
+             || echo "node: not running"
+           $D compose exec -T node sh -c 'tail -1 /store/vllm.log 2>/dev/null | cut -c1-160' 2>/dev/null ;;  # what vLLM is doing now
   logs)    pick_docker; $D compose logs -f --tail 100 node ;;
   doctor)  doctor ;;
   *)       echo "usage: scripts/remi install | up | down | status | logs | doctor" >&2; exit 2 ;;
