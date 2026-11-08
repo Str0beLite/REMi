@@ -1,0 +1,29 @@
+# A REMi node: `scripts/remi up`. Settings come from .env (copy .env.example).
+services:
+  node:
+    build: { context: ., dockerfile: backend/runtime/Dockerfile }
+    image: remi-node
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REMI_NODE_NAME: ${REMI_NODE_NAME:-node}
+    gpus: all
+    ipc: host  # PyTorch/vLLM shared memory
+    extra_hosts: ["host.docker.internal:host-gateway"]  # Linux: reach a SpacetimeDB on the host like Docker Desktop does
+    volumes:
+      - store:/store                          # datasets, specs, adapters, mixes, vllm.log
+      - hf-cache:/root/.cache/huggingface     # model weights download once
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      sandbox-image: { condition: service_completed_successfully }
+
+  # Builds the per-REMi /sh sandbox image; the node starts one container per REMi from it.
+  sandbox-image:
+    build: backend/sandbox
+    image: remi-sandbox
+    command: ["true"]
+    restart: "no"
+
+volumes:
+  store:
+  hf-cache:
