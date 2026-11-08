@@ -16,6 +16,10 @@ export function AgentsPanel() {
   const { identity } = useSpacetimeDB();
   const [agents] = useTable(tables.agent);
   const [nodes] = useTable(tables.node);
+  const [channels] = useTable(tables.channel);
+  const [adapters] = useTable(tables.adapter);
+  const [adapterCopies] = useTable(tables.adapterCopy);
+  const publicChannels = channels.filter(c => c.kind === 'public').map(c => c.name).sort();
   const [users] = useTable(tables.user);
   const [history] = useTable(tables.configHistory);
   const createAgent = useReducer(reducers.createAgent);
@@ -102,6 +106,9 @@ export function AgentsPanel() {
               mode="create"
               initialText={TEMPLATES[0].text}
               nodes={nodes}
+              channels={publicChannels}
+              adapters={adapters}
+              adapterCopies={adapterCopies}
               onCancel={() => confirmLeave() && setSelected(undefined)}
               onSubmit={async (text, nodeId) => {
                 await createAgent({ agentfile: text, nodeId: nodeId! });
@@ -188,6 +195,11 @@ export function AgentsPanel() {
               key={String(agent.id)}
               mode="edit"
               initialText={agent.agentfile}
+              nodes={nodes}
+              homeId={agent.nodeId}
+              channels={publicChannels}
+              adapters={adapters}
+              adapterCopies={adapterCopies}
               readOnlyReason={readOnlyReason}
               onSubmit={text => updateAgentfile({ agentId: agent.id, agentfile: text })}
             />
