@@ -12,6 +12,7 @@ import urllib.request
 from pathlib import Path
 
 from remi import contract as C
+from remi.serving import stats
 from remi.stdb import Stdb
 
 TOKEN_FILE = "node_token"
@@ -53,7 +54,7 @@ class Node:
         return self.id
 
     def heartbeat(self) -> None:
-        self.db.call("heartbeat", self.id, self.status)
+        self.db.call("heartbeat", self.id, self.status, json.dumps(stats.stats()))
 
     def set_status(self, status: str) -> None:
         """up / asleep / down; sent right away (lane:gpu's sleep cycle uses this)."""

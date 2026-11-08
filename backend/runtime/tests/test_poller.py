@@ -251,7 +251,7 @@ def test_main_registers_heartbeats_and_goes_down(server, tmp_path):
         post(server, "@helper hello")
         time.sleep(0.6)
         beats = [c for c in server.db.calls if c["reducer"] == "heartbeat"]
-        assert len(beats) >= 3 and all(c["args"] == [row["id"], "up"] for c in beats)
+        assert len(beats) >= 3 and all(c["args"][:2] == [row["id"], "up"] for c in beats)
     finally:
         proc.terminate()
         out = proc.communicate(timeout=10)[0]

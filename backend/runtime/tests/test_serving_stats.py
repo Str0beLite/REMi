@@ -82,3 +82,21 @@ def test_cached_for_ten_seconds(monkeypatch, vllm):
     t[0] += 2
     stats.stats(vllm, now=clock)
     assert len(calls) == 2
+
+
+def test_heartbeat_carries_stats_into_node_row(monkeypatch):
+    """node.heartbeat() sends stats() as the 3rd arg (CONTRACT §4); the stdb mock stores it in node.stats."""
+    from remi.mocks import stdb as stdb_mock
+    from remi.node import Node
+    from remi.stdb import Stdb
+    s = stdb_mock.make_server(0)
+    threading.Thread(target=s.serve_forever, daemon=True).start()
+    try:
+        s.db.insert("user", {"identity": {"__identity__": "0xadmin"}, "nickname": "ryan", "is_admin": True})
+        monkeypatch.setattr(stats, "stats", lambda: {"vram_total_mb": 16303})  # collect() is covered above
+        node = Node(Stdb(f"http://127.0.0.1:{s.server_address[1]}", "remi", "0xadmin"), "pc")
+        node.register()
+        [row] = node.db.sql("SELECT * FROM node")
+        assert json.loads(row["stats"])["vram_total_mb"] == 16303
+    finally:
+        s.shutdown()
