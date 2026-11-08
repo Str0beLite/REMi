@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
     command: ["start", "--listen-addr", "0.0.0.0:3000", "--data-dir", "/app/data",
               "--jwt-pub-key-path", "/app/id_ecdsa.pub", "--jwt-priv-key-path", "/app/id_ecdsa"]
-    ports: ["127.0.0.1:3000:3000"]
+    ports: ["${REMI_BIND:-127.0.0.1}:3000:3000"]  # `remi up --lan` sets REMI_BIND=0.0.0.0 so other machines can join
     volumes: [stdb:/app]
     healthcheck:
       test: ["CMD", "spacetime", "server", "ping", "http://localhost:3000"]
@@ -56,7 +56,7 @@ services:
         COPY backend/module ./
     image: remi-publish
     restart: "no"
-    environment: { STDB_DB: "${STDB_DB:-remi}" }  # scripts/remi passes REMI_ADMIN_CODE with -e
+    environment: { STDB_DB: "${STDB_DB:-remi}" }  # scripts/remi passes REMI_ADMIN_CODE and REMI_WORKSPACE_URL with -e
     volumes: [stdb-cli:/root/.config/spacetime]
     depends_on:
       spacetimedb: { condition: service_healthy }
@@ -66,15 +66,16 @@ services:
       - |
         spacetime publish "$$STDB_DB" --server http://spacetimedb:3000 --yes >&2
         [ -z "$$REMI_ADMIN_CODE" ] || spacetime call "$$STDB_DB" add_admin_code "$$REMI_ADMIN_CODE" --server http://spacetimedb:3000 >&2
+        spacetime call "$$STDB_DB" set_setting workspace_url "$${REMI_WORKSPACE_URL:-}" --server http://spacetimedb:3000 >&2
         sed -n 's/^spacetimedb_token *= *"\(.*\)"/STDB_TOKEN=\1/p' /root/.config/spacetime/cli.toml
 
-  # The console as static files, talking to the spacetimedb service through this machine's localhost:3000.
+  # The console as static files. It talks to the spacetimedb service on whatever host served the page, port 3000.
   console:
     profiles: [local]
     build: { context: ., dockerfile: frontend/Dockerfile }
     image: remi-console
     restart: unless-stopped
-    ports: ["127.0.0.1:8080:80"]
+    ports: ["${REMI_BIND:-127.0.0.1}:8080:80"]
 
 volumes:
   store:

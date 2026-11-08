@@ -44,17 +44,36 @@ function setup() {
 describe('register_node and heartbeat', () => {
   it('lets an admin register its own identity as a node and re-register to update it', () => {
     const w = setup();
-    w.call('admin', mod.register_node, { name: 'gpu-01', gpu: '5070 Ti', base_model: 'nano-4b' });
-    w.call('admin', mod.register_node, { name: 'gpu-01', gpu: '4090', base_model: 'nano-4b' });
+    w.call('admin', mod.register_node, { name: 'gpu-01', gpu: '5070 Ti', base_model: 'nano-4b', join_code: '' });
+    w.call('admin', mod.register_node, { name: 'gpu-01', gpu: '4090', base_model: 'nano-4b', join_code: '' });
     const n = [...w.h.db.node.iter()].filter(n => n.name === 'gpu-01');
     expect(n).toHaveLength(1);
     expect(n[0].gpu).toBe('4090');
   });
   it('rejects non-admins and names owned by another identity', () => {
     const w = setup();
-    expect(() => w.call('bob', mod.register_node, { name: 'gpu-02', gpu: 'x', base_model: 'm' })).toThrow(/only an admin/);
-    expect(() => w.call('admin', mod.register_node, { name: 'node-a', gpu: 'x', base_model: 'm' })).toThrow(/another identity/);
-    expect(() => w.call('admin', mod.register_node, { name: 'GPU 2', gpu: 'x', base_model: 'm' })).toThrow(/lowercase/);
+    expect(() => w.call('bob', mod.register_node, { name: 'gpu-02', gpu: 'x', base_model: 'm', join_code: '' })).toThrow(/only an admin/);
+    expect(() => w.call('admin', mod.register_node, { name: 'node-a', gpu: 'x', base_model: 'm', join_code: '' })).toThrow(/another identity/);
+    expect(() => w.call('admin', mod.register_node, { name: 'GPU 2', gpu: 'x', base_model: 'm', join_code: '' })).toThrow(/lowercase/);
+  });
+  it('admits a non-admin machine with the current join code, and only that code', () => {
+    const w = setup();
+    const code = 'join_Abc-0123456789xyz';
+    const reg = (name: string, join_code: string) => w.call('stranger', mod.register_node, { name, gpu: '3060', base_model: 'm', join_code });
+    expect(() => reg('laptop', code)).toThrow(/join code/); // joining is off
+    w.call('admin', mod.set_node_join_code, { code });
+    expect(() => reg('laptop', 'wrong_Abc-0123456789xyz')).toThrow(/join code/);
+    reg('laptop', code);
+    const laptop = [...w.h.db.node.iter()].find(n => n.name === 'laptop')!;
+    expect(laptop.identity.equals(w.id.stranger)).toBe(true);
+    expect(w.h.db.user.identity.find(w.id.stranger)).toBeNull(); // a join code never makes anyone a user, let alone admin
+    reg('laptop', code); // re-registering its own name still works
+    w.call('admin', mod.set_node_join_code, { code: 'next_Abc-0123456789xyz' }); // a new code revokes the old one
+    reg('laptop', code); // ...but a machine already in still restarts fine
+    w.call('admin', mod.set_node_join_code, { code: '' });
+    reg('laptop', code);
+    expect(() => reg('desk', code)).toThrow(/join code/); // a new machine from the same identity still needs a code
+    expect(() => w.call('bob', mod.register_node, { name: 'desk', gpu: 'x', base_model: 'm', join_code: code })).toThrow(/join code/);
   });
   it('lets only the node itself heartbeat, with a known status', () => {
     const w = setup();

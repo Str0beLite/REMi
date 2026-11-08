@@ -3,6 +3,7 @@ import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
 import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
 import { McpServers } from './McpServers';
+import { AddMachine } from '../nodes/AddMachine';
 import { People } from './People';
 import './config.css';
 
@@ -176,6 +177,8 @@ export function ConfigPanel() {
       <People />
 
       <McpServers />
+
+      <AddMachine />
 
       <section>
         <h2>Nodes</h2>

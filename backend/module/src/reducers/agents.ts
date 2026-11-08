@@ -40,9 +40,14 @@ function applyAgentfile(ctx: Ctx, a: AgentRow, text: string) {
 }
 
 export const register_node = db.reducer(
-  { name: t.string(), gpu: t.string(), base_model: t.string() },
-  (ctx, { name, gpu, base_model }) => {
-    if (!isAdmin(ctx)) throw new SenderError('only an admin can register a node');
+  { name: t.string(), gpu: t.string(), base_model: t.string(), join_code: t.string() },
+  (ctx, { name, gpu, base_model, join_code }) => {
+    // A join code admits a machine without an admin's token (#84); it never makes the caller admin.
+    // A machine that already joined re-registers on every start: its own node needs no code, so a new code or
+    // turning joining off never locks out machines that are already in.
+    const joined = join_code !== '' && !!ctx.db.node_join_code.code.find(join_code);
+    const rejoin = callerNode(ctx)?.name === name;
+    if (!isAdmin(ctx) && !joined && !rejoin) throw new SenderError('only an admin, or a machine with the current join code, can register a node');
     if (!/^[a-z0-9-]{1,32}$/.test(name)) throw new SenderError('node names are lowercase a-z, 0-9 and -, 1-32 characters');
     if (!base_model.trim()) throw new SenderError('base_model is required');
     const byName = ctx.db.node.name.find(name);

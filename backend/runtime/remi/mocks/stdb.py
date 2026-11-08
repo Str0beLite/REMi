@@ -114,7 +114,9 @@ class MockDB:
 
     def register_node(self, caller, name, gpu, base_model, join_code=""):
         u = self.user(caller)
-        if not (u and u["is_admin"]) and not (join_code and self.one("node_join_code", code=join_code)):
+        mine = self.node_of(caller)
+        if not (u and u["is_admin"]) and not (join_code and self.one("node_join_code", code=join_code)) \
+                and not (mine and mine["name"] == name):
             raise SenderError("admin only, or a valid join code")
         if not base_model:
             raise SenderError("base_model required")

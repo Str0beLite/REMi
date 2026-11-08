@@ -23,6 +23,7 @@ type Props = {
   messages?: SwarmMessage[];
   channels?: Channel[];
   onOpenChannel?: (id: bigint) => void;
+  onAddMachine?: () => void; // admins only: opens Config's Add a machine panel (#83)
   now?: number;
 };
 
@@ -56,7 +57,7 @@ function useModelNames(agents: SwarmAgent[]) {
 // The swarm, node first: each machine's memory and LoRA slots, then the REMis it runs and the skills they carry.
 // A REMi row opens in place for what it did last, its tools and adapters.
 // Every REMi is on screen: ones whose node isn't registered (or is gone) are listed under "Not placed".
-export function SwarmRail({ nodes, agents, messages = [], channels = [], onOpenChannel, now = Date.now() }: Props) {
+export function SwarmRail({ nodes, agents, messages = [], channels = [], onOpenChannel, onAddMachine, now = Date.now() }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const training = trainingByNode(messages, agents, nodes);
   const ctx: RowCtx = {
@@ -108,6 +109,11 @@ export function SwarmRail({ nodes, agents, messages = [], channels = [], onOpenC
           </h3>
           <Rows agents={unplaced} ctx={ctx} />
         </section>
+      )}
+      {onAddMachine && (
+        <button type="button" className="swarm-add" onClick={onAddMachine}>
+          + Add a machine
+        </button>
       )}
     </section>
   );

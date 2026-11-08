@@ -379,3 +379,18 @@
     transition: none;
   }
 }
+
+/* An empty slot at the end of the racks: where the next machine goes (#83) */
+.swarm-add {
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px dashed var(--ramp-400);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.swarm-add:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}

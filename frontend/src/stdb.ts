@@ -1,7 +1,11 @@
 // SpacetimeDB connection settings. Override with VITE_STDB_URI / VITE_STDB_DB in frontend/.env.local.
+// `same-host` (the Docker console's default) means this page's own host on port 3000, so a browser on another
+// machine reaches the workspace it loaded the console from instead of its own localhost (#83).
 import { DbConnection } from './module_bindings';
 
-export const STDB_URI: string = import.meta.env.VITE_STDB_URI ?? 'wss://maincloud.spacetimedb.com';
+const configured: string = import.meta.env.VITE_STDB_URI ?? 'wss://maincloud.spacetimedb.com';
+export const STDB_URI: string =
+  configured === 'same-host' ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:3000` : configured;
 export const STDB_DB: string = import.meta.env.VITE_STDB_DB ?? 'remi';
 
 const TOKEN_KEY = `${STDB_URI}/${STDB_DB}/auth_token`;

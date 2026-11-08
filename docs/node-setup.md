@@ -20,6 +20,7 @@ GPU: 16 GB VRAM or more (vLLM takes 85% of it). Run the commands from a WSL2 / L
 ```bash
 git clone https://github.com/Str0beLite/REMi && cd REMi
 scripts/remi up               # installs what's missing, builds, publishes, starts; prints the admin link; survives reboots
+scripts/remi up --lan         # the same, open to your network so other machines can join (see Add a machine)
 scripts/remi status           # vllm: ready after the first model download (~8 GB, a few minutes)
 scripts/remi logs             # follow the node
 scripts/remi down
@@ -28,17 +29,32 @@ scripts/remi doctor           # checks only, changes nothing
 
 Each `up` re-publishes the module as an update (data is kept; the publisher's identity lives in the `stdb-cli` volume and is the workspace owner) and prints a fresh admin link. The node joins with that owner's token, which `up` writes to `.env` as `STDB_TOKEN`.
 
-### Join a remote database instead
+## Add a machine (#83)
 
-To run only a node against another workspace (e.g. the Maincloud team demo, published from main with `scripts/publish-module.sh maincloud`), edit `.env`:
+One workspace, several GPU machines. On the PC that runs the workspace:
 
-```
-COMPOSE_PROFILES=
-STDB_URL=https://maincloud.spacetimedb.com
-STDB_TOKEN=<an admin's spacetimedb_token from ~/.config/spacetime/cli.toml>
+```bash
+scripts/remi up --lan         # opens it to your network (sticky; scripts/remi up --no-lan closes it again)
 ```
 
-With `COMPOSE_PROFILES` empty, `up` skips the local SpacetimeDB, the publish and the console.
+`--lan` binds SpacetimeDB (3000) and the console (8080) to the network instead of localhost and stores the address other machines should use (setting `workspace_url`). On WSL2 it also forwards those two ports from Windows and allows them in the Windows firewall; Windows asks for admin once, and again only if WSL's address changes. The firewall rule covers Private and Domain networks, so mark your home network Private. Other PCs can then open the console at `http://<this-pc>:8080`.
+
+Then, as an admin in the console: **Config > Add a machine** (also the **+ Add a machine** slot at the bottom of the Swarm rail). **Allow machines to join** makes a join code and shows one command. Run it on the new PC:
+
+```bash
+git clone https://github.com/Str0beLite/REMi && cd REMi && scripts/remi join http://192.168.1.20:3000/remi <code>
+```
+
+`join` checks that it can reach the workspace, writes `.env` (empty `COMPOSE_PROFILES`, `STDB_URL`, `STDB_DB`, `REMI_JOIN_CODE`, no token), installs whatever is missing exactly like `up`, and starts only the node. The node mints its own identity and registers with the code; it shows up under **Nodes** and in the Swarm rail, ready for REMis. On Windows: `.\scripts\remi.ps1 join <url>/<db> <code>`.
+
+- A join code adds machines. It never makes anyone admin, and nobody copies the owner's token.
+- **New code** stops the old code working; **Turn off joining** stops all joining. Machines already in keep working: re-registering their own node needs no code.
+- The code lives in a private table. The console that made it remembers it; another admin's browser sees "joining is on" and gets a command after **New code**.
+- The LAN port is guarded only by SpacetimeDB auth, which is why joining is off by default.
+
+### A Maincloud workspace
+
+A Maincloud workspace (published from main with `scripts/publish-module.sh maincloud`) is already reachable, so skip `--lan`: the Add a machine panel builds the command with the Maincloud URL. The old way still works: empty `COMPOSE_PROFILES`, `STDB_URL=https://maincloud.spacetimedb.com` and an admin's `STDB_TOKEN` in `.env`.
 
 Model weights live in the `hf-cache` volume, datasets/adapters in `store` and the database in `stdb`, so all survive `down`/`up`.
 
@@ -58,3 +74,4 @@ Recorded 2026-11-08 from the working box (RTX 5070 Ti 16 GB, sm_120):
 - vLLM fails to start with out-of-memory: another process holds VRAM (`nvidia-smi`); stop it, then `scripts/remi up`.
 - A SpacetimeDB on the host (not Maincloud): `COMPOSE_PROFILES=`, `STDB_URL=http://host.docker.internal:3000`.
 - Port 3000 or 8080 already in use (e.g. a hand-started `spacetime start`): stop it, then `scripts/remi up`.
+- `remi join` says it can't reach the workspace: on that PC run `scripts/remi up --lan`, make sure Windows calls the network Private, and that both PCs are on the same network. `curl -fsS http://<workspace-ip>:3000/v1/ping` from the new PC should succeed.

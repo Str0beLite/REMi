@@ -185,6 +185,11 @@ export const Node = __t.object("Node", {
 });
 export type Node = __Infer<typeof Node>;
 
+export const NodeJoinCode = __t.object("NodeJoinCode", {
+  code: __t.string(),
+});
+export type NodeJoinCode = __Infer<typeof NodeJoinCode>;
+
 export const Run = __t.object("Run", {
   id: __t.u64(),
   agentId: __t.u64(),

@@ -4,6 +4,7 @@ import { reducers, tables } from './module_bindings';
 import { AppShell } from './shell/AppShell';
 import { ChannelRail } from './shell/ChannelRail';
 import { SwarmRail } from './swarm/SwarmRail';
+import { addMachineFocus } from './nodes/joinCommand';
 import { equipmentOf } from './swarm/swarmData';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
@@ -149,6 +150,14 @@ export default function App() {
       }))}
       channels={channels.map(c => ({ id: c.id, name: c.kind === 'public' ? `#${c.name}` : c.kind === 'thread' ? `thread ${c.name}` : 'a DM' }))}
       onOpenChannel={open}
+      onAddMachine={
+        meRow.isAdmin
+          ? () => {
+              addMachineFocus.pending = true;
+              go({ panel: 'config', channelId: active?.id });
+            }
+          : undefined
+      }
     />
   );
 

@@ -134,7 +134,8 @@ export const run_end = db.reducer({ run_id: t.u64(), state: t.string() }, (ctx, 
 });
 
 export const set_setting = db.reducer({ key: t.string(), value: t.string() }, (ctx, { key, value }) => {
-  if (!isAdmin(ctx)) throw new SenderError('only an admin can change settings');
+  // Sleep REMi's node records its last sleep; on a joined machine that node isn't an admin (#84).
+  if (!isAdmin(ctx) && !(key === 'last_sleep_ts' && callerNode(ctx))) throw new SenderError('only an admin can change settings');
   if (!key.trim()) throw new SenderError('setting key is empty');
   const s = ctx.db.setting.key.find(key);
   if (s) ctx.db.setting.key.update({ key, value });

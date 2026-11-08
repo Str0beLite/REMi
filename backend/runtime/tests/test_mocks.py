@@ -119,3 +119,4 @@ def test_join_code_admits_a_non_admin_node(db):
     assert post(f"{base}/v1/database/remi/sql", "SELECT * FROM node_join_code", ADMIN, raw=True)[0] == 400  # private
     assert call(base, "set_node_join_code", [""], ADMIN)[0] == 200  # joining off: the code stops working
     assert call(base, "register_node", ["other", "gpu", C.BASE_MODEL, code], "0xother")[0] == 400
+    assert call(base, "register_node", ["laptop", "3060", C.BASE_MODEL, code])[0] == 200  # a machine already in restarts fine

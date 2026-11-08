@@ -1,4 +1,4 @@
-// Admin bootstrap: CONTRACT.md §4 add_admin_code, claim_admin. `remi up` adds a one-time code and prints a console
+// Admin bootstrap and machine joining: CONTRACT.md §4 add_admin_code, claim_admin, set_node_join_code. `remi up` adds a one-time code and prints a console
 // link carrying it; whoever opens the link claims admin. Codes live in the private admin_code table.
 import { SenderError, t } from 'spacetimedb/server';
 import db from '../contract';
@@ -18,4 +18,16 @@ export const claim_admin = db.reducer({ code: t.string() }, (ctx, { code }) => {
   if (!ctx.db.admin_code.code.find(code)) throw new SenderError('this admin link was already used or is not valid');
   ctx.db.admin_code.code.delete(code);
   ctx.db.user.identity.update({ ...me, is_admin: true });
+});
+
+// One join code at a time (#84): a new code revokes the old one, '' turns joining off. `node_joining` lets the
+// console show the state, since the code itself is private.
+export const set_node_join_code = db.reducer({ code: t.string() }, (ctx, { code }) => {
+  if (ctx.db.user.identity.find(ctx.sender)?.is_admin !== true) throw new SenderError('only an admin can change the join code');
+  if (code !== '' && !CODE.test(code)) throw new SenderError('join codes are 16-64 characters of A-Z, a-z, 0-9, _ and -');
+  for (const row of [...ctx.db.node_join_code.iter()]) ctx.db.node_join_code.code.delete(row.code);
+  if (code) ctx.db.node_join_code.insert({ code });
+  const value = code ? 'on' : '';
+  if (ctx.db.setting.key.find('node_joining')) ctx.db.setting.key.update({ key: 'node_joining', value });
+  else ctx.db.setting.insert({ key: 'node_joining', value });
 });

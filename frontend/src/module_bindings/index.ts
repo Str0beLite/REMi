@@ -71,6 +71,7 @@ import SetAdapterStatusReducer from "./set_adapter_status_reducer";
 import SetAgentStatusReducer from "./set_agent_status_reducer";
 import SetMcpServerReducer from "./set_mcp_server_reducer";
 import SetNicknameReducer from "./set_nickname_reducer";
+import SetNodeJoinCodeReducer from "./set_node_join_code_reducer";
 import SetSettingReducer from "./set_setting_reducer";
 import StartAgentReducer from "./start_agent_reducer";
 import StopAgentReducer from "./stop_agent_reducer";
@@ -414,6 +415,7 @@ const reducersSchema = __reducers(
   __reducerSchema("set_agent_status", SetAgentStatusReducer),
   __reducerSchema("set_mcp_server", SetMcpServerReducer),
   __reducerSchema("set_nickname", SetNicknameReducer),
+  __reducerSchema("set_node_join_code", SetNodeJoinCodeReducer),
   __reducerSchema("set_setting", SetSettingReducer),
   __reducerSchema("start_agent", StartAgentReducer),
   __reducerSchema("stop_agent", StopAgentReducer),

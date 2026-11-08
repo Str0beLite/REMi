@@ -59,3 +59,19 @@ describe('claim_admin', () => {
     expect(() => w.call('bob', mod.claim_admin, { code: 'nope_nope_nope_nope' })).toThrow(/already used or is not valid/);
   });
 });
+
+describe('set_node_join_code', () => {
+  it('is admin-only, validates, keeps one private code and mirrors node_joining', () => {
+    const w = setup();
+    const joining = () => w.h.db.setting.key.find('node_joining')?.value;
+    expect(() => w.call('bob', mod.set_node_join_code, { code: CODE })).toThrow(/only an admin/);
+    expect(() => w.call('owner', mod.set_node_join_code, { code: 'short' })).toThrow(/16-64 characters/);
+    w.call('owner', mod.set_node_join_code, { code: CODE });
+    expect(joining()).toBe('on');
+    w.call('owner', mod.set_node_join_code, { code: 'other_Abc-0123456789xyz' });
+    expect([...w.h.db.node_join_code.iter()].map(r => r.code)).toEqual(['other_Abc-0123456789xyz']);
+    w.call('owner', mod.set_node_join_code, { code: '' });
+    expect([...w.h.db.node_join_code.iter()]).toHaveLength(0);
+    expect(joining()).toBe('');
+  });
+});

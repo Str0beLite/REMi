@@ -14,4 +14,5 @@ export default {
   name: __t.string(),
   gpu: __t.string(),
   baseModel: __t.string(),
+  joinCode: __t.string(),
 };

@@ -1,6 +1,6 @@
 """`uv run python -m remi`: register this node, heartbeat, poll messages and wake agents.
 
-Env: STDB_URL, STDB_DB, STDB_TOKEN (or a minted token in REMI_STORE), REMI_NODE_NAME, REMI_GPU, BASE_MODEL,
+Env: STDB_URL, STDB_DB, STDB_TOKEN (or a minted token in REMI_STORE, registering with REMI_JOIN_CODE), REMI_NODE_NAME, REMI_GPU, BASE_MODEL,
 REMI_STORE, REMI_INCIDENT_PORT (0 = no incident intake), and REMI_POLL_S / REMI_HEARTBEAT_S to override the §2 intervals (tests use small ones).
 """
 from __future__ import annotations
