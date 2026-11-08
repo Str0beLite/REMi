@@ -178,6 +178,7 @@ export function ChatView({ channel, title, parent, threads, messages, users, age
                     value={threadName}
                     onChange={e => setThreadName(e.target.value)}
                     placeholder="What's it about…"
+                    onKeyDown={e => e.key === 'Escape' && setThreadName(null)}
                     autoFocus
                   />
                   <button type="submit">Create</button>

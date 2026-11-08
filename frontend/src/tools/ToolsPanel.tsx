@@ -17,7 +17,7 @@ export function ToolsPanel() {
     <div className="tools-panel">
       <section>
         <h2>
-          Waiting for review <span className="count">{pending.length}</span>
+          Waiting for review {pending.length > 0 && <span className="count">{pending.length}</span>}
         </h2>
         {pending.length === 0 ? (
           <p className="tools-empty">Nothing to review. When a REMi runs /propose_tool, its card shows up here and in the channel.</p>
