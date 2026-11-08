@@ -187,8 +187,7 @@
   display: grid;
   gap: 6px;
 }
-.editor-form > label,
-.budget label {
+.editor-form > label {
   font-size: var(--text-sm);
   font-weight: 600;
   margin-top: var(--space-2);
@@ -216,17 +215,119 @@
 .checks input {
   accent-color: var(--accent);
 }
-.budget {
-  display: flex;
-  gap: var(--space-4);
+.loadout,
+.energy {
+  border: 0;
+  margin: var(--space-2) 0 0;
+  padding: 0;
 }
-.budget span {
+.loadout legend,
+.energy legend {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: 6px;
+  padding: 0;
+}
+.loadout {
   display: grid;
-  gap: 4px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--space-2);
 }
-.budget input {
-  width: 96px;
+.loadout-count {
+  margin-left: var(--space-2);
+  font-weight: 400;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+/* a tool tile: the real checkbox is invisible but still takes focus and clicks */
+.loadout-tile {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  cursor: pointer;
+  transition:
+    border-color 120ms,
+    background-color 120ms,
+    transform 120ms;
+}
+.loadout-tile input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.loadout-tile:hover {
+  border-color: var(--accent);
+}
+.loadout-tile:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.loadout-tile[data-on='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+}
+.loadout-icon {
+  grid-row: span 2;
+  font-size: 22px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.55;
+  transition:
+    filter 120ms,
+    opacity 120ms,
+    transform 160ms;
+}
+.loadout-tile[data-on='true'] .loadout-icon {
+  filter: none;
+  opacity: 1;
+  transform: scale(1.12) rotate(-6deg);
+}
+.loadout-tile code {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.loadout-tile small {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  line-height: 1.3;
+}
+.energy {
+  display: grid;
+  grid-template-columns: auto 1fr 2.5em;
+  align-items: center;
+  gap: 6px var(--space-3);
+  max-width: 420px;
+}
+.energy legend {
+  grid-column: 1 / -1;
+}
+.energy label {
+  font-size: var(--text-sm);
+}
+.energy input {
+  accent-color: var(--accent);
+}
+.energy output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .loadout-tile,
+  .loadout-icon {
+    transition: none;
+  }
+  .loadout-tile[data-on='true'] .loadout-icon {
+    transform: none;
+  }
 }
 .editor-note {
   margin: 0;

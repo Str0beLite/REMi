@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { setUnsaved } from '../unsaved';
+import { LOADOUT } from './loadout';
 import { BUILTIN_TOOLS, TEMPLATES, TRIGGERS, checkAgentfile, toYaml, type Agentfile } from './agentfile';
 
 type Props = {
@@ -219,14 +220,23 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
               </label>
             ))}
           </fieldset>
-          <fieldset className="checks">
-            <legend>Tools</legend>
-            {BUILTIN_TOOLS.map(t => (
-              <label key={t}>
-                <input type="checkbox" checked={af.tools.includes(t)} onChange={e => update({ tools: toggle(af.tools, t, e.target.checked) })} />
-                <code>{t === 'registry:*' ? 'all approved tools' : `/${t}`}</code>
-              </label>
-            ))}
+          <fieldset className="loadout">
+            <legend>
+              Loadout <span className="loadout-count">{BUILTIN_TOOLS.filter(t => af.tools.includes(t)).length} of {BUILTIN_TOOLS.length} equipped</span>
+            </legend>
+            {BUILTIN_TOOLS.map(t => {
+              const on = af.tools.includes(t);
+              return (
+                <label key={t} className="loadout-tile" data-on={on}>
+                  <input type="checkbox" checked={on} onChange={e => update({ tools: toggle(af.tools, t, e.target.checked) })} />
+                  <span className="loadout-icon" aria-hidden="true">
+                    {LOADOUT[t].icon}
+                  </span>
+                  <code>{LOADOUT[t].name}</code>
+                  <small>{LOADOUT[t].does}</small>
+                </label>
+              );
+            })}
           </fieldset>
           <label htmlFor={id('registry')}>Specific approved tools</label>
           <input
@@ -254,16 +264,15 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
             onBlur={() => settle('mcp')}
             placeholder="composio/*, composio/GMAIL_SEND_EMAIL…"
           />
-          <div className="budget">
-            <span>
-              <label htmlFor={id('turns')}>Turn budget</label>
-              <input id={id('turns')} name="turns" type="number" inputMode="numeric" min={1} max={50} value={shown('turns', af.budget.turns)} onChange={e => edit('turns', e.target.value, { budget: { ...af.budget, turns: Number(e.target.value) } })} onBlur={() => settle('turns')} />
-            </span>
-            <span>
-              <label htmlFor={id('minutes')}>Minutes</label>
-              <input id={id('minutes')} name="minutes" type="number" inputMode="numeric" min={1} max={60} value={shown('minutes', af.budget.minutes)} onChange={e => edit('minutes', e.target.value, { budget: { ...af.budget, minutes: Number(e.target.value) } })} onBlur={() => settle('minutes')} />
-            </span>
-          </div>
+          <fieldset className="energy">
+            <legend>Energy per wake-up</legend>
+            <label htmlFor={id('turns')}>Turns</label>
+            <input id={id('turns')} name="turns" type="range" min={1} max={50} value={af.budget.turns} onChange={e => update({ budget: { ...af.budget, turns: Number(e.target.value) } })} />
+            <output htmlFor={id('turns')}>{af.budget.turns}</output>
+            <label htmlFor={id('minutes')}>Minutes</label>
+            <input id={id('minutes')} name="minutes" type="range" min={1} max={60} value={af.budget.minutes} onChange={e => update({ budget: { ...af.budget, minutes: Number(e.target.value) } })} />
+            <output htmlFor={id('minutes')}>{af.budget.minutes}</output>
+          </fieldset>
           <p className="editor-note">
             Adapters: {af.adapters.length ? af.adapters.map(a => `${a.name}@${a.version} × ${a.weight}`).join(', ') : 'base model only'}. Set them in Adapters.
           </p>
