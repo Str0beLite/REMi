@@ -52,7 +52,7 @@
   font-size: var(--text-xs);
   color: var(--status-thinking);
 }
-/* admin-only Clear channel… and its refusal, at the right of the header */
+/* admin-only Clear channel icon and its refusal, at the right of the header */
 .main-head .form-error {
   flex: 0 1 auto;
   min-width: 0;
@@ -60,8 +60,18 @@
 }
 .clear-channel {
   flex: none;
-  font-size: var(--text-xs);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+.clear-channel:hover:not(:disabled) {
   color: var(--danger);
+  background: var(--surface-2);
 }
 .panel-stub {
   padding: var(--space-6) var(--space-5);
