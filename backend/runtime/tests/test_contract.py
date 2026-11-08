@@ -29,7 +29,7 @@ def test_constants_match_typescript():
     ts = (C.REPO_ROOT / "backend/module/src/contract.ts").read_text()
     for const in ("NODE_STATUSES", "CHANNEL_KINDS", "MEMBER_KINDS", "AUTHOR_KINDS", "MESSAGE_KINDS",
                   "AGENT_STATUSES", "RUN_STATES", "TOOL_STATUSES", "TODO_STATUSES", "ADAPTER_STATUSES",
-                  "TRIGGERS", "BUILTIN_TOOLS", "SLEEP_TOOLS", "DEFAULT_CHANNELS", "HEADGEAR"):
+                  "TRIGGERS", "BUILTIN_TOOLS", "SLEEP_TOOLS", "DEFAULT_CHANNELS", "HEADGEAR", "FS_OPS", "FS_STATES"):
         block = re.search(rf"export const {const} = \[(.*?)\] as const", ts, re.S)
         assert block, const
         assert tuple(re.findall(r"'([^']+)'", block[1])) == getattr(C, const), const

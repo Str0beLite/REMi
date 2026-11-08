@@ -20,10 +20,10 @@ from remi import contract as C
 
 TABLES = ("user", "node", "channel", "member", "message", "agent", "run", "tool", "agent_proposal", "memory",
           "todo", "dataset", "adapter", "config_history", "setting", "admin_code", "node_join_code",
-          "mcp_server", "mcp_server_secret", "migration", "adapter_copy", "blob_chunk", "file_transfer")
+          "mcp_server", "mcp_server_secret", "migration", "adapter_copy", "blob_chunk", "file_transfer", "fs_request")
 PRIVATE = ("admin_code", "node_join_code", "mcp_server_secret")  # §3: not readable through /sql
 ADMIN_CODE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
-SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*>\s*(\d+))?\s*;?\s*$", re.I)
+SQL = re.compile(r"^\s*SELECT\s+\*\s+FROM\s+(\w+)(?:\s+WHERE\s+(\w+)\s*(?:>\s*(\d+)|=\s*'([^']*)'))?\s*;?\s*$", re.I)
 PUBLIC_NAME = re.compile(r"^[a-z0-9-]{1,32}$")
 
 
@@ -324,11 +324,13 @@ class MockDB:
     def sql(self, query: str) -> list[dict]:
         m = SQL.match(query)
         if not m or m[1] not in self.tables or m[1] in PRIVATE:
-            raise ValueError("mock supports only: SELECT * FROM <table> [WHERE <col> > <int>]")
+            raise ValueError("mock supports only: SELECT * FROM <table> [WHERE <col> > <int> | <col> = '<text>']")
         with self.lock:
             rows = self.tables[m[1]]
-            if m[2]:
+            if m[3]:
                 rows = [r for r in rows if r.get(m[2], 0) > int(m[3])]
+            elif m[2]:
+                rows = [r for r in rows if r.get(m[2]) == m[4]]
             cols = list(rows[0]) if rows else []
             return [{"schema": {"elements": [{"name": {"some": c}} for c in cols]},
                      "rows": [[r[c] for c in cols] for r in rows]}]

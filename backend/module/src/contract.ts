@@ -21,6 +21,8 @@ export const MESSAGE_KINDS = [
 export const AGENT_STATUSES = ['idle', 'thinking', 'asleep', 'stopped', 'moving'] as const;
 export const MIGRATION_STATES = ['uploading', 'ready', 'done', 'failed'] as const; // migration.state (#76)
 export const TRANSFER_STATES = ['sent', 'delivered', 'failed'] as const; // file_transfer.state (#77)
+export const FS_OPS = ['list', 'read'] as const; // fs_request.op (#98)
+export const FS_STATES = ['pending', 'done', 'failed'] as const; // fs_request.state (#98)
 export const RUN_STATES = ['running', 'done', 'stopped', 'budget'] as const;
 export const TOOL_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const PROPOSAL_STATUSES = ['pending', 'approved', 'rejected'] as const; // agent_proposal.status
@@ -268,6 +270,21 @@ export const file_transfer = table(
     note: t.string(),
     state: t.string(),
     ts: t.timestamp(),
+    from_user: t.string().default(''), // a console upload's identity hex (#98); '' for /send
+  },
+);
+// Looking into an agent's sandbox from the console (#98): the agent's node answers in `result`.
+export const fs_request = table(
+  { name: 'fs_request', ...pub },
+  {
+    id: t.u64().primaryKey().autoInc(),
+    agent_id: t.u64().index(),
+    requested_by: t.identity(),
+    op: t.string(),
+    path: t.string(),
+    state: t.string(),
+    result: t.string(),
+    ts: t.timestamp(),
   },
 );
 
@@ -295,6 +312,7 @@ const db = schema({
   adapter_copy,
   blob_chunk,
   file_transfer,
+  fs_request,
 });
 
 export default db;
