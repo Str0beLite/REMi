@@ -182,8 +182,10 @@ export function ChatView({ top, channel, title, parent, threads, messages, users
                     onKeyDown={e => e.key === 'Escape' && setThreadName(null)}
                     autoFocus
                   />
-                  <button type="submit">Create</button>
-                  <button type="button" onClick={() => setThreadName(null)}>
+                  <button type="submit" className="chip">
+                    Create
+                  </button>
+                  <button type="button" className="chip" onClick={() => setThreadName(null)}>
                     Cancel
                   </button>
                 </form>

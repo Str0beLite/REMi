@@ -57,13 +57,32 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
   }, [dirty, readOnly, label]);
 
   const update = (patch: Partial<Agentfile>) => af && setText(toYaml({ ...af, ...patch }));
+  // Typed text lives in `draft` until the file it would make is valid, so clearing a field to retype it (or typing the
+  // comma in "general, ops") never throws you out of the form. Blur drops the draft and shows the saved value.
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [draftErrors, setDraftErrors] = useState<string[]>([]);
+  const edit = (key: string, raw: string, patch: Partial<Agentfile>) => {
+    if (!af) return;
+    setDraft(d => ({ ...d, [key]: raw }));
+    const next = toYaml({ ...af, ...patch });
+    const c = checkAgentfile(next);
+    if (c.ok) {
+      setText(next);
+      setDraftErrors([]);
+    } else setDraftErrors(c.errors);
+  };
+  const shown = (key: string, v: string | number) => draft[key] ?? String(v);
+  const settle = (key: string) => {
+    setDraft(d => Object.fromEntries(Object.entries(d).filter(([k]) => k !== key)));
+    setDraftErrors([]);
+  };
   const registry = af ? af.tools.filter(t => t.startsWith('registry:') && t !== 'registry:*').map(t => t.slice(9)) : [];
   const mcp = af ? af.tools.filter(t => t.startsWith('mcp:')).map(t => t.slice(4)) : [];
   const toggle = (arr: string[], v: string, on: boolean) => (on ? [...arr, v] : arr.filter(x => x !== v));
 
   const needsNode = mode === 'create' && nodeId === undefined;
   const problems = [
-    ...(checked.ok ? [] : checked.errors),
+    ...(checked.ok ? draftErrors : checked.errors),
     ...(needsNode && tried ? ['Pick a node to run it on. No nodes yet? Run remi up on a GPU machine.'] : []),
   ];
 
@@ -177,17 +196,18 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
       ) : (
         <fieldset className="editor-form" disabled={readOnly}>
           <label htmlFor={id('name')}>Name</label>
-          <input id={id('name')} name="name" autoComplete="off" spellCheck={false} value={af.name} onChange={e => update({ name: e.target.value })} />
+          <input id={id('name')} name="name" autoComplete="off" spellCheck={false} value={shown('name', af.name)} onChange={e => edit('name', e.target.value, { name: e.target.value })} onBlur={() => settle('name')} />
           <label htmlFor={id('purpose')}>Purpose (its system prompt)</label>
-          <textarea id={id('purpose')} name="purpose" rows={5} value={af.purpose} onChange={e => update({ purpose: e.target.value })} />
+          <textarea id={id('purpose')} name="purpose" rows={5} value={shown('purpose', af.purpose)} onChange={e => edit('purpose', e.target.value, { purpose: e.target.value })} onBlur={() => settle('purpose')} />
           <label htmlFor={id('channels')}>Channels</label>
           <input
             id={id('channels')}
             name="channels"
             autoComplete="off"
             spellCheck={false}
-            value={af.channels.join(', ')}
-            onChange={e => update({ channels: list(e.target.value) })}
+            value={shown('channels', af.channels.join(', '))}
+            onChange={e => edit('channels', e.target.value, { channels: list(e.target.value) })}
+            onBlur={() => settle('channels')}
             placeholder="general, capacity…"
           />
           <fieldset className="checks">
@@ -214,10 +234,13 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
             name="registry"
             autoComplete="off"
             spellCheck={false}
-            value={registry.join(', ')}
+            value={shown('registry', registry.join(', '))}
             onChange={e =>
-              update({ tools: [...af.tools.filter(t => !t.startsWith('registry:') || t === 'registry:*'), ...list(e.target.value).map(n => `registry:${n}`)] })
+              edit('registry', e.target.value, {
+                tools: [...af.tools.filter(t => !t.startsWith('registry:') || t === 'registry:*'), ...list(e.target.value).map(n => `registry:${n}`)],
+              })
             }
+            onBlur={() => settle('registry')}
             placeholder="host_power, pdu_reading…"
           />
           <label htmlFor={id('mcp')}>MCP tools</label>
@@ -226,18 +249,19 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
             name="mcp"
             autoComplete="off"
             spellCheck={false}
-            value={mcp.join(', ')}
-            onChange={e => update({ tools: [...af.tools.filter(t => !t.startsWith('mcp:')), ...list(e.target.value).map(n => `mcp:${n}`)] })}
+            value={shown('mcp', mcp.join(', '))}
+            onChange={e => edit('mcp', e.target.value, { tools: [...af.tools.filter(t => !t.startsWith('mcp:')), ...list(e.target.value).map(n => `mcp:${n}`)] })}
+            onBlur={() => settle('mcp')}
             placeholder="composio/*, composio/GMAIL_SEND_EMAIL…"
           />
           <div className="budget">
             <span>
               <label htmlFor={id('turns')}>Turn budget</label>
-              <input id={id('turns')} name="turns" type="number" inputMode="numeric" min={1} max={50} value={af.budget.turns} onChange={e => update({ budget: { ...af.budget, turns: Number(e.target.value) } })} />
+              <input id={id('turns')} name="turns" type="number" inputMode="numeric" min={1} max={50} value={shown('turns', af.budget.turns)} onChange={e => edit('turns', e.target.value, { budget: { ...af.budget, turns: Number(e.target.value) } })} onBlur={() => settle('turns')} />
             </span>
             <span>
               <label htmlFor={id('minutes')}>Minutes</label>
-              <input id={id('minutes')} name="minutes" type="number" inputMode="numeric" min={1} max={60} value={af.budget.minutes} onChange={e => update({ budget: { ...af.budget, minutes: Number(e.target.value) } })} />
+              <input id={id('minutes')} name="minutes" type="number" inputMode="numeric" min={1} max={60} value={shown('minutes', af.budget.minutes)} onChange={e => edit('minutes', e.target.value, { budget: { ...af.budget, minutes: Number(e.target.value) } })} onBlur={() => settle('minutes')} />
             </span>
           </div>
           <p className="editor-note">
