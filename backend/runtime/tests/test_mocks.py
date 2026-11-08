@@ -58,7 +58,8 @@ def test_stdb_happy_path(db):
     assert {c["name"] for c in rows(base, "channel")} == {"general", "ops"}
     # The node registers itself, so the "node" token must be an admin until §12 admin bootstrap is decided.
     post(f"{base}/mock/seed", {"user": [{"identity": {"__identity__": NODE}, "nickname": "pc", "is_admin": True}]})
-    assert call(base, "register_node", ["pc", "5070 Ti"])[0] == 200
+    assert call(base, "register_node", ["pc", "5070 Ti", C.BASE_MODEL])[0] == 200
+    assert rows(base, "node")[0]["base_model"] == C.BASE_MODEL
     af = (C.REPO_ROOT / "fixtures/agentfiles/tool-builder.yaml").read_text()
     assert call(base, "create_agent", [af, 1], ADMIN)[0] == 200
     assert call(base, "post_message", [1, "agent", "1", "chat", "hello", "{}"])[0] == 200
@@ -74,7 +75,7 @@ def test_stdb_rejections(db):
     _, base = db
     assert post(f"{base}/v1/database/remi/call/set_nickname", ["x"])[0] == 401
     assert call(base, "nope", [])[1] == "unknown reducer"
-    assert call(base, "register_node", ["pc", "gpu"])[1] == "admin only"
+    assert call(base, "register_node", ["pc", "gpu", "m"])[1] == "admin only"
     call(base, "set_nickname", ["eve"], "0xeve")
     assert call(base, "post_message", [1, "user", "0xeve", "tool_call", "x", "{}"], "0xeve")[0] == 400
     assert call(base, "post_message", [1, "user", "0xeve", "chat", "x", "not json"], "0xeve")[0] == 400

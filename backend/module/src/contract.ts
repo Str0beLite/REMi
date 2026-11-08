@@ -44,6 +44,7 @@ export const node = table(
     identity: t.identity().unique(),
     name: t.string().unique(),
     gpu: t.string(),
+    base_model: t.string(),
     status: t.string(),
     last_seen: t.timestamp(),
   },
