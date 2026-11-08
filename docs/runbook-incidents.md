@@ -53,7 +53,7 @@ The ramp gives `warning` (84 °C), `critical` (88 °C), `warning` (82 °C) and `
 
 ## Gotchas
 
-- **The sandbox has no GPU.** `/sh` runs in the `remi-sandbox` container without `--gpus`, so `nvidia-smi` there prints `not found`. The bot then says it can't confirm and hands off to a human (checked on the real stack, 2026-11-08). For the bot to really read the GPU, the sandbox needs GPU passthrough. That's a follow-up, not part of this workflow.
+- **GPU access is opt-in.** On the GPU node, install/configure the NVIDIA Container Toolkit for Docker and start the runtime with `REMI_SANDBOX_GPUS=all`. Agent `/sh` containers then receive `--gpus all`, including the toolkit-mounted `nvidia-smi`; tool proposal dry runs never receive GPUs. Unset the variable on CPU/Mac nodes. Changing this setting recreates existing agent containers on their next use and resets `/workspace` (logged). Verify with `gpu_watch --fake 92` and confirm incident-remi posts the real `/sh nvidia-smi` temperature in `#incidents`.
 - **Repeats are quiet.** The same key and severity are posted once per 5 min (`INCIDENT_REPEAT_S`), and a severity change always posts. A watcher that stays hot reminds every 5 min.
 - **Localhost only, no auth.** Don't publish port 7077 out of the box.
 - **Rendering:** the console shows `incident` messages as plain system lines. An incident card would be lane:web work.
