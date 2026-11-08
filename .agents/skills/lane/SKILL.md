@@ -24,7 +24,7 @@ If `$ARGUMENTS` isn't `web`, `core` or `gpu`, ask which lane and stop.
 python3 $S/next_issue.py $ARGUMENTS
 ```
 
-It prints the first open issue in the lane that is unclaimed (no `status:in-progress`) and whose `## Blocked by` issues are all closed, as `<number>\t<title>`. Exit code 2 = nothing unblocked right now (it prints the open blockers, most-waited-on first). Exit code 3 = the lane has no open unclaimed issues.
+It prints the first open issue in the lane (`priority:high` ones first, then lowest number) that is unclaimed (no `status:in-progress`) and whose `## Blocked by` issues are all closed, as `<number>\t<title>`. Exit code 2 = nothing unblocked right now (it prints the open blockers, most-waited-on first). Exit code 3 = the lane has no open unclaimed issues.
 
 - Exit 2 → go to **5. Wait**.
 - Exit 3 → report what you finished this session and stop.

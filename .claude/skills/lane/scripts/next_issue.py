@@ -14,6 +14,7 @@ from collections import Counter
 
 # status:blocked is not a claim: once its blockers close, the issue is pickable again.
 CLAIMED = {"status:in-progress"}
+PRIORITY = "priority:high"
 
 
 def gh(*args):
@@ -29,7 +30,8 @@ def blockers(body):
 def choose(issues, open_numbers):
     """Return (issue, waiting_counter). issue is None when nothing is unblocked."""
     waiting = Counter()
-    for i in sorted(issues, key=lambda i: i["number"]):
+    # priority:high first, then oldest first
+    for i in sorted(issues, key=lambda i: (PRIORITY not in {label["name"] for label in i["labels"]}, i["number"])):
         if CLAIMED & {label["name"] for label in i["labels"]}:
             continue
         open_blockers = [b for b in blockers(i["body"]) if b in open_numbers]
@@ -54,6 +56,8 @@ def self_test():
     assert choose(issues, {3, 7})[1].most_common(1) == [(3, 2)]
     assert choose(issues, {7})[0]["number"] == 8
     assert choose(issues, set())[0]["number"] == 5
+    issues.append({"number": 9, "title": "d", "labels": lab("lane:core", "priority:high"), "body": ""})
+    assert choose(issues, set())[0]["number"] == 9
     print("ok")
 
 

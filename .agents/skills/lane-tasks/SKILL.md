@@ -17,6 +17,7 @@ Every build task is one GitHub issue that one session can finish in 1-3 hours. T
 | `lane:contract` | A change to `CONTRACT.md` or the contract type files. Landed by a session Ryan runs, or by the `contract-approver` subagent when it blocks a lane. |
 | `status:in-progress` | Claimed by a session. `/lane` skips it. |
 | `status:blocked` | Started, then stopped on a blocker. `/lane` picks it up again once its blockers close. |
+| `priority:high` | Ryan wants it next. `/lane` picks these before anything else in the lane. |
 
 Create them once per repo: `bash .claude/skills/lane-tasks/scripts/bootstrap_labels.sh` (safe to re-run).
 
