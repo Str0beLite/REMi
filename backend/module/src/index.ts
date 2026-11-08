@@ -4,6 +4,7 @@ import db, { DEFAULT_CHANNELS, DEFAULT_SETTINGS } from './contract';
 export default db;
 export * from './reducers/chat';
 export * from './reducers/work';
+export * from './reducers/agents';
 
 export const init = db.init(ctx => {
   for (const name of DEFAULT_CHANNELS) {
