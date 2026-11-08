@@ -148,3 +148,95 @@
 .rack-free {
   color: var(--muted);
 }
+
+/* Status summary under the header: counts by status, help requests first */
+.swarm-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--space-3);
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.swarm-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.swarm-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-thinking .swarm-dot {
+  animation: swarm-pulse 1.4s ease-in-out infinite;
+}
+@keyframes swarm-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-thinking .swarm-dot {
+    animation: none;
+  }
+}
+.swarm-help {
+  color: var(--danger);
+}
+
+/* Plates: what the REMi did last, and click-through to its channel */
+.rack-plate-hit {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  cursor: pointer;
+}
+.rack-plate:has(.rack-plate-hit) {
+  padding: 0; /* the button carries the padding so the whole plate is the hit area */
+}
+.rack-plate:has(.rack-plate-hit:hover) {
+  border-color: var(--accent);
+}
+.rack-plate-hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.rack-plate-now {
+  font-size: var(--text-xs);
+  line-height: 15px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rack-plate.needs-help {
+  border-color: var(--danger);
+  box-shadow: inset 3px 0 0 var(--danger);
+}
+.rack-plate.needs-help .rack-plate-now {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+/* Unplaced REMis: same plates, stacked without a rack */
+.rack-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.rack-list .rack-plate {
+  grid-column: auto;
+  margin: 0;
+  min-height: 54px;
+}

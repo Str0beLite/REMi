@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { SwarmRail } from './SwarmRail';
-import { SAMPLE, trainingByNode, type SwarmAgent } from './swarmData';
+import { SAMPLE, activityByAgent, ago, trainingByNode, type SwarmAgent } from './swarmData';
 
 const html = (props: Parameters<typeof SwarmRail>[0]) => renderToStaticMarkup(<SwarmRail {...props} />);
 
@@ -40,6 +40,36 @@ describe('SwarmRail', () => {
 
   it('explains how to add a node when the swarm is empty', () => {
     expect(html({ nodes: [], agents: [] })).toContain('remi up');
+  });
+});
+
+describe('SwarmRail: every agent, and what it is doing', () => {
+  const channels = [{ id: 1n, name: '#general' }, { id: 2n, name: '#ops' }];
+
+  it('lists REMis whose node is missing under "Not placed", even with no nodes', () => {
+    const out = html({ nodes: [], agents: SAMPLE.agents });
+    expect(out).toContain('Not placed');
+    for (const a of SAMPLE.agents) expect(out).toContain(`<b>${a.name}</b>`);
+  });
+
+  it('shows status counts, the last action with its channel, and flags help requests', () => {
+    const out = html({ ...SAMPLE, channels, onOpenChannel: () => {} });
+    expect(out).toContain('1 needs help');
+    expect(out).toContain('</i>1 thinking</span>');
+    expect(out).toContain('ran ipmitool');
+    expect(out).toContain('ran ipmitool in #ops');
+    expect(out).toMatch(/rack-plate needs-help[^]*toolsmith/);
+    expect(out).toContain('title="Open #ops"');
+  });
+});
+
+describe('activityByAgent / ago', () => {
+  it('labels the latest agent message by kind', () => {
+    const m = (id: bigint, kind: string, meta = '{}') => ({ id, author_kind: 'agent', author_id: '7', kind, meta });
+    expect(activityByAgent([m(1n, 'chat'), m(2n, 'tool_result', '{"command":"sh","exit_code":2}')]).get('7')?.label).toBe('sh failed (exit 2)');
+    expect(activityByAgent([m(1n, 'help_request'), m(2n, 'chat')]).get('7')?.needsHelp).toBe(false);
+    expect(ago(0, 30_000)).toBe('now');
+    expect(ago(0, 3 * 3600_000)).toBe('3h');
   });
 });
 

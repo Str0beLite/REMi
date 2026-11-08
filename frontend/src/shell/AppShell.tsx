@@ -55,7 +55,13 @@ export function AppShell({ rail, main, swarm, title = 'REMi' }: Props) {
         {rail}
       </nav>
       <main className="shell-main">{main}</main>
-      <aside id="shell-swarm" className="shell-swarm" aria-label="Swarm">
+      {/* a button in the Swarm drawer navigates, so close the drawer to show where it went */}
+      <aside
+        id="shell-swarm"
+        className="shell-swarm"
+        aria-label="Swarm"
+        onClick={e => (e.target as Element).closest('button') && setSwarmOpen(false)}
+      >
         {swarm}
       </aside>
       {anyOpen && (

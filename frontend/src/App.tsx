@@ -7,7 +7,7 @@ import { SwarmRail } from './swarm/SwarmRail';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
 import { NicknamePrompt } from './chat/NicknamePrompt';
-import { dmLabel, hexOf, isMember, purposeOf, unreadIn } from './chat/model';
+import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
 import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, SleepPanel, ToolsPanel } from './panels';
 import './chat/chat.css';
@@ -89,7 +89,17 @@ export default function App() {
         purpose: purposeOf(a.agentfile),
         protected: a.protected,
       }))}
-      messages={sortedMessages.map(m => ({ id: m.id, author_kind: m.authorKind, author_id: m.authorId, kind: m.kind, meta: m.meta }))}
+      messages={sortedMessages.map(m => ({
+        id: m.id,
+        author_kind: m.authorKind,
+        author_id: m.authorId,
+        kind: m.kind,
+        meta: m.meta,
+        channel_id: m.channelId,
+        ts: tsMillis(m),
+      }))}
+      channels={channels.map(c => ({ id: c.id, name: c.kind === 'public' ? `#${c.name}` : c.kind === 'thread' ? `thread ${c.name}` : 'a DM' }))}
+      onOpenChannel={open}
     />
   );
 
