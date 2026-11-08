@@ -20,3 +20,5 @@ One line each: date, decision, why.
 - 2026-11-07: Agentfile and train spec are JSON Schemas in contract/, validated by both the module (ajv) and the runtime (jsonschema).
 - 2026-11-07: Stack pinned: spacetimedb 2.14.0 (module + frontend), Vite 7 + React 19, Python 3.12 + uv; module tests use spacetimedb's in-process test harness, so CI needs no spacetime CLI.
 - 2026-11-07: Added stack skills per lane (official SpacetimeDB TS server/client/concepts/cli, community SpacetimeDB HTTP/SQL/serialization, HF trl-training, Vercel react-best-practices); installer fetches sparsely.
+- 2026-11-07: Frontend stays a web console (config page + multi-channel chat), not a native app; vLLM needs Linux/WSL2 anyway, and the demo opens on a phone.
+- 2026-11-07: Node setup is `remi up` (Docker Compose: official vLLM image + runtime/trainer image + sandboxes, restarts on boot), issue #29. Tray app is a stretch goal; Discord mirroring stays extension 4.
