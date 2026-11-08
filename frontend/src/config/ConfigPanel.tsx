@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useReducer, useSpacetimeDB, useTable } from 'spacetimedb/react';
 import { reducers, tables } from '../module_bindings';
 import { agoLabel, cronError, cronLabel, minutesError, nodeHealth } from './configData';
+import { McpServers } from './McpServers';
 import { People } from './People';
 import './config.css';
 
@@ -173,6 +174,8 @@ export function ConfigPanel() {
       </section>
 
       <People />
+
+      <McpServers />
 
       <section>
         <h2>Nodes</h2>

@@ -88,6 +88,21 @@ export const Dataset = __t.object("Dataset", {
 });
 export type Dataset = __Infer<typeof Dataset>;
 
+export const McpServer = __t.object("McpServer", {
+  name: __t.string(),
+  host: __t.string(),
+  addedBy: __t.string(),
+  updatedAt: __t.timestamp(),
+});
+export type McpServer = __Infer<typeof McpServer>;
+
+export const McpServerSecret = __t.object("McpServerSecret", {
+  name: __t.string(),
+  url: __t.string(),
+  headers: __t.string(),
+});
+export type McpServerSecret = __Infer<typeof McpServerSecret>;
+
 export const Member = __t.object("Member", {
   id: __t.u64(),
   channelId: __t.u64(),

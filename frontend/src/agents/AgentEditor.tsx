@@ -58,6 +58,7 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
 
   const update = (patch: Partial<Agentfile>) => af && setText(toYaml({ ...af, ...patch }));
   const registry = af ? af.tools.filter(t => t.startsWith('registry:') && t !== 'registry:*').map(t => t.slice(9)) : [];
+  const mcp = af ? af.tools.filter(t => t.startsWith('mcp:')).map(t => t.slice(4)) : [];
   const toggle = (arr: string[], v: string, on: boolean) => (on ? [...arr, v] : arr.filter(x => x !== v));
 
   const needsNode = mode === 'create' && nodeId === undefined;
@@ -218,6 +219,16 @@ export function AgentEditor({ mode, initialText, nodes = [], readOnlyReason, onS
               update({ tools: [...af.tools.filter(t => !t.startsWith('registry:') || t === 'registry:*'), ...list(e.target.value).map(n => `registry:${n}`)] })
             }
             placeholder="host_power, pdu_reading…"
+          />
+          <label htmlFor={id('mcp')}>MCP tools</label>
+          <input
+            id={id('mcp')}
+            name="mcp"
+            autoComplete="off"
+            spellCheck={false}
+            value={mcp.join(', ')}
+            onChange={e => update({ tools: [...af.tools.filter(t => !t.startsWith('mcp:')), ...list(e.target.value).map(n => `mcp:${n}`)] })}
+            placeholder="composio/*, composio/GMAIL_SEND_EMAIL…"
           />
           <div className="budget">
             <span>

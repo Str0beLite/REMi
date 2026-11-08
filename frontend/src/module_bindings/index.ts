@@ -50,6 +50,7 @@ import ProposeToolReducer from "./propose_tool_reducer";
 import RegisterAdapterReducer from "./register_adapter_reducer";
 import RegisterDatasetReducer from "./register_dataset_reducer";
 import RegisterNodeReducer from "./register_node_reducer";
+import RemoveMcpServerReducer from "./remove_mcp_server_reducer";
 import RequestSleepReducer from "./request_sleep_reducer";
 import ReviewAgentReducer from "./review_agent_reducer";
 import ReviewToolReducer from "./review_tool_reducer";
@@ -59,6 +60,7 @@ import RunStartReducer from "./run_start_reducer";
 import RunTurnReducer from "./run_turn_reducer";
 import SetAdapterStatusReducer from "./set_adapter_status_reducer";
 import SetAgentStatusReducer from "./set_agent_status_reducer";
+import SetMcpServerReducer from "./set_mcp_server_reducer";
 import SetNicknameReducer from "./set_nickname_reducer";
 import SetSettingReducer from "./set_setting_reducer";
 import StopAgentReducer from "./stop_agent_reducer";
@@ -75,6 +77,7 @@ import AgentProposalRow from "./agent_proposal_table";
 import ChannelRow from "./channel_table";
 import ConfigHistoryRow from "./config_history_table";
 import DatasetRow from "./dataset_table";
+import McpServerRow from "./mcp_server_table";
 import MemberRow from "./member_table";
 import MemoryRow from "./memory_table";
 import MessageRow from "./message_table";
@@ -166,6 +169,17 @@ const tablesSchema = __schema({
       { name: 'dataset_name_key', constraint: 'unique', columns: ['name'] },
     ],
   }, DatasetRow),
+  mcpServer: __table({
+    name: 'mcp_server',
+    indexes: [
+      { accessor: 'name', name: 'mcp_server_name_idx_btree', algorithm: 'btree', columns: [
+        'name',
+      ] },
+    ],
+    constraints: [
+      { name: 'mcp_server_name_key', constraint: 'unique', columns: ['name'] },
+    ],
+  }, McpServerRow),
   member: __table({
     name: 'member',
     indexes: [
@@ -312,6 +326,7 @@ const reducersSchema = __reducers(
   __reducerSchema("register_adapter", RegisterAdapterReducer),
   __reducerSchema("register_dataset", RegisterDatasetReducer),
   __reducerSchema("register_node", RegisterNodeReducer),
+  __reducerSchema("remove_mcp_server", RemoveMcpServerReducer),
   __reducerSchema("request_sleep", RequestSleepReducer),
   __reducerSchema("review_agent", ReviewAgentReducer),
   __reducerSchema("review_tool", ReviewToolReducer),
@@ -321,6 +336,7 @@ const reducersSchema = __reducers(
   __reducerSchema("run_turn", RunTurnReducer),
   __reducerSchema("set_adapter_status", SetAdapterStatusReducer),
   __reducerSchema("set_agent_status", SetAgentStatusReducer),
+  __reducerSchema("set_mcp_server", SetMcpServerReducer),
   __reducerSchema("set_nickname", SetNicknameReducer),
   __reducerSchema("set_setting", SetSettingReducer),
   __reducerSchema("stop_agent", StopAgentReducer),
@@ -339,6 +355,8 @@ type __SchemaWithTableAccessorAliases = Omit<typeof tablesSchema.schemaType, "ta
     readonly "agent_proposal": Omit<typeof tablesSchema.schemaType.tables["agentProposal"], "accessorName"> & { readonly accessorName: "agent_proposal" };
     /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
     readonly "config_history": Omit<typeof tablesSchema.schemaType.tables["configHistory"], "accessorName"> & { readonly accessorName: "config_history" };
+    /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
+    readonly "mcp_server": Omit<typeof tablesSchema.schemaType.tables["mcpServer"], "accessorName"> & { readonly accessorName: "mcp_server" };
   };
 };
 
@@ -359,6 +377,7 @@ const REMOTE_MODULE = {
 const tableAccessorAliases = {
   "agent_proposal": "agentProposal",
   "config_history": "configHistory",
+  "mcp_server": "mcpServer",
 } as const;
 
 function __withTableAccessorAliases<T extends object>(target: T, freeze = false): T {
@@ -383,6 +402,8 @@ export type DbView = __DbViewBase & {
   readonly "agent_proposal": __DbViewBase["agentProposal"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __DbViewBase["configHistory"];
+  /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
+  readonly "mcp_server": __DbViewBase["mcpServer"];
 };
 
 type __TablesBase = __QueryBuilder<typeof tablesSchema.schemaType>;
@@ -391,6 +412,8 @@ export type Tables = __TablesBase & {
   readonly "agent_proposal": __TablesBase["agentProposal"];
   /** @deprecated Use `configHistory` instead. This alias will be removed in the next major version. */
   readonly "config_history": __TablesBase["configHistory"];
+  /** @deprecated Use `mcpServer` instead. This alias will be removed in the next major version. */
+  readonly "mcp_server": __TablesBase["mcpServer"];
 };
 
 /** The tables available in this remote SpacetimeDB module. Each table reference doubles as a query builder. */

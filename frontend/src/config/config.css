@@ -177,3 +177,9 @@
   padding-left: 10px;
   cursor: text;
 }
+.mcp-remove {
+  margin-left: auto;
+}
+.mcp-form input {
+  width: min(420px, 100%);
+}

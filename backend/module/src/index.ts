@@ -9,6 +9,7 @@ export * from './reducers/adapters';
 export * from './reducers/sleep';
 export * from './reducers/proposals';
 export * from './reducers/admin';
+export * from './reducers/mcp';
 
 export const init = db.init(ctx => {
   for (const name of DEFAULT_CHANNELS) {

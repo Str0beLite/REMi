@@ -29,6 +29,13 @@ describe('checkAgentfile', () => {
     expect(r.ok && r.value.tools).toEqual(['sh', 'registry:host_power']);
   });
 
+  it('accepts mcp: tools and rejects malformed ones', () => {
+    const ok = checkAgentfile(toYaml({ ...BLANK, name: 'mailer', tools: ['mcp:composio/*', 'mcp:composio/GMAIL_SEND_EMAIL'] }));
+    expect(ok.ok && ok.value.tools).toEqual(['mcp:composio/*', 'mcp:composio/GMAIL_SEND_EMAIL']);
+    for (const bad of ['mcp:Bad/x', 'mcp:composio', 'mcp:composio/has space'])
+      expect(checkAgentfile(toYaml({ ...BLANK, name: 'mailer', tools: [bad] })).ok).toBe(false);
+  });
+
   it('ships the fixture templates', () => {
     expect(TEMPLATES.map(t => t.id)).toEqual(expect.arrayContaining(['blank', 'homelab-remi', 'sleep-remi', 'tool-builder']));
   });
