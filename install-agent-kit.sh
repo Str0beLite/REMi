@@ -104,6 +104,16 @@ for d in "${DESTS[@]}"; do
   esac
 done
 
+# Our own skills, kept in this repo under kit/skills (the /lane build loop and the task issue format).
+# Always refreshed: kit/skills is their source of truth, so local edits to the installed copies are overwritten.
+KIT="$(cd "$(dirname "$0")" && pwd)/kit/skills"
+if [ -d "$KIT" ]; then
+  echo "kit/skills (this repo)"
+  for s in "$KIT"/*/; do
+    for d in "${DESTS[@]}"; do (FORCE=1; install_skill "${s%/}" "$d"); done
+  done
+fi
+
 if [ "$SONWTF" = 1 ]; then
   echo "son-wtf (custom)"
   mkdir -p "$TMP/son-wtf/agents"
@@ -253,6 +263,7 @@ write_block "$TARGET/AGENTS.md" "<!-- hackathon-kit:start -->
 ## Skill kit (.agents/skills)
 Core skills: grill-with-docs (uses grilling + domain-modeling), ponytail, impeccable, gsap-react, gsap-scrolltrigger, webapp-testing, systematic-debugging, web-design-guidelines, verification-before-completion.
 - Follow the ponytail skill at LITE level for the whole session.
+- Parallel build: work is GitHub issues labelled lane:web / lane:core / lane:gpu. Run one lane with the lane skill (\`/lane core\` etc.); write or edit task issues with the lane-tasks skill. A task is complete only when its PR merges. Never edit CONTRACT.md outside a lane:contract issue.
 
 Before calling the work done: review every UI file against the web-design-guidelines skill and fix what it finds, then follow verification-before-completion (fresh build + lint, read the exit codes).
 <!-- hackathon-kit:end -->"
@@ -267,7 +278,7 @@ if [ "$CLAUDE" = 1 ]; then
   write_block "$TARGET/CLAUDE.md" "<!-- hackathon-kit:start -->
 @AGENTS.md
 
-Claude Code: skills live in .claude/skills. Use \`/ponytail lite\` at the start of a session; \`/grill-with-docs\` and \`/impeccable\` are slash commands.
+Claude Code: skills live in .claude/skills. Use \`/ponytail lite\` at the start of a session; \`/grill-with-docs\`, \`/impeccable\` and \`/lane <web|core|gpu>\` are slash commands.
 <!-- hackathon-kit:end -->"
 
   # Impeccable's design detector: per-edit checks + a deep pass on Stop. Shared, so every Claude user gets it.

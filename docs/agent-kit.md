@@ -26,7 +26,7 @@ Other flags: `--latest` (use each repo's newest commit instead of the pinned one
 | `CLAUDE.md` | `--claude` only. `@AGENTS.md` import + Claude slash-command notes |
 | `.claude/settings.json` | `--claude` only. Impeccable design-detector hooks, merged into any existing settings |
 
-Skills (all pinned to commits checked on 2026-10-23): grill-with-docs + grilling + domain-modeling (mattpocock/skills; grill-with-docs calls domain-modeling to write the glossary and ADRs, so it needs it), ponytail (DietrichGebert/ponytail), impeccable (pbakaus/impeccable), gsap-react + gsap-scrolltrigger (greensock/gsap-skills), webapp-testing (anthropics/skills), systematic-debugging + verification-before-completion (obra/superpowers), web-design-guidelines (vercel-labs/agent-skills). Optional: supabase + supabase-postgres-best-practices (supabase/agent-skills), son-wtf (ours, embedded in the script).
+Skills (all pinned to commits checked on 2026-10-23): grill-with-docs + grilling + domain-modeling (mattpocock/skills; grill-with-docs calls domain-modeling to write the glossary and ADRs, so it needs it), ponytail (DietrichGebert/ponytail), impeccable (pbakaus/impeccable), gsap-react + gsap-scrolltrigger (greensock/gsap-skills), webapp-testing (anthropics/skills), systematic-debugging + verification-before-completion (obra/superpowers), web-design-guidelines (vercel-labs/agent-skills). Optional: supabase + supabase-postgres-best-practices (supabase/agent-skills), son-wtf (ours, embedded in the script). Ours, from `kit/skills/` in this repo and always refreshed on install: lane (the `/lane <web|core|gpu>` build loop over GitHub issues) and lane-tasks (the task issue format and label setup).
 
 ## Which agents get what
 

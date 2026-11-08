@@ -14,3 +14,4 @@ One line each: date, decision, why.
 - 2026-11-07: Datasets and adapters live on the node's disk with metadata in SpacetimeDB; HF Hub sharing is a stretch goal.
 - 2026-11-07: Incidents, a second node, the LoRA library and external channels are extensions, not core.
 - 2026-11-07: Claude copy of grilling uses AskUserQuestion for each round (installer patches it with --claude).
+- 2026-11-07: Parallel build runs as 3 lanes (web/core/gpu, ≤2 sessions each) over GitHub issues; a task is done when its PR merges; coordination skills live in kit/skills.
