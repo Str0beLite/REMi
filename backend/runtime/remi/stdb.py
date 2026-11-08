@@ -20,6 +20,16 @@ class ReducerError(StdbError):
     pass
 
 
+def identity_hex(value) -> str:
+    """An Identity as the module's `Identity.toHexString()`: lowercase hex, no 0x. That's what reducers compare
+    `author_id` / `member_id` against. Accepts SQL's ["0x…"], the mock's {"__identity__": …} or a plain string."""
+    if isinstance(value, dict):
+        value = value["__identity__"]
+    elif isinstance(value, (list, tuple)):
+        value = value[0]
+    return str(value).lower().removeprefix("0x")
+
+
 def _col(element: dict) -> str:
     # Column names arrive as an Option: {"some": "<col>"}; tolerate a plain string too.
     name = element["name"]

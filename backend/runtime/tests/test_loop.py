@@ -4,7 +4,8 @@ import threading
 import pytest
 
 from remi import contract as C
-from remi.loop import Loop, command_line, identity_hex
+from remi.loop import Loop, command_line
+from remi.stdb import identity_hex
 from remi.grammar import Command
 from remi.mocks import stdb as mock_stdb
 from remi.mocks import vllm as mock_vllm
@@ -171,7 +172,7 @@ def test_budget_turns_posts_help_request(stdb, vllm, db):
     assert kinds == ["tool_call", "tool_result", "tool_call", "tool_result", "help_request"]
     help_msg = stdb.db.tables["message"][-1]
     assert help_msg["body"].startswith("@ryan I ran out of budget (2 turns / 5 min)")
-    assert json.loads(help_msg["meta"]) == {"run_id": run_state(stdb)["id"], "family": "budget", "owner": OWNER}
+    assert json.loads(help_msg["meta"]) == {"run_id": run_state(stdb)["id"], "family": "budget", "owner": "owner"}  # module hex: no 0x
     assert run_state(stdb)["state"] == "budget" and len(chats(vllm)) == 2 and agent["status"] == "idle"
 
 
@@ -252,6 +253,28 @@ def join_runs():
 
 
 def test_helpers():
-    assert identity_hex({"__identity__": "0xa"}) == identity_hex(["0xa"]) == identity_hex("0xa") == "0xa"
+    assert identity_hex({"__identity__": "0xA"}) == identity_hex(["0xa"]) == identity_hex("0xa") == identity_hex("a") == "a"
     assert command_line(Command("say", "hi there", target="#general")) == "/say #general hi there"
     assert command_line(Command("csv_stats")) == "/csv_stats"
+
+
+def test_stop_during_generation_is_not_undone(stdb, vllm, db, monkeypatch):
+    agent = add_agent(stdb)
+    real_run_turn = mock_stdb.MockDB.run_turn
+
+    def run_turn(self, caller, run_id):  # like the module: an ended run can't take more turns
+        if self.one("run", id=run_id)["state"] != "running":
+            raise mock_stdb.SenderError(f"run {run_id} already ended")
+        real_run_turn(self, caller, run_id)
+
+    monkeypatch.setattr(mock_stdb.MockDB, "run_turn", run_turn)
+
+    def chat_then_stop(messages, model):
+        agent["status"] = "stopped"  # stop_agent lands while the model is generating
+        stdb.db.tables["run"][-1]["state"] = "stopped"
+        return "/sh rm -rf /tmp/x"
+
+    tools = Tools()
+    assert Loop(db, tools, chat=chat_then_stop).run(agent, post(stdb, "@helper go")) == "stopped"
+    assert tools.calls == [] and posted(stdb, agent) == []  # the reply is dropped, nothing runs
+    assert agent["status"] == "stopped"  # not reset to idle

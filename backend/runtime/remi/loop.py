@@ -19,7 +19,7 @@ from typing import Callable
 from remi import contract as C
 from remi import llm
 from remi.grammar import Chat, Command, GrammarError, parse
-from remi.stdb import ReducerError, Stdb
+from remi.stdb import ReducerError, Stdb, identity_hex
 
 MEMORY_NOTES = 20        # newest notes in context (#19)
 HISTORY_MESSAGES = 30    # newest channel messages in context (#19)
@@ -50,15 +50,6 @@ Dispatch = Callable[[Command, RunContext], tuple[int, str]]  # -> (exit_code, ou
 
 def tokens(text: str) -> int:
     return len(text) // 4 + 1  # rough, but the cut has to happen in code, not by the model
-
-
-def identity_hex(value) -> str:
-    """Identity as hex, from the mock's {"__identity__": hex} or the real server's ["0x…"] (#36)."""
-    if isinstance(value, dict):
-        return value["__identity__"]
-    if isinstance(value, (list, tuple)):
-        return value[0]
-    return str(value)
 
 
 def cap(text: str, limit: int = C.TOOL_OUTPUT_CAP) -> str:
@@ -128,7 +119,8 @@ class Loop:
                 self.db.call("run_end", run_id, state)
             except ReducerError:
                 pass  # stop_agent already ended it
-            if state != "stopped":
+            # Re-read: Stop may have landed mid-generation, and must not be undone by going back to idle.
+            if state != "stopped" and self._status(agent["id"]) != "stopped":
                 self.db.call("set_agent_status", agent["id"], "idle")
         return state
 
@@ -140,7 +132,10 @@ class Loop:
             if self.clock() - t0 >= af.budget_minutes * 60:
                 break
             reply = self.chat(self.context(ctx), llm.model_for(af.adapters))
-            self.db.call("run_turn", ctx.run_id)
+            try:
+                self.db.call("run_turn", ctx.run_id)
+            except ReducerError:  # the run was ended while generating (Stop): drop the reply
+                return "stopped"
             try:
                 out = parse(reply)
             except GrammarError as e:
@@ -215,7 +210,10 @@ class Loop:
                 meta = json.loads(m["meta"] or "{}")
                 return {"role": "user", "content": f"[{meta.get('command')} exit {meta.get('exit_code')}]\n{m['body']}"}
             return {"role": "assistant", "content": m["body"]}
-        who = {"user": users, "agent": agents}.get(m["author_kind"], {}).get(m["author_id"], m["author_kind"])
+        if m["author_kind"] == "user":
+            who = users.get(identity_hex(m["author_id"]), "user")
+        else:
+            who = agents.get(m["author_id"], m["author_kind"])
         return {"role": "user", "content": f"{who}: {m['body']}"}
 
     def _tool_docs(self, af: C.Agentfile) -> list[str]:

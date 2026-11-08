@@ -109,9 +109,9 @@ def test_say_mentions_agent_in_this_channel(stdb, ctx):
 def test_say_dms_user_and_reuses_the_dm(stdb, ctx):
     assert dispatch(parse("/say @ryan your build is green"), ctx) == (0, "sent a DM to @Ryan")
     [dm] = [c for c in stdb.db.tables["channel"] if c["kind"] == "dm"]
-    assert dm["name"] == f"dm-{ctx.agent['id']}-{RYAN}"
+    assert dm["name"] == f"dm-{ctx.agent['id']}-ryan"  # module hex: no 0x
     members = {(m["member_kind"], m["member_id"]) for m in stdb.db.tables["member"] if m["channel_id"] == dm["id"]}
-    assert members == {("agent", str(ctx.agent["id"])), ("user", RYAN)}
+    assert members == {("agent", str(ctx.agent["id"])), ("user", "ryan")}
     dispatch(parse("/say @RYAN second message"), ctx)
     assert len([c for c in stdb.db.tables["channel"] if c["kind"] == "dm"]) == 1  # found by members, not re-created
     assert messages(stdb) == [(dm["id"], "your build is green"), (dm["id"], "second message")]

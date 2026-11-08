@@ -12,14 +12,31 @@ import time
 from pathlib import Path
 
 from remi import contract as C
+from remi.loop import Loop
 from remi.node import Node
 from remi.poller import Poller
+from remi.tools import registry
 
 
-def log_start(agent: dict, msg: dict) -> bool:
-    # Placeholder until the agent loop (#19): it will call run_start and run the agent.
-    print(f"wake {agent['name']} for message {msg['id']} in channel {msg['channel_id']}", flush=True)
-    return True
+def waker(loop: Loop):
+    def start(agent: dict, msg: dict) -> bool:
+        started = loop.start(agent, msg)
+        if started:
+            print(f"wake {agent['name']} for message {msg['id']} in channel {msg['channel_id']}", flush=True)
+        return started
+
+    return start
+
+
+def sync_tools(node: Node) -> None:
+    """Put newly approved registry tools into this node's sandboxes (#21), once per poll."""
+    names = [a["name"] for a in node.db.sql("SELECT * FROM agent")
+             if a["node_id"] == node.id and a["status"] != "stopped"]
+    try:
+        if n := registry.sync(node.db, names):
+            print(f"installed {n} approved tool(s)", flush=True)
+    except Exception as e:  # no Docker yet, or a sandbox that won't start: keep the node up
+        print(f"tool sync failed: {e}", flush=True)
 
 
 def main() -> None:
@@ -31,11 +48,12 @@ def main() -> None:
     node = Node.from_env(store)
     node_id = node.register()
     print(f"node {node.name} registered as id {node_id}", flush=True)
-    poller = Poller(node.db, node_id, log_start, store)
+    poller = Poller(node.db, node_id, waker(Loop(node.db)), store)
     next_beat = time.monotonic() + beat_s
     try:
         while True:
             poller.poll()
+            sync_tools(node)
             if time.monotonic() >= next_beat:
                 node.heartbeat()
                 next_beat = time.monotonic() + beat_s

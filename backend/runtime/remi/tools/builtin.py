@@ -8,6 +8,7 @@ import urllib.request
 from html.parser import HTMLParser
 
 from remi.contract import TOOL_OUTPUT_CAP
+from remi.stdb import identity_hex
 
 TRUNCATED = "…[truncated]"
 FETCH_MAX_BYTES = 2_000_000
@@ -17,15 +18,6 @@ TEXT_TYPES = ("application/json", "application/xml", "application/javascript", "
 
 def cap(text: str, limit: int = TOOL_OUTPUT_CAP) -> str:
     return text if len(text) <= limit else text[: limit - len(TRUNCATED)] + TRUNCATED
-
-
-def identity_hex(value) -> str:
-    """Identity as hex, from the mock's {"__identity__": hex} or the real server's ["0x…"] (#36)."""
-    if isinstance(value, dict):
-        return value["__identity__"]
-    if isinstance(value, (list, tuple)):
-        return value[0]
-    return str(value)
 
 
 # -- /sh ---------------------------------------------------------------------
@@ -119,7 +111,8 @@ def _dm_channel(ctx, user_hex: str) -> int:
     members: dict[int, set] = {}
     for m in ctx.db.sql("SELECT * FROM member"):
         if m["channel_id"] in dms:
-            members.setdefault(m["channel_id"], set()).add((m["member_kind"], m["member_id"]))
+            mid = identity_hex(m["member_id"]) if m["member_kind"] == "user" else m["member_id"]
+            members.setdefault(m["channel_id"], set()).add((m["member_kind"], mid))
     for cid, who in sorted(members.items()):
         if {("agent", me), ("user", user_hex)} <= who:
             return cid
