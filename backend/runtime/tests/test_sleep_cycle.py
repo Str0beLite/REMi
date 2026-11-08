@@ -162,20 +162,35 @@ def test_a_failure_still_wakes_everyone(tmp_path, train_fails, start_fails):
 
 @pytest.mark.parametrize("value, stops", [(f"{SPEC['name']}@{int(NOW)}", True), (f"{SPEC['name']}@{int(NOW) - 60}", False),
                                           (f"other-spec@{int(NOW)}", False), ("garbage", False)])
-def test_train_stop_from_the_console(tmp_path, monkeypatch, value, stops):
-    """`train_stop` = <spec>@<ts>: only this spec, only a stop set after this sleep began (old values never stop a run)."""
+def test_train_stop_from_the_console_keeps_the_adapter(tmp_path, monkeypatch, value, stops):
+    """`train_stop` = <spec>@<ts>: only this spec, only a stop set after this sleep began (old values never stop a run).
+    Stopping ends training early and keeps what it learned: registered as a candidate like any run."""
     monkeypatch.setattr(cycle, "STOP_CHECK_S", 0)
     log, node = setup(tmp_path, {"train_stop": value})
-    run = lambda: cycle.run(SPEC, node=node, vllm=FakeVllm(log), store=tmp_path, train=fake_train(log), now=lambda: NOW)
-    if not stops:
-        run()
-        return
-    with pytest.raises(cycle.Stopped):
-        run()
-    assert not any(c[0] == "register_adapter" for c in log) and ("vllm", "start") in log
-    assert [c[1:] for c in log if c[0] == "set_agent_status"][-3:] == [(1, "idle"), (2, "thinking"), (3, "stopped")]
+
+    def train(spec, on_step, store, minutes):  # like the real trainer: on_step True -> finish this step, then save
+        step = 0
+        for step in range(1, 11):
+            if on_step(step, 1.0 / step):
+                break
+        path = store / "adapters" / spec["out"] / "1"
+        path.mkdir(parents=True)
+        (path / "adapter_model.safetensors").write_bytes(b"weights")
+        return path
+
+    cycle.run(SPEC, node=node, vllm=FakeVllm(log), store=tmp_path, train=train, now=lambda: NOW)
+    stats = json.loads(next(c for c in log if c[0] == "register_adapter")[8])
+    assert stats["steps"] == (1 if stops else 10) and (stats.get("stopped_early_at") == 1) == stops
     report = [c for c in log if c[0] == "post_message"][-1][5]
-    assert "was stopped from the console. Nothing new was registered" in report
+    assert ("stopped early from the console at step 1; what it learned so far is kept" in report) == stops
+    assert "sre@1 is a candidate" in report and [c[1:] for c in log if c[0] == "set_agent_status"][-1] == (3, "stopped")
+
+
+def test_the_trainer_child_stops_cleanly_when_asked(tmp_path, monkeypatch):
+    """The real stop path across processes: on_step True sets the event, the child sees it and returns its adapter."""
+    monkeypatch.setattr(cycle, "_train_worker", _fake_worker)
+    path = cycle.train_in_subprocess(SPEC, lambda step, loss: step >= 2, tmp_path, minutes=1)
+    assert path.name == "steps-2"
 
 
 def test_training_is_killed_at_max_train_minutes(tmp_path):
@@ -198,3 +213,16 @@ def test_real_tiny_sleep_on_the_pc(tmp_path):
     print("\n" + "\n".join(f"  {c[4]:<13} {c[5]}" for c in log if c[0] == "post_message"))
     print(f"  registered {reg[1]}@{reg[2]}: {reg[8]}")
     assert (path / "adapter_model.safetensors").exists() and phases(log)[-1] == "report"
+
+
+def _fake_worker(spec, store, q, stop_event):
+    """Stands in for the trainer child (module level, so spawn can import it): a step every 50 ms until stopped."""
+    import time
+    from pathlib import Path
+    for step in range(1, 200):
+        q.put(("step", step, 1.0))
+        time.sleep(0.05)
+        if stop_event.is_set():
+            q.put(("done", str(Path(store) / f"steps-{step}")))
+            return
+    q.put(("error", "never stopped"))

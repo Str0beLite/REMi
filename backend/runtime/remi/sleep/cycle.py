@@ -26,10 +26,6 @@ class Refused(Exception):
     """A guardrail said no. Nothing was changed."""
 
 
-class Stopped(Exception):
-    """An admin stopped the training from the console (setting `train_stop`, CONTRACT §3)."""
-
-
 STOP_CHECK_S = 5  # how often training looks at `train_stop`
 
 
@@ -82,20 +78,21 @@ def _bad_example(line: str) -> str | None:
     return None
 
 
-def _train_worker(spec: dict, store: str, q) -> None:
+def _train_worker(spec: dict, store: str, q, stop_event) -> None:
     from remi.trainer.train import train
     try:
-        path = train(spec, lambda step, loss: q.put(("step", step, loss)), store=Path(store))
+        path = train(spec, lambda step, loss: q.put(("step", step, loss)), store=Path(store), stop=stop_event.is_set)
         q.put(("done", str(path)))
     except Exception as e:  # noqa: BLE001 - reported to the parent, which wakes everyone either way
         q.put(("error", f"{type(e).__name__}: {e}"))
 
 
-def train_in_subprocess(spec: dict, on_step: Callable[[int, float], None], store: Path, minutes: float) -> Path:
-    """Train in a fresh process: it frees every byte of GPU memory before vLLM restarts, and can be killed at the limit."""
+def train_in_subprocess(spec: dict, on_step: Callable[[int, float], bool | None], store: Path, minutes: float) -> Path:
+    """Train in a fresh process: it frees every byte of GPU memory before vLLM restarts, and can be killed at the limit.
+    `on_step` returning True asks the trainer to stop early: it finishes the step and saves the adapter as usual."""
     ctx = multiprocessing.get_context("spawn")
-    q = ctx.Queue()
-    proc = ctx.Process(target=_train_worker, args=(spec, str(store), q), daemon=True)
+    q, stop_event = ctx.Queue(), ctx.Event()
+    proc = ctx.Process(target=_train_worker, args=(spec, str(store), q, stop_event), daemon=True)
     proc.start()
     deadline = time.monotonic() + minutes * 60
     try:
@@ -107,7 +104,8 @@ def train_in_subprocess(spec: dict, on_step: Callable[[int, float], None], store
                     raise RuntimeError(f"trainer exited with code {proc.exitcode}") from None
                 continue
             if kind == "step":
-                on_step(*rest)
+                if on_step(*rest):
+                    stop_event.set()
             elif kind == "done":
                 return Path(rest[0])
             else:
@@ -170,26 +168,29 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     node.set_status("asleep")
 
     t0, losses, last_post, path, error = time.monotonic(), [], 0.0, None, None
-    registered, began, last_check = False, now(), time.monotonic()
+    registered, began, last_check, stopped_at = False, now(), time.monotonic(), None
 
-    def on_step(step: int, loss: float) -> None:
-        nonlocal last_post, last_check
-        if time.monotonic() - last_check >= STOP_CHECK_S:  # raising here ends train_in_subprocess, which kills the child
+    def on_step(step: int, loss: float) -> bool:
+        """True once an admin pressed Stop: the trainer ends after this step and the adapter is kept."""
+        nonlocal last_post, last_check, stopped_at
+        losses.append(loss)
+        if stopped_at is None and time.monotonic() - last_check >= STOP_CHECK_S:
             last_check = time.monotonic()
             if stop_requested(db, spec["name"], began):
-                raise Stopped("stopped from the console")
-        losses.append(loss)
+                stopped_at = step
         if time.monotonic() - last_post >= POST_EVERY_S:
             last_post = time.monotonic()
             say("sleep_event", f"Training {spec['out']}: step {step}, loss {loss:.3f}", phase="training",
                 spec=spec["name"], step=step, loss=round(loss, 4))
+        return stopped_at is not None
 
     try:
         vllm.stop()
         path = train(spec, on_step, store, float(settings.get("max_train_minutes", "30")))
         version, minutes = int(path.name), (time.monotonic() - t0) / 60
         stats = {"steps": len(losses), "loss_first": losses[0] if losses else None,
-                 "loss_last": losses[-1] if losses else None, "minutes": round(minutes, 2), "examples": sum(counts.values())}
+                 "loss_last": losses[-1] if losses else None, "minutes": round(minutes, 2), "examples": sum(counts.values()),
+                 **({"stopped_early_at": stopped_at} if stopped_at is not None else {})}
         db.call("register_adapter", spec["out"], version, node.id, node.base_model, spec["desc"],
                 _sha256(path / "adapter_model.safetensors"), sum(f.stat().st_size for f in path.iterdir()),
                 json.dumps(stats), version - 1 if version > 1 else 0, ",".join(spec["datasets"]))
@@ -210,11 +211,12 @@ def run(spec: dict, *, node, vllm, store: Path = REMI_STORE, train=train_in_subp
     if error:
         done = (f"{spec['out']}@{path.name} was registered, but waking up failed" if registered
                 else "Nothing new was registered")
-        what = "was stopped from the console" if isinstance(error, Stopped) else f"failed: {error}"
-        say("sleep_event", f"@sleep-remi wake report: {spec['name']} {what}. {done}; "
+        say("sleep_event", f"@sleep-remi wake report: {spec['name']} failed: {error}. {done}; "
                            "everyone is back on their previous config.", phase="report", spec=spec["name"])
         raise error
     loss = f"loss {losses[0]:.3f} -> {losses[-1]:.3f} over {len(losses)} steps" if losses else "no loss logged"
+    if stopped_at is not None:
+        loss += f" (stopped early from the console at step {stopped_at}; what it learned so far is kept)"
     say("sleep_event", f"@sleep-remi wake report: {spec['name']} -> {spec['out']}@{path.name} is a candidate. "
                        f"{loss}; asleep {minutes:.1f} min. Judge it with /adapter eval before adopting.",
         phase="report", spec=spec["name"], minutes=round(minutes, 2))

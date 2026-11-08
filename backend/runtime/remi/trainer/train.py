@@ -58,8 +58,9 @@ def next_version(out: Path) -> int:
 
 
 def train(spec: dict, on_step: Callable[[int, float], None] | None = None, *, store: Path = REMI_STORE,
-          max_steps: int = -1) -> Path:
-    """Train spec["out"] at the next free version from spec["datasets"] in the store; returns the PEFT adapter dir."""
+          max_steps: int = -1, stop: Callable[[], bool] | None = None) -> Path:
+    """Train spec["out"] at the next free version from spec["datasets"] in the store; returns the PEFT adapter dir.
+    `stop()` true ends training after the current step; what it learned so far is saved like a finished run."""
     import torch
     from datasets import Dataset
     from peft import LoraConfig, get_peft_model
@@ -80,6 +81,10 @@ def train(spec: dict, on_step: Callable[[int, float], None] | None = None, *, st
         def on_log(self, args, state, control, logs=None, **kw):
             if on_step and logs and "loss" in logs:
                 on_step(state.global_step, float(logs["loss"]))
+
+        def on_step_end(self, args, state, control, **kw):
+            if stop and stop():
+                control.should_training_stop = True
 
     ds = Dataset.from_list([e for r in rows for e in examples(tok, r["messages"])])
     with tempfile.TemporaryDirectory() as work:

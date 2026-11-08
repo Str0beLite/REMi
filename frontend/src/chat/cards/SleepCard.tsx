@@ -9,7 +9,7 @@ import '../../sleep/sleep.css';
 type TrainingProps = { last: { meta: string; body: string }; points: LossPoint[]; done: boolean; canStop: boolean };
 
 // One card per sleep's training: the loss curve grows in place as updates arrive, instead of one line per update.
-// Admins can stop a running one (setting train_stop, CONTRACT §3): the node wakes everyone and registers nothing.
+// Admins can stop a running one (setting train_stop, CONTRACT §3): training ends after the current step and the adapter it has so far is kept as a candidate.
 export function TrainingCard({ last, points, done, canStop }: TrainingProps) {
   const m = sleepMeta(last.meta);
   const now = points.at(-1);
@@ -17,7 +17,7 @@ export function TrainingCard({ last, points, done, canStop }: TrainingProps) {
   const [stop, setStop] = useState<'idle' | 'sending' | 'sent' | string>('idle');
 
   async function onStop() {
-    if (!m.spec || !confirm(`Stop training ${m.spec}? Nothing is kept from this run, and everyone wakes up.`)) return;
+    if (!m.spec || !confirm(`Stop training ${m.spec} now? It keeps what it has learned so far as a candidate, and everyone wakes up.`)) return;
     setStop('sending');
     try {
       await setSetting({ key: 'train_stop', value: `${m.spec}@${Math.floor(Date.now() / 1000)}` });
@@ -42,7 +42,7 @@ export function TrainingCard({ last, points, done, canStop }: TrainingProps) {
         </span>
         {canStop && !done && m.spec && (
           <button type="button" className="sleep-card-stop" onClick={onStop} disabled={stop === 'sending' || stop === 'sent'}>
-            {stop === 'sent' ? 'Stopping…' : 'Stop training'}
+            {stop === 'sent' ? 'Stopping…' : 'Stop and keep'}
           </button>
         )}
       </div>

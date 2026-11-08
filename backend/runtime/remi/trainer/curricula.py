@@ -576,7 +576,7 @@ def train_all(seed: int = 0, only: list[str] | None = None) -> dict:
         curve: list[tuple[int, float]] = []
 
         def train(s, on_step, st, minutes):
-            return cycle.train_in_subprocess(s, lambda step, loss: (curve.append((step, round(loss, 4))), on_step(step, loss)),
+            return cycle.train_in_subprocess(s, lambda step, loss: (curve.append((step, round(loss, 4))), on_step(step, loss))[1],  # [1]: Stop
                                              st, minutes)
 
         t0 = time.time()
