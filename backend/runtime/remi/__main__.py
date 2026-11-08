@@ -1,7 +1,7 @@
 """`uv run python -m remi`: register this node, heartbeat, poll messages and wake agents.
 
 Env: STDB_URL, STDB_DB, STDB_TOKEN (or a minted token in REMI_STORE), REMI_NODE_NAME, REMI_GPU, BASE_MODEL,
-REMI_STORE, and REMI_POLL_S / REMI_HEARTBEAT_S to override the §2 intervals (tests use small ones).
+REMI_STORE, REMI_INCIDENT_PORT (0 = no incident intake), and REMI_POLL_S / REMI_HEARTBEAT_S to override the §2 intervals (tests use small ones).
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 
 from remi import contract as C
+from remi.incidents import intake
 from remi.loop import Loop
 from remi.node import Node
 from remi.poller import Poller
@@ -56,6 +57,8 @@ def main() -> None:
     if vllm:  # this runtime owns vLLM, so /sleep can stop and restart it (compose does this in #29)
         vllm.start()
     sleep_tools.attach(node, vllm)
+    if intake.serve(node.db, C.INCIDENT_PORT):
+        print(f"incident intake on 127.0.0.1:{C.INCIDENT_PORT}", flush=True)
     scheduler = Scheduler(node)
     next_beat = time.monotonic() + beat_s
     try:
