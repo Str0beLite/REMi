@@ -140,3 +140,41 @@ describe('post_message', () => {
     expect(p({}, 999n)).toThrow(/no channel/);
   });
 });
+
+describe('clear_channel', () => {
+  it("deletes the channel's and its threads' messages, keeps channels, members, runs and other channels", () => {
+    const w = setup();
+    const ops = [...w.h.db.channel.iter()].find(c => c.name === 'ops')!.id;
+    w.call('nodeA', mod.create_channel, { name: 'side', kind: 'thread', parent_id: w.general });
+    const thread = [...w.h.db.channel.iter()].find(c => c.kind === 'thread')!.id;
+    w.call('nodeA', mod.join, { channel_id: w.general, member_kind: 'agent', member_id: '1' });
+    for (const ch of [w.general, thread, ops]) w.call('nodeA', mod.post_message, msg(ch));
+    w.call('nodeA', mod.run_start, { agent_id: 1n, channel_id: w.general, trigger_msg_id: 1n });
+    w.call('admin', mod.clear_channel, { channel_id: w.general });
+    const left = [...w.h.db.message.iter()].sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(left.map(m => [m.channel_id, m.author_kind, m.kind, m.body])).toEqual([
+      [ops, 'agent', 'chat', 'hi'],
+      [w.general, 'system', 'system', 'ryan cleared this channel'],
+    ]);
+    expect(left[1].id).toBeGreaterThan(3n); // ids are never reused, so cursors stay valid
+    expect(w.h.db.channel.id.find(thread)).toBeTruthy();
+    expect(w.h.db.member.count()).toBe(1n);
+    expect(w.h.db.run.count()).toBe(1n);
+  });
+  it('is admin only and refuses unknown channels', () => {
+    const w = setup();
+    expect(() => w.call('bob', mod.clear_channel, { channel_id: w.general })).toThrow(/only an admin/);
+    expect(() => w.call('nodeA', mod.clear_channel, { channel_id: w.general })).toThrow(/only an admin/);
+    expect(() => w.call('admin', mod.clear_channel, { channel_id: 999n })).toThrow(/no channel/);
+  });
+  it('clears a DM only for an admin who is in it', () => {
+    const w = setup();
+    w.call('bob', mod.create_channel, { name: 'dm-a-b', kind: 'dm', parent_id: 0n });
+    const dm = [...w.h.db.channel.iter()].find(c => c.kind === 'dm')!.id;
+    w.call('nodeA', mod.post_message, msg(dm));
+    expect(() => w.call('admin', mod.clear_channel, { channel_id: dm })).toThrow(/DMs they are in/);
+    w.call('admin', mod.join, { channel_id: dm, member_kind: 'user', member_id: w.hex('admin') });
+    w.call('admin', mod.clear_channel, { channel_id: dm });
+    expect([...w.h.db.message.iter()].map(m => m.body)).toEqual(['ryan cleared this channel']);
+  });
+});

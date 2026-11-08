@@ -199,6 +199,24 @@ def test_asleep_holds_and_stopped_drops(server, node, tmp_path):
     assert rec.started == [("sleepy", m)]
 
 
+def test_cleared_channel_drops_pending_triggers(server, node, tmp_path):
+    # An admin clears the channel (clear_channel) while the agent is busy: its trigger is gone, so it never runs.
+    add_agent(server, node, "helper")
+    rec = Recorder(server, busy={"helper"})
+    p = Poller(node.db, node.id, rec, tmp_path)
+    gone = post(server, "@helper one")
+    p.poll()
+    assert p.cursor == gone - 1
+    server.db.tables["message"] = [m for m in server.db.tables["message"] if m["id"] != gone]
+    rec.busy.clear()
+    p.poll()
+    assert rec.started == [] and p.cursor == gone  # the cursor moves on, past the deleted id
+    new = post(server, "@helper two")
+    p.poll()
+    assert rec.started == [("helper", new)]
+    assert Poller(node.db, node.id, Recorder(server), tmp_path).cursor == new  # a restart keeps it
+
+
 def test_restart_replays_pending_without_duplicates(server, node, tmp_path):
     add_agent(server, node, "helper")
     add_agent(server, node, "busy")

@@ -1,4 +1,4 @@
-// Chat reducers: CONTRACT.md §4 set_nickname, create_channel, join, leave, post_message.
+// Chat reducers: CONTRACT.md §4 set_nickname, create_channel, join, leave, post_message, clear_channel.
 import { SenderError, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server';
 import { joinAllChannelAgents } from '../agentOps';
 import db, { AUTHOR_KINDS, CHANNEL_KINDS, MEMBER_KINDS, MESSAGE_KINDS } from '../contract';
@@ -136,3 +136,24 @@ export const post_message = db.reducer(
     ctx.db.message.insert({ id: 0n, channel_id, author_kind, author_id, kind, body, meta, ts: ctx.timestamp });
   },
 );
+
+// Deletes the channel's messages and its threads' messages, keeps the channels, members and settings (CONTRACT.md §4).
+// Message ids are never reused, so cursors and run.trigger_msg_id pointing at deleted rows stay harmless.
+export const clear_channel = db.reducer({ channel_id: t.u64() }, (ctx, { channel_id }) => {
+  const me = callerUser(ctx);
+  if (me?.is_admin !== true) throw new SenderError('only an admin can clear a channel');
+  const ch = channelOrThrow(ctx, channel_id);
+  if (ch.kind === 'dm' && !findMember(ctx, channel_id, 'user', hex(ctx))) throw new SenderError('admins clear only DMs they are in');
+  const ids = [channel_id, ...[...ctx.db.channel.iter()].filter(c => c.kind === 'thread' && c.parent_id === channel_id).map(c => c.id)];
+  for (const id of ids) for (const m of [...ctx.db.message.channel_id.filter(id)]) ctx.db.message.id.delete(m.id);
+  ctx.db.message.insert({
+    id: 0n,
+    channel_id,
+    author_kind: 'system',
+    author_id: 'system',
+    kind: 'system',
+    body: `${me.nickname} cleared this channel`,
+    meta: '{}',
+    ts: ctx.timestamp,
+  });
+});

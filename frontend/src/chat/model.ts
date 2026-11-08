@@ -49,6 +49,17 @@ export function isMember(c: Channel, members: readonly Member[], me: string) {
   return members.some(m => m.channelId === c.id && m.memberKind === 'user' && m.memberId === me);
 }
 
+// clear_channel's rule (CONTRACT.md §4): admins only, and a DM only when they are in it.
+export function canClear(c: Channel, members: readonly Member[], me: string, isAdmin: boolean) {
+  return isAdmin && (c.kind !== 'dm' || isMember(c, members, me));
+}
+
+// What the confirm says: the channel by name, what goes, and that it can't be undone.
+export function clearQuestion(c: Channel, title: string) {
+  const what = c.kind === 'public' ? 'every message in it and in its threads' : 'every message in it';
+  return `Clear ${title}?\n\nThis deletes ${what} for everyone. Members and settings stay. It can't be undone.`;
+}
+
 export function unreadIn(channelId: bigint, messages: readonly Message[], lastSeen: bigint | undefined) {
   if (lastSeen === undefined) return 0;
   let n = 0;

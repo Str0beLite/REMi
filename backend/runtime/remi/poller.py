@@ -4,7 +4,8 @@
 - Coalescing: one pending trigger per (agent, channel), newest message wins. It is handed to `start(agent, msg)`
   (the agent loop, #19), which returns False while the agent is busy, so the trigger stays pending.
 - Asleep agents keep their trigger until they are idle again; stopped agents get nothing.
-- The saved cursor never passes a trigger whose run hasn't started. After a restart, messages that already
+- The saved cursor never passes a trigger whose run hasn't started. A pending trigger whose message is gone (an admin
+  cleared the channel) is dropped; message ids are never reused, so a cursor past deleted rows stays correct. After a restart, messages that already
   have a `run` row (run.trigger_msg_id) are not dispatched again.
 """
 from __future__ import annotations
@@ -79,7 +80,12 @@ class Poller:
 
     def poll(self) -> None:
         """One tick: read new messages, update pending triggers, start what can start, save the cursor."""
-        msgs = sorted(self.db.sql(f"SELECT * FROM message WHERE id > {self.read_to}"), key=lambda m: m["id"])
+        # Read from the oldest pending trigger too, so a trigger whose message was deleted (clear_channel) is dropped.
+        since = min([self.read_to, *(m["id"] - 1 for m in self.pending.values())])
+        rows = sorted(self.db.sql(f"SELECT * FROM message WHERE id > {since}"), key=lambda m: m["id"])
+        live = {m["id"] for m in rows}
+        self.pending = {k: m for k, m in self.pending.items() if m["id"] in live}
+        msgs = [m for m in rows if m["id"] > self.read_to]
         agents = {a["id"]: a for a in self.db.sql("SELECT * FROM agent")
                   if a["node_id"] == self.node_id and a["status"] not in ("stopped", "moving")}
         if msgs:

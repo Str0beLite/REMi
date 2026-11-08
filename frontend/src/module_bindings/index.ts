@@ -38,6 +38,7 @@ import AddAdminCodeReducer from "./add_admin_code_reducer";
 import AddMemoryReducer from "./add_memory_reducer";
 import AttachAdapterReducer from "./attach_adapter_reducer";
 import ClaimAdminReducer from "./claim_admin_reducer";
+import ClearChannelReducer from "./clear_channel_reducer";
 import ControlAgentReducer from "./control_agent_reducer";
 import CreateAgentReducer from "./create_agent_reducer";
 import CreateChannelReducer from "./create_channel_reducer";
@@ -401,6 +402,7 @@ const reducersSchema = __reducers(
   __reducerSchema("add_memory", AddMemoryReducer),
   __reducerSchema("attach_adapter", AttachAdapterReducer),
   __reducerSchema("claim_admin", ClaimAdminReducer),
+  __reducerSchema("clear_channel", ClearChannelReducer),
   __reducerSchema("control_agent", ControlAgentReducer),
   __reducerSchema("create_agent", CreateAgentReducer),
   __reducerSchema("create_channel", CreateChannelReducer),

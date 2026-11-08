@@ -52,6 +52,17 @@
   font-size: var(--text-xs);
   color: var(--status-thinking);
 }
+/* admin-only Clear channel… and its refusal, at the right of the header */
+.main-head .form-error {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+.clear-channel {
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--danger);
+}
 .panel-stub {
   padding: var(--space-6) var(--space-5);
   color: var(--muted);

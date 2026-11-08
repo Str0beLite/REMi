@@ -11,7 +11,8 @@ import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
 import { NicknamePrompt } from './chat/NicknamePrompt';
 import { loadLastSeen, saveLastSeen } from './chat/lastSeen';
-import { dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
+import { canClear, dmLabel, hexOf, isMember, purposeOf, tsMillis, unreadIn } from './chat/model';
+import { ClearChannel } from './chat/ClearChannel';
 import { STDB_DB } from './stdb';
 import { AdaptersPanel, AgentsPanel, ConfigPanel, FilesPanel, SleepPanel, ToolsPanel } from './panels';
 import { readRoute, writeRoute, type PanelId, type Route } from './route';
@@ -212,6 +213,7 @@ export default function App() {
             Reconnecting…
           </span>
         )}
+        {panel === 'chat' && active && canClear(active, members, me, meRow.isAdmin) && <ClearChannel key={String(active.id)} channel={active} title={title} />}
       </header>
       {Other ? (
         <Other />
