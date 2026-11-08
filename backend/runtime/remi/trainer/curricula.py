@@ -112,8 +112,10 @@ def agent_for(r: random.Random, held: int, need: str | None = "sh") -> tuple[str
     purpose, tools = r.choice(choices)
     tools = [t for t in tools if t in loop.BUILTIN_DOCS]  # registry:/mcp: tools render from the DB, not from here
     if need == "no-sh":
+        # Only made-up agents: pairing a real REMi's prompt with "I don't have /sh" taught tooluse@1 that Sleep REMi
+        # lacks its tools, and it then said it had no /say either (live, 2026-11-08).
         purpose, tools = r.choice([(f"You are {name}. You help run a small homelab. Answer briefly in plain text.",
-                                    ["say", "note"]), (SLEEP.purpose, [t for t in SLEEP.tools if t != "sh"])])
+                                    ["say", "note"]), (f"You are {name}. You keep notes for the team.", ["note", "say"])])
     elif need and need not in tools:
         tools = tools + [need]
     return name, purpose, tools
@@ -287,8 +289,26 @@ def t_fetch(r, held):
                                        "not reachable from my node.")
 
 
+def t_message_agent(r, held):
+    """Asking another REMi to do something: /say @<agent> with the request, then report. Real REMis' prompts included,
+    so each learns it can message the others (live: Sleep REMi said it had no messenger)."""
+    a, purpose, tools = agent_for(r, held, need="say")
+    other = r.choice([x for x in POOLS["agent"][held] + ["boss-remi", "code-remi", "courier-remi"] if x != a])
+    ask_, msg = r.choice([
+        ([f"message {other} and get it to say something in this chat", f"ask {other} to say hi here"][held],
+         "please say hi in this channel"),
+        ([f"tell {other} to check the backups", f"get {other} to check the backups"][held], "please check the backups"),
+        ([f"ask {other} what it is working on", f"can you ping {other} about its status?"][held],
+         "what are you working on? Reply here"),
+    ])
+    c = Conv(purpose, tools, r.choice(POOLS["nick"][held]), ask(r, held, a, ask_), "use-the-right-tool")
+    return c.say(f"/say @{other} {msg}").got("say", 0, f"mentioned @{other} in this channel").say(
+        f"I asked @{other} here; its reply will show up in this channel.")
+
+
 TOOLUSE = [t_disk, t_disk, t_disk_missing, t_memory, t_uptime, t_service, t_service, t_service_no_systemctl, t_simple,
-           t_simple, t_no_sh, t_sandbox, t_greet, t_note, t_say, t_say_wrong_form, t_not_my_tool, t_fetch]
+           t_simple, t_no_sh, t_sandbox, t_greet, t_note, t_say, t_say_wrong_form, t_not_my_tool, t_fetch,
+           t_message_agent, t_message_agent]
 
 
 # ------------------------------------------------------------------------------------------ sleepops
