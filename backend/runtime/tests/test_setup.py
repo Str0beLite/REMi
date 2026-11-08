@@ -45,7 +45,8 @@ def test_join_spends_the_local_admin_code_and_writes_cluster_json(local, tmp_pat
         s.join({"link": "nope", "claim": CLAIM})
     assert s.join({"link": LINK, "claim": CLAIM}) == {"cluster": "http://cluster.example:8080"}
     assert reached == [("http://cluster.example:3000", "remi")]
-    assert s.joined.is_set() and s.status() == {"cluster": "http://cluster.example:8080"}
+    assert s.joined.is_set() and s.status() == {"cluster": "http://cluster.example:8080",
+                                               "url": "http://cluster.example:3000", "db": "remi"}
     assert json.loads((tmp_path / "cluster.json").read_text())["code"] == CODE
     with pytest.raises(setup.Bad, match="already joined"):
         s.join({"link": LINK, "claim": CLAIM})

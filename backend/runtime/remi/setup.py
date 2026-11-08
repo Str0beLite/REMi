@@ -6,9 +6,9 @@ link (`http://<cluster>:8080/?join=<code>&db=<db>`, from its Config > Add a mach
 console's nginx (/setup/ -> node:SETUP_PORT; never published on the host). The request carries the one-time admin code
 `remi up` printed in this machine's terminal, which proves the person is at this machine: the node spends it with
 `claim_admin` on the local workspace before doing anything. Then `cluster.json` in REMI_STORE points every later start
-of this node at the cluster (Node.from_env), and the node restarts into it.
+of this node at the cluster (Node.from_env), and the node restarts into it, and this machine's console connects to the cluster.
 
-    GET  /setup/status -> {"cluster": "<console URL>" | null}
+    GET  /setup/status -> {"cluster": "<console URL>" | null, "url": "<its SpacetimeDB>", "db": "<database>"}
     POST /setup/join   {"link": "...", "claim": "<code>"} -> {"cluster": "<console URL>"}
 """
 from __future__ import annotations
@@ -78,8 +78,9 @@ class Setup:
         self.lock = threading.Lock()
 
     def status(self) -> dict:
+        """Where this machine's console should connect: every console in a cluster is a way into the whole cluster."""
         c = load_cluster(self.store)
-        return {"cluster": c["console"] if c else None}
+        return {"cluster": c["console"], "url": c["url"], "db": c["db"]} if c else {"cluster": None}
 
     def join(self, body: dict) -> dict:
         if not isinstance(body, dict):

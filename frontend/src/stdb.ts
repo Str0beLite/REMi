@@ -5,16 +5,23 @@
 import { DbConnection } from './module_bindings';
 
 const configured: string = import.meta.env.VITE_STDB_URI ?? 'same-host';
-export const STDB_URI: string =
+export let STDB_URI: string =
   configured === 'same-host' ? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:3000` : configured;
-export const STDB_DB: string = import.meta.env.VITE_STDB_DB ?? 'remi';
+export let STDB_DB: string = import.meta.env.VITE_STDB_DB ?? 'remi';
 
-const TOKEN_KEY = `${STDB_URI}/${STDB_DB}/auth_token`;
+// A machine that joined a cluster serves a console for the whole cluster: main.tsx asks this machine's node (/setup/)
+// before connecting and points the console at the cluster's database. Live bindings: importers see the new values.
+export function connectToCluster(url: string, db: string) {
+  STDB_URI = url.replace(/^http/, 'ws');
+  STDB_DB = db;
+}
+
+const tokenKey = () => `${STDB_URI}/${STDB_DB}/auth_token`;
 
 // The browser keeps its SpacetimeDB identity in localStorage, so a returning visitor keeps their nickname.
 function readToken(): string | undefined {
   try {
-    return localStorage.getItem(TOKEN_KEY) ?? undefined;
+    return localStorage.getItem(tokenKey()) ?? undefined;
   } catch {
     return undefined;
   }
@@ -22,7 +29,7 @@ function readToken(): string | undefined {
 
 function writeToken(token: string) {
   try {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(tokenKey(), token);
   } catch {
     // Private mode: the identity lasts for this tab only.
   }
@@ -39,7 +46,7 @@ async function dropRejectedToken() {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.status !== 401) return;
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(tokenKey());
     location.reload();
   } catch {
     // Server unreachable: keep the token and let the reconnect retry.

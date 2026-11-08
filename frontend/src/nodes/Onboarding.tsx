@@ -16,8 +16,8 @@ export function Onboarding({ claim, onNewCluster }: { claim: string; onNewCluste
     setBusy(true);
     setError('');
     try {
-      const cluster = await joinCluster(link, claim);
-      location.replace(cluster); // one console per cluster: this machine's own only did onboarding
+      await joinCluster(link, claim);
+      location.replace('/'); // reload: this console now opens the cluster (main.tsx asks the node where it is)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

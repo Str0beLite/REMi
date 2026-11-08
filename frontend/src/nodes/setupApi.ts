@@ -1,19 +1,22 @@
 // This machine's node, reached through the console's own web server (/setup/ -> node, backend/runtime/remi/setup.py).
 
-// The cluster console this machine joined, or null. Any failure (an old node, `npm run dev` with no node) means "not joined".
-export async function clusterStatus(): Promise<string | null> {
+export type Cluster = { url: string; db: string };
+
+// The cluster this machine joined (its SpacetimeDB and database), or null. Any failure (an old node, `npm run dev` with
+// no node, a console served elsewhere) means "not joined": the console stays on its own host's database.
+export async function clusterStatus(): Promise<Cluster | null> {
   try {
     const res = await fetch('/setup/status');
     if (!res.ok) return null;
-    const body = (await res.json()) as { cluster?: string | null };
-    return body.cluster ?? null;
+    const body = (await res.json()) as { cluster?: string | null; url?: string; db?: string };
+    return body.cluster && body.url && body.db ? { url: body.url, db: body.db } : null;
   } catch {
     return null;
   }
 }
 
 // Point this machine's node at the cluster in `link`. `claim` is the one-time admin code from `remi up`'s link, which
-// proves the person is at this machine. Resolves to the cluster console's URL; rejects with a message to show.
+// proves the person is at this machine. Resolves once the node has switched; rejects with a message to show.
 export async function joinCluster(link: string, claim: string): Promise<string> {
   let res: Response;
   try {

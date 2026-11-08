@@ -6,7 +6,6 @@ import { ChannelRail } from './shell/ChannelRail';
 import { SwarmRail } from './swarm/SwarmRail';
 import { addMachineFocus, readJoin } from './nodes/joinCommand';
 import { JoinLinkHelp, Onboarding } from './nodes/Onboarding';
-import { clusterStatus } from './nodes/setupApi';
 import { equipmentOf } from './swarm/swarmData';
 import type { AgentStatus } from './components/remiLook';
 import { ChatView } from './chat/ChatView';
@@ -95,11 +94,8 @@ export default function App() {
   const claim = useAdminClaim(!!meRow);
   const [claimSeen, setClaimSeen] = useState(false);
 
-  // Onboarding (#83): a machine that joined a cluster sends its own console to the cluster's. A fresh `remi up` link
-  // first asks whether to start a new cluster here or join one.
-  useEffect(() => {
-    void clusterStatus().then(c => c && location.replace(c));
-  }, []);
+  // Onboarding (#83): a fresh `remi up` link first asks whether to start a new cluster here or join one. (A machine that
+  // already joined connects to the cluster from main.tsx and drops the link's code, so this never shows there.)
   const [claimCode] = useState(() => readClaim(location.search));
   const [joinCode] = useState(() => readJoin(location.search));
   const [newCluster, setNewCluster] = useState(false);

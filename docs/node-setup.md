@@ -34,9 +34,9 @@ One cluster, several GPU machines, and the same `scripts/remi up` on each. Every
 
 1. On a machine already in the cluster, as an admin: **Config > Add a machine** (or the **+ Add a machine** slot at the bottom of the Swarm rail) > **Allow machines to join**. Copy the join link, `http://<cluster>:8080/?join=<code>&db=remi`.
 2. On the new machine: `scripts/remi up` (Windows: `.\scripts\remi.ps1 up`), open the link it prints, choose **Join an existing cluster** and paste the join link.
-3. The new machine's node checks it can reach the cluster, restarts into it with its own identity and the code, and shows up under **Nodes** and in the Swarm rail. Its console now sends you to the cluster's console: one console per cluster.
+3. The new machine's node checks it can reach the cluster, restarts into it with its own identity and the code, and shows up under **Nodes** and in the Swarm rail. Its own console now opens the cluster: every machine's console (`http://<any machine>:8080`) is a way into the whole cluster, to talk to and @mention any REMi on any machine.
 
-What happens underneath: the onboarding posts the link to this machine's node through the console's own web server (`/setup/`, `backend/runtime/remi/setup.py`; the node publishes no port). The request carries the one-time code from `up`'s link, which only someone at this machine has, and the node spends it before doing anything. The node then keeps the cluster in `/store/cluster.json` (the `store` volume), so every later start runs it in the cluster.
+What happens underneath: the onboarding posts the link to this machine's node through the console's own web server (`/setup/`, `backend/runtime/remi/setup.py`; the node publishes no port). The request carries the one-time code from `up`'s link, which only someone at this machine has, and the node spends it before doing anything. The node then keeps the cluster in `/store/cluster.json` (the `store` volume), so every later start runs it in the cluster, and the console asks the node (`/setup/status`) where the cluster's database is before connecting.
 
 - A join link adds machines. It never makes anyone admin, and nobody copies the owner's token.
 - **New link** stops the old one working; **Turn off joining** stops all joining. Machines already in keep working: re-registering their own node needs no code.

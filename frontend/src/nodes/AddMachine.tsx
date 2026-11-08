@@ -8,18 +8,18 @@ import './nodes.css';
 
 // The code lives in a private table, so the console can't read it back. This browser remembers the one it made.
 // shortcut: another admin's browser only learns that joining is on; it shows a link after New code.
-const CODE_KEY = `${STDB_URI}/${STDB_DB}/node_join_code`;
+const codeKey = () => `${STDB_URI}/${STDB_DB}/node_join_code`; // after main.tsx picked the database
 const loadCode = () => {
   try {
-    return localStorage.getItem(CODE_KEY) ?? '';
+    return localStorage.getItem(codeKey()) ?? '';
   } catch {
     return '';
   }
 };
 const saveCode = (code: string) => {
   try {
-    if (code) localStorage.setItem(CODE_KEY, code);
-    else localStorage.removeItem(CODE_KEY);
+    if (code) localStorage.setItem(codeKey(), code);
+    else localStorage.removeItem(codeKey());
   } catch {
     // private mode: the code shows until this tab closes
   }
