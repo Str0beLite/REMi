@@ -1,0 +1,7 @@
+name: too-greedy
+purpose: x
+channels: [general]
+triggers: [mention]
+tools: [sh]
+budget: {turns: 500, minutes: 5}
+adapters: []

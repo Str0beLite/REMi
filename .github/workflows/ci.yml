@@ -1,0 +1,60 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      module: ${{ steps.f.outputs.module }}
+      runtime: ${{ steps.f.outputs.runtime }}
+      frontend: ${{ steps.f.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: f
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            module: ['backend/module/**', 'contract/**', 'fixtures/**', 'CONTRACT.md']
+            runtime: ['backend/runtime/**', 'backend/module/src/contract.ts', 'contract/**', 'fixtures/**']
+            frontend: ['frontend/**']
+
+  module:
+    needs: changes
+    if: needs.changes.outputs.module == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend/module } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/module/package-lock.json }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  runtime:
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend/runtime } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: '3.12' }
+      - run: uv sync --locked
+      - run: uv run pytest
+
+  frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint

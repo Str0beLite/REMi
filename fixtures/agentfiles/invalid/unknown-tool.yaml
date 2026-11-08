@@ -1,0 +1,7 @@
+name: shady
+purpose: x
+channels: [general]
+triggers: [mention]
+tools: [rm_rf]
+budget: {turns: 5, minutes: 5}
+adapters: []

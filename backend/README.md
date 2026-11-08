@@ -1,12 +1,9 @@
 # Backend
 
-Empty until the stack is picked. Scaffold straight into this folder, for example:
+| Folder | Lane | What |
+|---|---|---|
+| [module/](module/) | lane:web | SpacetimeDB TypeScript module: tables (`src/contract.ts`) and reducers (`src/index.ts`) |
+| [runtime/](runtime/) | lane:core, lane:gpu | Python runtime: agent loop, tools, sandbox, serving, sleep cycle |
+| `sandbox/` | lane:core | Per-REMi Docker workspace (not created yet) |
 
-```bash
-npm init -y && npm i hono                # Node + Hono
-uv init . && uv add fastapi uvicorn      # Python + FastAPI
-```
-
-Using Supabase instead of a custom server? Keep schema and migrations here (`supabase init`) and run the installer with `--supabase`.
-
-Once it runs, replace this README with: how to install, how to run, and the env vars it needs.
+Everything builds against [CONTRACT.md](../CONTRACT.md).

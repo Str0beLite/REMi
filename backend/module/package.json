@@ -1,0 +1,19 @@
+{
+  "name": "remi-module",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "spacetimedb": "2.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "ajv": "8.17.1",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "yaml": "2.8.1"
+  }
+}

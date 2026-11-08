@@ -49,22 +49,26 @@ SOURCES=(
   "greensock/gsap-skills|aed9cfd3277740755f6bfc1155c7aa645403b760|skills/gsap-react skills/gsap-scrolltrigger"
   "anthropics/skills|dbd4588f9e1033efb41dad4bef2f7947c8993d44|skills/webapp-testing"
   "obra/superpowers|2ce8aa15d05bd57213e6f746f953aafb7ded7a8b|skills/systematic-debugging skills/verification-before-completion"
-  "vercel-labs/agent-skills|063bee94c3f4df8453406c830b0a7df0f2860278|skills/web-design-guidelines"
+  "vercel-labs/agent-skills|063bee94c3f4df8453406c830b0a7df0f2860278|skills/web-design-guidelines skills/react-best-practices"
+  # REMi stack: official SpacetimeDB skills, SpacetimeDB HTTP/SQL/JSON details, LoRA training with TRL.
+  "clockworklabs/SpacetimeDB|39bf8539de01f8b3dc6c23953bae01f893b013b3|skills/typescript-server skills/typescript-client skills/concepts skills/cli"
+  "DanMossa/spacetimedb-skills|3201062a753bb2e45707b3c1ad02aab0613061d6|skills/spacetimedb-http skills/spacetimedb-sql skills/spacetimedb-serialization"
+  "huggingface/skills|25910b3d0ba31a2ba102f901cdc9e008c278a69c|skills/trl-training"
 )
 [ "$SUPABASE" = 1 ] && SOURCES+=(
   "supabase/agent-skills|c9be0e931b7930f7d02126d04774d904c381e7d7|skills/supabase skills/supabase-postgres-best-practices"
 )
 IMPECCABLE="pbakaus/impeccable|2bb6563e570ffc266d1fccec24a778745c143e52"
 
-fetch_repo() { # repo sha dest
-  local url="https://github.com/$1.git"
-  if [ "$LATEST" = 1 ]; then
-    git clone -q --depth 1 "$url" "$3"
-  else
-    git init -q "$3"
-    git -C "$3" fetch -q --depth 1 "$url" "$2"
-    git -C "$3" checkout -q FETCH_HEAD
-  fi
+fetch_repo() { # repo sha dest paths...
+  # Partial + sparse fetch: only the skill folders are downloaded, so big monorepos (SpacetimeDB) stay cheap.
+  local url="https://github.com/$1.git" ref="$2" dest="$3"; shift 3
+  local p pats=(); for p in "$@"; do pats+=("/$p"); done
+  git init -q "$dest"
+  git -C "$dest" sparse-checkout set --no-cone "${pats[@]}"
+  if [ "$LATEST" = 1 ]; then ref=HEAD; fi
+  git -C "$dest" fetch -q --depth 1 --filter=blob:none "$url" "$ref"
+  git -C "$dest" checkout -q FETCH_HEAD
 }
 
 install_skill() { # src-dir dest-skills-dir
@@ -88,7 +92,8 @@ for entry in "${SOURCES[@]}"; do
   IFS='|' read -r repo sha paths <<<"$entry"
   echo "$repo"
   dest="$TMP/${repo//\//_}"
-  fetch_repo "$repo" "$sha" "$dest"
+  # shellcheck disable=SC2086 # paths is a space-separated list
+  fetch_repo "$repo" "$sha" "$dest" $paths
   for p in $paths; do
     for d in "${DESTS[@]}"; do install_skill "$dest/$p" "$d"; done
   done
@@ -96,13 +101,23 @@ done
 
 IFS='|' read -r repo sha <<<"$IMPECCABLE"
 echo "$repo"
-fetch_repo "$repo" "$sha" "$TMP/impeccable"
+fetch_repo "$repo" "$sha" "$TMP/impeccable" .claude/skills/impeccable .agents/skills/impeccable .claude/settings.json
 for d in "${DESTS[@]}"; do
   case "$d" in
     "$TARGET/.claude/skills") install_skill "$TMP/impeccable/.claude/skills/impeccable" "$d" ;;
     *)                        install_skill "$TMP/impeccable/.agents/skills/impeccable" "$d" ;;
   esac
 done
+
+# Our own skills, kept in this repo under kit/skills (the /lane build loop and the task issue format).
+# Always refreshed: kit/skills is their source of truth, so local edits to the installed copies are overwritten.
+KIT="$(cd "$(dirname "$0")" && pwd)/kit/skills"
+if [ -d "$KIT" ]; then
+  echo "kit/skills (this repo)"
+  for s in "$KIT"/*/; do
+    for d in "${DESTS[@]}"; do (FORCE=1; install_skill "${s%/}" "$d"); done
+  done
+fi
 
 if [ "$SONWTF" = 1 ]; then
   echo "son-wtf (custom)"
@@ -253,6 +268,8 @@ write_block "$TARGET/AGENTS.md" "<!-- hackathon-kit:start -->
 ## Skill kit (.agents/skills)
 Core skills: grill-with-docs (uses grilling + domain-modeling), ponytail, impeccable, gsap-react, gsap-scrolltrigger, webapp-testing, systematic-debugging, web-design-guidelines, verification-before-completion.
 - Follow the ponytail skill at LITE level for the whole session.
+- Stack skills by lane: web → typescript-server, typescript-client, concepts, cli, react-best-practices; core → spacetimedb-http, spacetimedb-sql, spacetimedb-serialization; gpu → trl-training. Read the matching one before writing SpacetimeDB, React or training code.
+- Parallel build: work is GitHub issues labelled lane:web / lane:core / lane:gpu. Run one lane with the lane skill (\`/lane core\` etc.); write or edit task issues with the lane-tasks skill. A task is complete only when its PR merges. Never edit CONTRACT.md outside a lane:contract issue.
 
 Before calling the work done: review every UI file against the web-design-guidelines skill and fix what it finds, then follow verification-before-completion (fresh build + lint, read the exit codes).
 <!-- hackathon-kit:end -->"
@@ -267,7 +284,7 @@ if [ "$CLAUDE" = 1 ]; then
   write_block "$TARGET/CLAUDE.md" "<!-- hackathon-kit:start -->
 @AGENTS.md
 
-Claude Code: skills live in .claude/skills. Use \`/ponytail lite\` at the start of a session; \`/grill-with-docs\` and \`/impeccable\` are slash commands.
+Claude Code: skills live in .claude/skills. Use \`/ponytail lite\` at the start of a session; \`/grill-with-docs\`, \`/impeccable\` and \`/lane <web|core|gpu>\` are slash commands.
 <!-- hackathon-kit:end -->"
 
   # Impeccable's design detector: per-edit checks + a deep pass on Stop. Shared, so every Claude user gets it.

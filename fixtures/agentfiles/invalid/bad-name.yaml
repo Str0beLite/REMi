@@ -1,0 +1,7 @@
+name: Bad Name
+purpose: x
+channels: [general]
+triggers: [mention]
+tools: [sh]
+budget: {turns: 5, minutes: 5}
+adapters: []

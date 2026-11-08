@@ -1,0 +1,5 @@
+interface:
+  display_name: "lane"
+  short_description: "Build loop for one REMi lane"
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Str0beLite/REMi/contract/agentfile.schema.json",
+  "title": "REMi Agentfile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "purpose",
+    "channels",
+    "triggers",
+    "tools",
+    "budget",
+    "adapters"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]{2,32}$"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "channels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]{1,32}$"
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "mention",
+          "dm",
+          "every_message",
+          "sleep_event"
+        ]
+      }
+    },
+    "tools": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "anyOf": [
+          {
+            "enum": [
+              "sh",
+              "fetch",
+              "say",
+              "note",
+              "propose_tool",
+              "registry:*"
+            ]
+          },
+          {
+            "type": "string",
+            "pattern": "^registry:[a-z][a-z0-9_]{1,31}$"
+          }
+        ]
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turns",
+        "minutes"
+      ],
+      "properties": {
+        "turns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "minutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60
+        }
+      }
+    },
+    "adapters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "weight"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,48}$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          }
+        }
+      }
+    }
+  }
+}

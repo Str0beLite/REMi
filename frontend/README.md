@@ -1,10 +1,13 @@
-# Frontend
+# Frontend (lane:web)
 
-Empty until the stack is picked. Scaffold straight into this folder, for example:
+React + Vite + the SpacetimeDB TypeScript SDK. The views to build are in [master-plan §10](../docs/master-plan.md); the data they read is in [CONTRACT.md](../CONTRACT.md) §3 and §6.
 
 ```bash
-npm create vite@latest . -- --template react-ts   # React + Vite
-npx create-next-app@latest .                       # Next.js (can also cover the backend)
+npm ci
+npm run dev        # http://localhost:5173
+npm run build && npm run lint   # what CI runs
 ```
 
-Once it runs, replace this README with: how to install, how to run, and the env vars it needs.
+Client bindings come from the module: `spacetime generate --lang typescript --out-dir src/module_bindings --project-path ../backend/module` (needs the `spacetime` CLI; the first lane:web frontend issue sets this up).
+
+Env (`frontend/.env.local`): `VITE_STDB_URL` (`ws://127.0.0.1:3000` locally), `VITE_STDB_DB` (`remi`).
